@@ -1,0 +1,765 @@
+'use client';
+
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  integrationsAPI,
+  TRIGGER_OPTIONS,
+  TemplateVariable,
+} from '@/lib/api/integrations';
+import {
+  ArrowLeft,
+  Loader2,
+  AlertCircle,
+  Info,
+  Check,
+  Link as LinkIcon,
+  Webhook,
+  HelpCircle,
+} from 'lucide-react';
+import { SlackIcon } from '@/components/icons/SlackIcon';
+import { IntercomIcon } from '@/components/icons/IntercomIcon';
+import { DiscordIcon } from '@/components/icons/DiscordIcon';
+import { TeamsIcon } from '@/components/icons/TeamsIcon';
+import { useAuth } from '@/contexts/AuthContext';
+
+type IntegrationType = 'slack' | 'intercom' | 'discord' | 'teams';
+type ConnectionMethod = 'oauth' | 'webhook';
+
+// Discord is webhook-only — the backend validator accepts only these two hosts
+// (discordapp.com is the legacy host still issued by some servers). Mirrored
+// here for a good client-side error message; the backend is authoritative.
+const DISCORD_WEBHOOK_URL_PREFIXES = [
+  'https://discord.com/api/webhooks/',
+  'https://discordapp.com/api/webhooks/',
+];
+
+function isValidDiscordWebhookUrl(url: string): boolean {
+  return DISCORD_WEBHOOK_URL_PREFIXES.some(prefix => url.startsWith(prefix));
+}
+
+// Teams is webhook-only. Classic URLs live on outlook.office.com; Workflows
+// URLs always carry a tenant subdomain (https://<tenant>.webhook.office.com/
+// webhookb2/…), so the Workflows host is matched on its suffix, not a fixed
+// prefix — this mirrors the backend TeamsWebhookCreateRequest validator
+// exactly, so front and back agree on what a valid URL is.
+const TEAMS_WEBHOOK_URL_PREFIXES = [
+  'https://outlook.office.com/webhook/',
+  'https://webhook.office.com/webhookb2/',
+];
+
+function isValidTeamsWebhookUrl(url: string): boolean {
+  if (TEAMS_WEBHOOK_URL_PREFIXES.some(prefix => url.startsWith(prefix))) {
+    return true;
+  }
+  if (!url.startsWith('https://')) {
+    return false;
+  }
+  const rest = url.slice('https://'.length);
+  const slash = rest.indexOf('/');
+  const host = slash === -1 ? rest : rest.slice(0, slash);
+  const path = slash === -1 ? '' : rest.slice(slash + 1);
+  return host.endsWith('webhook.office.com') && path.startsWith('webhookb2/');
+}
+
+function NewIntegrationContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [templateVariables, setTemplateVariables] = useState<TemplateVariable[]>([]);
+  const [defaultTemplate, setDefaultTemplate] = useState('');
+  const [copiedVar, setCopiedVar] = useState<string | null>(null);
+  const [integrationType, setIntegrationType] = useState<IntegrationType>(
+    (searchParams.get('type') as IntegrationType) || 'slack'
+  );
+  const [connectionMethod, setConnectionMethod] = useState<ConnectionMethod>('oauth');
+  const [oauthLoading, setOauthLoading] = useState(false);
+
+  const [form, setForm] = useState({
+    name: '',
+    webhook_url: '',
+    triggers: ['urgent'] as string[],
+    digest_time: '09:00',
+    message_template: '',
+  });
+
+  // Only admin/owner can manage integrations
+  const isAdminOrOwner = user?.role === 'owner' || user?.role === 'admin';
+
+  // Redirect non-admin/owner to preferences
+  useEffect(() => {
+    if (user && user.role !== 'owner' && user.role !== 'admin') {
+      router.replace('/settings/preferences');
+    }
+  }, [user, router]);
+
+  useEffect(() => {
+    // Don't fetch if user is not admin/owner (will be redirected)
+    if (user && user.role !== 'owner' && user.role !== 'admin') {
+      return;
+    }
+
+    const loadTemplateVariables = async () => {
+      try {
+        const data = await integrationsAPI.getTemplateVariables();
+        setTemplateVariables(data.variables);
+        setDefaultTemplate(data.default_template);
+        setForm(prev => ({ ...prev, message_template: data.default_template }));
+      } catch (err) {
+        console.error('Failed to load template variables:', err);
+      }
+    };
+    loadTemplateVariables();
+  }, []);
+
+  const handleOAuthConnect = async () => {
+    if (!form.name) {
+      setError('Please enter an integration name first');
+      return;
+    }
+
+    setError(null);
+    setOauthLoading(true);
+
+    try {
+      const data = await integrationsAPI.getSlackOAuthUrl(form.name);
+      window.location.href = data.auth_url;
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to initiate OAuth. Make sure SLACK_CLIENT_ID is configured.');
+      setOauthLoading(false);
+    }
+  };
+
+  const handleIntercomOAuth = async () => {
+    if (!form.name.trim()) {
+      setError('Please enter a name for the integration');
+      return;
+    }
+
+    setError(null);
+    setOauthLoading(true);
+
+    try {
+      const { auth_url } = await integrationsAPI.getIntercomOAuthUrl(form.name.trim());
+      window.location.href = auth_url;
+    } catch (err: any) {
+      setError(err.response?.data?.detail?.message || err.response?.data?.detail || 'Failed to start Intercom OAuth');
+      setOauthLoading(false);
+    }
+  };
+
+  const handleWebhookSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (integrationType === 'discord' && !isValidDiscordWebhookUrl(form.webhook_url)) {
+      setError('Discord webhook URLs must start with https://discord.com/api/webhooks/ or https://discordapp.com/api/webhooks/');
+      return;
+    }
+
+    if (integrationType === 'teams' && !isValidTeamsWebhookUrl(form.webhook_url)) {
+      setError('Invalid Teams webhook URL. Must start with https://outlook.office.com/webhook/ or https://<tenant>.webhook.office.com/webhookb2/');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const payload = {
+        name: form.name,
+        webhook_url: form.webhook_url,
+        triggers: form.triggers,
+        digest_time: form.digest_time,
+        message_template: form.message_template || undefined,
+      };
+      if (integrationType === 'discord') {
+        await integrationsAPI.createDiscordWebhook(payload);
+      } else if (integrationType === 'teams') {
+        await integrationsAPI.createTeamsWebhook(payload);
+      } else {
+        await integrationsAPI.createSlackWebhook(payload);
+      }
+      router.push('/settings/integrations');
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to create integration');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleTrigger = (trigger: string) => {
+    setForm(prev => ({
+      ...prev,
+      triggers: prev.triggers.includes(trigger)
+        ? prev.triggers.filter(t => t !== trigger)
+        : [...prev.triggers, trigger],
+    }));
+  };
+
+  const insertVariable = (varName: string) => {
+    const textarea = document.getElementById('message_template') as HTMLTextAreaElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = form.message_template;
+      const variable = `{{${varName}}}`;
+      const newText = text.substring(0, start) + variable + text.substring(end);
+      setForm(prev => ({ ...prev, message_template: newText }));
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + variable.length, start + variable.length);
+      }, 0);
+    }
+  };
+
+  const needsDigestTime = form.triggers.includes('daily_digest') || form.triggers.includes('weekly_digest');
+
+  // Members are redirected to preferences — never render the admin surface.
+  if (user && !isAdminOrOwner) {
+    return null;
+  }
+
+  const headerIconBg =
+    integrationType === 'intercom'
+      ? 'bg-[#1F8DED]/10'
+      : integrationType === 'discord'
+      ? 'bg-[#5865F2]/10'
+      : integrationType === 'teams'
+      ? 'bg-[#6264A7]/10'
+      : 'bg-secondary';
+  const headerIcon =
+    integrationType === 'intercom' ? (
+      <IntercomIcon className="w-8 h-8" />
+    ) : integrationType === 'discord' ? (
+      <DiscordIcon className="w-8 h-8" />
+    ) : integrationType === 'teams' ? (
+      <TeamsIcon className="w-8 h-8" />
+    ) : (
+      <SlackIcon className="w-8 h-8" />
+    );
+  const headerTitle =
+    integrationType === 'intercom'
+      ? 'New Intercom Integration'
+      : integrationType === 'discord'
+      ? 'New Discord Integration'
+      : integrationType === 'teams'
+      ? 'New Teams Integration'
+      : 'New Slack Integration';
+  const headerDescription =
+    integrationType === 'intercom'
+      ? 'Connect Rereflect to your Intercom workspace'
+      : integrationType === 'discord'
+      ? 'Connect Rereflect to a Discord channel via webhook'
+      : integrationType === 'teams'
+      ? 'Connect Rereflect to a Teams channel via webhook'
+      : 'Connect Rereflect to a Slack channel';
+
+  return (
+    <div className="min-h-screen pattern-bg">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Header */}
+        <div className="animate-fade-in">
+          <Link
+            href="/settings/integrations"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Back to Integrations
+          </Link>
+          <div className="flex items-center space-x-3">
+            <div className={`p-3 rounded-xl ${headerIconBg}`}>
+              {headerIcon}
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">{headerTitle}</h1>
+              <p className="text-muted-foreground">{headerDescription}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Integration Type Selector */}
+        <Card className="animate-slide-up">
+          <CardHeader>
+            <CardTitle>Integration Type</CardTitle>
+            <CardDescription>Choose which service to connect</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button
+                type="button"
+                onClick={() => { setIntegrationType('slack'); setConnectionMethod('oauth'); setError(null); }}
+                className={`p-4 rounded-lg border-2 text-left transition-all ${
+                  integrationType === 'slack'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${integrationType === 'slack' ? 'bg-[#4A154B]/10' : 'bg-secondary'}`}>
+                    <SlackIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Slack</h4>
+                    <p className="text-xs text-muted-foreground">Get feedback alerts in your channels</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setIntegrationType('intercom'); setConnectionMethod('oauth'); setError(null); }}
+                className={`p-4 rounded-lg border-2 text-left transition-all ${
+                  integrationType === 'intercom'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${integrationType === 'intercom' ? 'bg-[#1F8DED]/10' : 'bg-secondary'}`}>
+                    <IntercomIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Intercom</h4>
+                    <p className="text-xs text-muted-foreground">Analyze support conversations with AI</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setIntegrationType('discord'); setConnectionMethod('webhook'); setError(null); }}
+                className={`p-4 rounded-lg border-2 text-left transition-all ${
+                  integrationType === 'discord'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${integrationType === 'discord' ? 'bg-[#5865F2]/10' : 'bg-secondary'}`}>
+                    <DiscordIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Discord</h4>
+                    <p className="text-xs text-muted-foreground">Get feedback alerts in your Discord server</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setIntegrationType('teams'); setConnectionMethod('webhook'); setError(null); }}
+                className={`p-4 rounded-lg border-2 text-left transition-all ${
+                  integrationType === 'teams'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${integrationType === 'teams' ? 'bg-[#6264A7]/10' : 'bg-secondary'}`}>
+                    <TeamsIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Microsoft Teams</h4>
+                    <p className="text-xs text-muted-foreground">Get feedback alerts in your Teams channels</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Integration Name (always shown) */}
+        <Card className="animate-slide-up">
+          <CardHeader>
+            <CardTitle>Integration Name</CardTitle>
+            <CardDescription>Give your integration a descriptive name</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Input
+              id="name"
+              placeholder="e.g., #feedback-alerts, Product Team Channel"
+              value={form.name}
+              onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
+              required
+            />
+          </CardContent>
+        </Card>
+
+        {/* Connection Method Selection (Slack only) */}
+        {integrationType === 'slack' && (
+          <Card className="animate-slide-up stagger-1">
+            <CardHeader>
+              <CardTitle>Connection Method</CardTitle>
+              <CardDescription>Choose how to connect to Slack</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* OAuth Option */}
+                <button
+                  type="button"
+                  onClick={() => setConnectionMethod('oauth')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    connectionMethod === 'oauth'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${connectionMethod === 'oauth' ? 'bg-primary/10' : 'bg-secondary'}`}>
+                      <LinkIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">Connect with Slack</h4>
+                      <span className="text-xs text-green-600 dark:text-green-400">Recommended</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    One-click connection via Slack OAuth. No manual setup required.
+                  </p>
+                </button>
+
+                {/* Webhook Option */}
+                <button
+                  type="button"
+                  onClick={() => setConnectionMethod('webhook')}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    connectionMethod === 'webhook'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${connectionMethod === 'webhook' ? 'bg-primary/10' : 'bg-secondary'}`}>
+                      <Webhook className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold">Webhook URL</h4>
+                      <span className="text-xs text-muted-foreground">Manual setup</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Manually configure an Incoming Webhook from your Slack app.
+                  </p>
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Slack OAuth Flow */}
+        {integrationType === 'slack' && connectionMethod === 'oauth' && (
+          <Card className="animate-slide-up stagger-2">
+            <CardHeader>
+              <CardTitle>Connect to Slack</CardTitle>
+              <CardDescription>
+                Click the button below to authorize Rereflect to post messages to your Slack workspace
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                <h4 className="font-medium mb-2">What happens next:</h4>
+                <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                  <li>You&apos;ll be redirected to Slack to authorize access</li>
+                  <li>Select the channel where you want to receive alerts</li>
+                  <li>You&apos;ll be redirected back to configure alert settings</li>
+                </ol>
+              </div>
+
+              <Button
+                onClick={handleOAuthConnect}
+                disabled={oauthLoading || !form.name}
+                className="w-full"
+                size="lg"
+              >
+                {oauthLoading ? (
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                ) : (
+                  <SlackIcon className="w-5 h-5 mr-2" />
+                )}
+                Connect to Slack
+              </Button>
+
+              {!form.name && (
+                <p className="text-sm text-muted-foreground text-center">
+                  Enter an integration name above to continue
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Intercom OAuth Flow */}
+        {integrationType === 'intercom' && (
+          <Card className="animate-slide-up stagger-1">
+            <CardHeader>
+              <CardTitle>Connect to Intercom</CardTitle>
+              <CardDescription>
+                Click the button below to authorize Rereflect to access your Intercom conversations
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-muted/50 rounded-lg border border-border">
+                <h4 className="font-medium mb-2">What happens next:</h4>
+                <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                  <li>You&apos;ll be redirected to Intercom to authorize access</li>
+                  <li>Grant Rereflect permission to read your conversations</li>
+                  <li>You&apos;ll be redirected back and the integration will be created</li>
+                </ol>
+              </div>
+
+              <Button
+                onClick={handleIntercomOAuth}
+                disabled={oauthLoading || !form.name}
+                className="w-full"
+                size="lg"
+              >
+                {oauthLoading ? (
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                ) : (
+                  <IntercomIcon className="w-5 h-5 mr-2" />
+                )}
+                Connect to Intercom
+              </Button>
+
+              {!form.name && (
+                <p className="text-sm text-muted-foreground text-center">
+                  Enter an integration name above to continue
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Webhook Flow (Slack webhook, Discord, or Teams — both are webhook-only) */}
+        {((integrationType === 'slack' && connectionMethod === 'webhook') || integrationType === 'discord' || integrationType === 'teams') && (
+          <form onSubmit={handleWebhookSubmit} className="space-y-6">
+            {/* Webhook URL */}
+            <Card className="animate-slide-up stagger-2">
+              <CardHeader>
+                <CardTitle>Webhook Configuration</CardTitle>
+                <CardDescription>
+                  {integrationType === 'discord'
+                    ? 'Enter your Discord Incoming Webhook URL'
+                    : integrationType === 'teams'
+                    ? 'Enter your Teams webhook URL'
+                    : 'Enter your Slack Incoming Webhook URL'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="webhook_url">Webhook URL</Label>
+                  <Input
+                    id="webhook_url"
+                    type="url"
+                    placeholder={
+                      integrationType === 'discord'
+                        ? 'https://discord.com/api/webhooks/...'
+                        : integrationType === 'teams'
+                        ? 'https://outlook.office.com/webhook/...'
+                        : 'https://hooks.slack.com/services/...'
+                    }
+                    value={form.webhook_url}
+                    onChange={e => setForm(prev => ({ ...prev, webhook_url: e.target.value }))}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {integrationType === 'discord'
+                      ? 'Get this from Discord: Server Settings → Integrations → Webhooks → New Webhook → Copy Webhook URL'
+                      : integrationType === 'teams'
+                      ? 'Get this from Teams: channel → ⋯ → Connectors → Incoming Webhook, or from a Power Automate Workflows connector'
+                      : 'Get this from Slack: App Settings → Incoming Webhooks → Add New Webhook'}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Triggers */}
+            <Card className="animate-slide-up stagger-3">
+              <CardHeader>
+                <CardTitle>Alert Triggers</CardTitle>
+                <CardDescription>Choose when to send alerts to this channel</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {TRIGGER_OPTIONS.map(opt => (
+                  <div key={opt.value} className="flex items-start space-x-3">
+                    <Checkbox
+                      id={`trigger-${opt.value}`}
+                      checked={form.triggers.includes(opt.value)}
+                      onCheckedChange={() => toggleTrigger(opt.value)}
+                    />
+                    <div className="grid gap-0.5">
+                      <Label htmlFor={`trigger-${opt.value}`} className="font-medium cursor-pointer">
+                        {opt.label}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">{opt.description}</p>
+                    </div>
+                  </div>
+                ))}
+
+                {needsDigestTime && (
+                  <div className="mt-4 pt-4 border-t border-border">
+                    <Label htmlFor="digest_time">Digest Time (UTC)</Label>
+                    <Input
+                      id="digest_time"
+                      type="time"
+                      value={form.digest_time}
+                      onChange={e => setForm(prev => ({ ...prev, digest_time: e.target.value }))}
+                      className="w-32 mt-2"
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Message Template */}
+            <Card className="animate-slide-up stagger-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Message Template
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="w-4 h-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-sm">
+                        <p>Customize the message format using variables. Click a variable below to insert it.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </CardTitle>
+                <CardDescription>
+                  {integrationType === 'discord'
+                    ? 'Customize the message sent to Discord'
+                    : integrationType === 'teams'
+                    ? 'Customize the message sent to Teams'
+                    : 'Customize the message sent to Slack'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Variable Pills */}
+                <div>
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Available Variables (click to insert)
+                  </Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {templateVariables.map(v => (
+                      <TooltipProvider key={v.name}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={() => insertVariable(v.name)}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-mono bg-secondary hover:bg-secondary/80 rounded-md transition-colors"
+                            >
+                              {`{{${v.name}}}`}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-xs">
+                            <p className="font-medium">{v.description}</p>
+                            <p className="text-xs text-muted-foreground mt-1">Example: {v.example}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Conditional Blocks Help */}
+                <div className="p-3 bg-muted/50 rounded-lg border border-border">
+                  <div className="flex items-start gap-2">
+                    <HelpCircle className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <p className="font-medium text-foreground">Conditional Blocks</p>
+                      <p>
+                        Use <code className="bg-secondary px-1 rounded">{`{{#variable}}`}</code>...<code className="bg-secondary px-1 rounded">{`{{/variable}}`}</code> to show content only when a variable has a value.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Template Editor */}
+                <div className="space-y-2">
+                  <Label htmlFor="message_template">Message Template</Label>
+                  <Textarea
+                    id="message_template"
+                    value={form.message_template}
+                    onChange={e => setForm(prev => ({ ...prev, message_template: e.target.value }))}
+                    placeholder="Enter your custom message template..."
+                    className="font-mono text-sm min-h-[200px]"
+                  />
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      {integrationType === 'discord'
+                        ? 'Discord markdown: **bold**, *italic*, `code`, > quote'
+                        : integrationType === 'teams'
+                        ? 'Teams MessageCard text: plain text (links auto-link; markdown not supported)'
+                        : 'Slack mrkdwn: *bold*, _italic_, `code`, > quote'}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setForm(prev => ({ ...prev, message_template: defaultTemplate }))}
+                    >
+                      Reset to Default
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-3">
+              <Link href="/settings/integrations">
+                <Button type="button" variant="outline">Cancel</Button>
+              </Link>
+              <Button type="submit" disabled={loading || !form.name || !form.webhook_url}>
+                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Create Integration
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="p-4 bg-destructive/10 text-destructive rounded-lg flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+export default function NewIntegrationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen pattern-bg">
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        </main>
+      </div>
+    }>
+      <NewIntegrationContent />
+    </Suspense>
+  );
+}

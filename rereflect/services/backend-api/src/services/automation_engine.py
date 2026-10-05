@@ -1,0 +1,1069 @@
+"""
+AutomationEngine — Phase 2 execution engine for AI Workflow Automation (M4.4).
+
+Evaluates active automation rules against events and fires their actions.
+
+Dispatch points (callers):
+- worker-service analysis.py  → after feedback analysis
+- health_score_service.py     → after health score recomputation
+
+Both call sites wrap engine.evaluate() in try/except so that any engine
+failure never breaks the main processing flow.
+"""
+
+import logging
+import os
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
+import redis
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from src.models.automation_execution import AutomationExecution
+from src.models.automation_rule import AutomationRule
+from src.models.customer_health import CustomerHealth
+from src.models.feedback import FeedbackItem
+from src.models.integration import Integration
+from src.services.usage_trend_severity import is_worsening_transition
+
+logger = logging.getLogger(__name__)
+
+# Channels _execute_notify knows how to deliver. Any other string in a
+# rule's `channels` config is recorded as a loud error instead of being
+# silently dropped — see _execute_notify.
+KNOWN_NOTIFY_CHANNELS = {"dashboard", "email", "slack", "teams"}
+
+
+# ---------------------------------------------------------------------------
+# Redis client (DB 1 — same database used by Celery broker; cooldowns use
+# dedicated key prefix so they never collide with Celery's internal keys)
+# ---------------------------------------------------------------------------
+
+_redis_client: Optional[redis.Redis] = None
+
+COOLDOWN_KEY_PREFIX = "automation_cooldown"
+
+
+def _get_redis() -> Optional[redis.Redis]:
+    """Return a shared Redis client, or None if Redis is unavailable."""
+    global _redis_client
+    if _redis_client is None:
+        try:
+            host = os.getenv("REDIS_HOST", "localhost")
+            port = int(os.getenv("REDIS_PORT", 6379))
+            password = os.getenv("REDIS_PASSWORD") or None
+            _redis_client = redis.Redis(
+                host=host,
+                port=port,
+                password=password,
+                db=1,
+                decode_responses=True,
+                socket_connect_timeout=2,
+            )
+            _redis_client.ping()
+        except Exception as exc:
+            logger.warning("AutomationEngine: Redis unavailable — cooldowns disabled: %s", exc)
+            _redis_client = None
+    return _redis_client
+
+
+# ---------------------------------------------------------------------------
+# Engine
+# ---------------------------------------------------------------------------
+
+class AutomationEngine:
+    """
+    Evaluates active automation rules and executes their actions.
+
+    Usage:
+        engine = AutomationEngine(db)
+        results = engine.evaluate(org_id, "health_score_threshold", context)
+
+    Context shape varies by event type:
+        health_score_threshold:      {"health_score": int, "customer_email": str, "feedback_id": int}
+        sentiment_pattern:           {"customer_email": str, "feedback_id": int}
+        churn_risk_level_change:     {"new_risk_level": str, "old_risk_level": str, "customer_email": str, "feedback_id": int}
+        feedback_category_match:     {"customer_email": str, "feedback_id": int}
+        churn_probability_threshold: {"churn_probability": float, "customer_email": str}
+        usage_trend:                 {"old_trend_state": str, "new_trend_state": str, "customer_email": str}
+
+    Rule `mode` gating (see AutomationRule.mode):
+        off:    rule is never selected by evaluate().
+        shadow: trigger + cooldown are evaluated and an AutomationExecution is
+                logged (status="shadow"), but no actions are executed.
+        active: full evaluation — trigger, cooldown, actions, logging, stats.
+    """
+
+    def __init__(self, db: Session) -> None:
+        self.db = db
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def evaluate(self, org_id: int, event_type: str, context: Dict[str, Any]) -> List[Dict]:
+        """
+        Evaluate all active rules for *org_id* that match *event_type*.
+
+        For each matching rule:
+        1. Check the trigger condition against *context*.
+        2. Check per-customer cooldown in Redis.
+        3. If both pass, execute all actions, log the execution, update stats.
+
+        Returns a list of execution summary dicts, one per rule that fired.
+        """
+        rules: List[AutomationRule] = (
+            self.db.query(AutomationRule)
+            .filter(
+                AutomationRule.organization_id == org_id,
+                AutomationRule.trigger_type == event_type,
+                AutomationRule.mode.in_(["shadow", "active"]),
+            )
+            .all()
+        )
+
+        results = []
+        for rule in rules:
+            try:
+                result = self._evaluate_rule(rule, context)
+                if result is not None:
+                    results.append(result)
+            except Exception as exc:
+                logger.error(
+                    "AutomationEngine: unhandled error evaluating rule %s: %s",
+                    rule.id, exc,
+                )
+
+        return results
+
+    # ------------------------------------------------------------------
+    # Internal — rule evaluation
+    # ------------------------------------------------------------------
+
+    def _evaluate_rule(
+        self, rule: AutomationRule, context: Dict[str, Any]
+    ) -> Optional[Dict]:
+        """Evaluate a single rule. Returns execution summary or None if not fired."""
+        customer_email: str = context.get("customer_email", "")
+        feedback_id: Optional[int] = context.get("feedback_id")
+
+        # 1. Trigger check
+        if not self._check_trigger(rule, context):
+            return None
+
+        # 2. Cooldown check
+        if self._check_cooldown(rule.id, customer_email):
+            logger.debug(
+                "AutomationEngine: rule %s in cooldown for customer %s — skipping",
+                rule.id, customer_email,
+            )
+            return None
+
+        # 3. Fetch feedback object (may be absent for health-score events)
+        feedback: Optional[FeedbackItem] = None
+        if feedback_id:
+            feedback = self.db.query(FeedbackItem).filter(
+                FeedbackItem.id == feedback_id
+            ).first()
+
+        # 4. Execute actions — skipped entirely in shadow mode
+        if rule.mode == "shadow":
+            action_results: List[Dict] = []
+            status = "shadow"
+        else:
+            action_results = self._execute_actions(rule, feedback, context)
+
+            # 5. Determine overall status
+            errors = [r for r in action_results if r.get("error")]
+            if not errors:
+                status = "success"
+            elif len(errors) < len(action_results):
+                status = "partial_failure"
+            else:
+                status = "failed"
+
+        # 6. Log execution
+        self._log_execution(
+            rule=rule,
+            feedback=feedback,
+            customer_email=customer_email,
+            trigger_snapshot=context,
+            action_results=action_results,
+            status=status,
+        )
+
+        # 7. Update rule stats
+        rule.execution_count = (rule.execution_count or 0) + 1
+        rule.last_executed_at = datetime.utcnow()
+
+        # 8. Set cooldown
+        self._set_cooldown(rule.id, customer_email, rule.cooldown_hours)
+
+        self.db.commit()
+
+        return {
+            "rule_id": rule.id,
+            "rule_name": rule.name,
+            "status": status,
+            "actions": action_results,
+        }
+
+    # ------------------------------------------------------------------
+    # Internal — trigger evaluation
+    # ------------------------------------------------------------------
+
+    def _check_trigger(self, rule: AutomationRule, context: Dict[str, Any]) -> bool:
+        """Dispatch to the correct trigger checker based on rule.trigger_type."""
+        t = rule.trigger_type
+        cfg = rule.trigger_config or {}
+
+        if t == "health_score_threshold":
+            return self._trigger_health_score(cfg, context)
+        if t == "sentiment_pattern":
+            return self._trigger_sentiment_pattern(cfg, context)
+        if t == "churn_risk_level_change":
+            return self._trigger_churn_risk_level(cfg, context)
+        if t == "feedback_category_match":
+            return self._trigger_feedback_category(cfg, context)
+        if t == "churn_probability_threshold":
+            return self._trigger_churn_probability(cfg, context)
+        if t == "usage_trend":
+            return self._trigger_usage_trend(cfg, context)
+
+        logger.warning("AutomationEngine: unknown trigger type '%s'", t)
+        return False
+
+    def _trigger_health_score(self, cfg: dict, context: dict) -> bool:
+        """Fire when health_score < threshold (direction=below)."""
+        threshold = cfg.get("threshold", 30)
+        health_score = context.get("health_score")
+        if health_score is None:
+            return False
+        # PRD only defines direction=below; treat absence the same way
+        return int(health_score) < int(threshold)
+
+    # ------------------------------------------------------------------
+    # MIRRORED IN THE WORKER — change both or they silently diverge.
+    #
+    # `_trigger_sentiment_pattern` and `_trigger_feedback_category` below are
+    # ported verbatim into
+    # `services/worker-service/src/services/automation_feedback_trigger.py`.
+    # The worker cannot import this module (its image copies only
+    # worker-service/src + analysis-engine/src/analyzer), and these two
+    # triggers are dispatched ONLY from the worker's analysis task — so the
+    # worker mirror, not this class, is what actually evaluates them in
+    # production. This code path runs for backend-dispatched triggers only.
+    #
+    # The cooldown key scheme is deliberately identical in both
+    # (`automation_cooldown:{rule_id}:{customer_email}`, Redis DB 1) so a
+    # cooldown set by either process is honoured by the other.
+    # ------------------------------------------------------------------
+
+    def _trigger_sentiment_pattern(self, cfg: dict, context: dict) -> bool:
+        """Fire when customer has >= count negative feedbacks in last *days* days."""
+        required_count: int = cfg.get("count", 3)
+        days: int = cfg.get("days", 7)
+        sentiment: str = cfg.get("sentiment", "negative")
+        customer_email: str = context.get("customer_email", "")
+
+        if not customer_email:
+            return False
+
+        cutoff = datetime.utcnow() - timedelta(days=days)
+
+        # Determine org_id from any recent feedback by this customer
+        sample = (
+            self.db.query(FeedbackItem.organization_id)
+            .filter(FeedbackItem.customer_email == customer_email)
+            .first()
+        )
+        if not sample:
+            return False
+        org_id = sample.organization_id
+
+        count = (
+            self.db.query(func.count(FeedbackItem.id))
+            .filter(
+                FeedbackItem.organization_id == org_id,
+                FeedbackItem.customer_email == customer_email,
+                FeedbackItem.sentiment_label == sentiment,
+                FeedbackItem.created_at >= cutoff,
+            )
+            .scalar()
+            or 0
+        )
+        return int(count) >= int(required_count)
+
+    def _trigger_churn_risk_level(self, cfg: dict, context: dict) -> bool:
+        """Fire when new_risk_level matches target_level."""
+        target_level: str = cfg.get("target_level", "critical")
+        new_risk_level: str = context.get("new_risk_level", "")
+
+        if new_risk_level != target_level:
+            return False
+
+        # Optional: only fire if coming from a specific set of source levels
+        from_levels: Optional[List[str]] = cfg.get("from_levels")
+        if from_levels:
+            old_risk_level: str = context.get("old_risk_level", "")
+            if old_risk_level not in from_levels:
+                return False
+
+        return True
+
+    def _trigger_feedback_category(self, cfg: dict, context: dict) -> bool:
+        """Fire when feedback categories intersect with configured categories."""
+        configured_categories: List[str] = cfg.get("categories", [])
+        if not configured_categories:
+            return False
+
+        feedback_id: Optional[int] = context.get("feedback_id")
+        if not feedback_id:
+            return False
+
+        feedback = self.db.query(FeedbackItem).filter(
+            FeedbackItem.id == feedback_id
+        ).first()
+        if not feedback:
+            return False
+
+        # Build feedback's effective categories
+        feedback_categories: List[str] = []
+        if feedback.pain_point_category:
+            feedback_categories.append(feedback.pain_point_category)
+        if feedback.feature_request_category:
+            feedback_categories.append(feedback.feature_request_category)
+        if feedback.urgent_category:
+            feedback_categories.append(feedback.urgent_category)
+        if feedback.tags and isinstance(feedback.tags, list):
+            feedback_categories.extend(feedback.tags)
+
+        # Check category intersection
+        if not set(configured_categories).intersection(set(feedback_categories)):
+            return False
+
+        # Optional urgency filter
+        required_urgent = cfg.get("is_urgent")
+        if required_urgent is not None and bool(required_urgent) != bool(feedback.is_urgent):
+            return False
+
+        return True
+
+    def _trigger_churn_probability(self, cfg: dict, context: dict) -> bool:
+        """Fire when churn_probability >= threshold (default 0.7)."""
+        p = context.get("churn_probability")
+        if p is None:
+            return False
+        return float(p) >= float(cfg.get("threshold", 0.7))
+
+    def _trigger_usage_trend(self, cfg: dict, context: dict) -> bool:
+        """Fire on a strictly-worsening trend transition into a configured state.
+
+        Edge-triggered: an already-declining customer produces no transition, so
+        unlike churn_probability_threshold this needs no activation-time cooldown
+        seeding. Any transition touching `insufficient_history` is a baseline
+        observation, not a change, and never fires (PRD M2).
+        """
+        states = cfg.get("states") or []
+        old_state = context.get("old_trend_state")
+        new_state = context.get("new_trend_state")
+        if new_state not in states:
+            return False
+        return is_worsening_transition(old_state, new_state)
+
+    # ------------------------------------------------------------------
+    # Internal — cooldown
+    # ------------------------------------------------------------------
+
+    def _check_cooldown(self, rule_id: int, customer_email: str) -> bool:
+        """Return True if this rule/customer pair is still in cooldown (skip it)."""
+        r = _get_redis()
+        if r is None:
+            return False  # Redis unavailable → always allow
+        key = f"{COOLDOWN_KEY_PREFIX}:{rule_id}:{customer_email}"
+        try:
+            return bool(r.exists(key))
+        except Exception as exc:
+            logger.warning("AutomationEngine: cooldown check failed: %s", exc)
+            return False
+
+    def _set_cooldown(self, rule_id: int, customer_email: str, hours: int) -> None:
+        """Set Redis cooldown key with TTL = hours * 3600 seconds."""
+        r = _get_redis()
+        if r is None:
+            return
+        key = f"{COOLDOWN_KEY_PREFIX}:{rule_id}:{customer_email}"
+        ttl_seconds = int(hours) * 3600
+        try:
+            r.setex(key, ttl_seconds, "1")
+        except Exception as exc:
+            logger.warning("AutomationEngine: failed to set cooldown: %s", exc)
+
+    # ------------------------------------------------------------------
+    # Internal — action execution
+    # ------------------------------------------------------------------
+
+    def _execute_actions(
+        self,
+        rule: AutomationRule,
+        feedback: Optional[FeedbackItem],
+        context: Dict[str, Any],
+    ) -> List[Dict]:
+        """Execute all rule actions sequentially. Returns list of {type, result, error}."""
+        results: List[Dict] = []
+        for action in (rule.actions or []):
+            action_type: str = action.get("type", "")
+            action_config: dict = action.get("config", {})
+            try:
+                if action_type == "auto_assign":
+                    r = self._execute_assign(action_config, feedback)
+                elif action_type == "change_status":
+                    r = self._execute_change_status(action_config, feedback)
+                elif action_type == "send_notification":
+                    r = self._execute_notify(action_config, feedback, rule)
+                elif action_type == "draft_response":
+                    r = self._execute_draft_response(action_config, feedback)
+                elif action_type == "run_playbook":
+                    r = self._execute_run_playbook(action_config, context, rule)
+                elif action_type == "send_customer_email":
+                    r = self._execute_send_customer_email(action_config, context, rule)
+                else:
+                    r = {"type": action_type, "result": None, "error": f"Unknown action type: {action_type}"}
+            except Exception as exc:
+                logger.error(
+                    "AutomationEngine: action '%s' failed on rule %s: %s",
+                    action_type, rule.id, exc,
+                )
+                r = {"type": action_type, "result": None, "error": str(exc)}
+            results.append(r)
+        return results
+
+    def _execute_assign(self, config: dict, feedback: Optional[FeedbackItem]) -> Dict:
+        """
+        Assign the feedback item.
+
+        assign_to values:
+          "user:{id}"    → assign to specific user
+          "role:owner"   → assign to first org owner
+          "role:admin"   → assign to first org admin
+          "round_robin"  → use round-robin load-balancing
+        """
+        if feedback is None:
+            return {"type": "auto_assign", "result": None, "error": "No feedback object"}
+
+        from src.models.user import User
+        from src.services.workflow_service import round_robin_assign
+
+        assign_to: str = config.get("assign_to", "round_robin")
+        org_id = feedback.organization_id
+        assigned_id: Optional[int] = None
+
+        if assign_to.startswith("user:"):
+            try:
+                user_id = int(assign_to.split(":")[1])
+                user = self.db.query(User).filter(
+                    User.id == user_id,
+                    User.organization_id == org_id,
+                ).first()
+                if user:
+                    assigned_id = user.id
+            except (ValueError, IndexError):
+                pass
+        elif assign_to.startswith("role:"):
+            role = assign_to.split(":")[1]
+            user = (
+                self.db.query(User)
+                .filter(User.organization_id == org_id, User.role == role)
+                .first()
+            )
+            if user:
+                assigned_id = user.id
+        else:
+            # round_robin
+            assigned_id = round_robin_assign(self.db, org_id)
+
+        if assigned_id:
+            feedback.assigned_to = assigned_id
+
+        return {
+            "type": "auto_assign",
+            "result": {"assigned_to": assigned_id},
+            "error": None,
+        }
+
+    def _execute_change_status(self, config: dict, feedback: Optional[FeedbackItem]) -> Dict:
+        """Update feedback.workflow_status to config["status"]."""
+        if feedback is None:
+            return {"type": "change_status", "result": None, "error": "No feedback object"}
+
+        new_status: str = config.get("status", "in_review")
+        old_status = feedback.workflow_status
+        feedback.workflow_status = new_status
+
+        return {
+            "type": "change_status",
+            "result": {"old_status": old_status, "new_status": new_status},
+            "error": None,
+        }
+
+    def _execute_notify(
+        self,
+        config: dict,
+        feedback: Optional[FeedbackItem],
+        rule: AutomationRule,
+    ) -> Dict:
+        """
+        Create in-app / email / Slack notifications for the configured recipients.
+
+        recipients: "assignee" | "admins" | "owner" | "user:{id}"
+        channels:   any non-empty subset of KNOWN_NOTIFY_CHANNELS =
+                    {"dashboard", "email", "slack", "teams"}.
+
+        "dashboard" and "email" are per-recipient (one Notification / email
+        per resolved user id). "slack" is org-wide: it posts once per rule
+        firing to every active `Integration` row with type="slack" for the
+        org, regardless of how many recipients were resolved — Slack has no
+        per-user identity here.
+
+        Any channel string outside KNOWN_NOTIFY_CHANNELS is logged as a
+        warning and recorded as a channel error rather than silently
+        dropped. The returned "error" is `None` only when every requested
+        channel was delivered; otherwise it is a "; "-joined summary of
+        every channel failure, so `_evaluate_rule` computes
+        "partial_failure" (or "failed") instead of a false "success".
+        """
+        from src.models.notification import Notification
+        from src.models.user import User
+
+        org_id = rule.organization_id
+        recipients: str = config.get("recipients", "admins")
+        channels: List[str] = config.get("channels", ["dashboard"])
+        message_template: str = config.get(
+            "message_template",
+            f"Automation '{rule.name}' triggered for feedback #{feedback.id if feedback else '?'}",
+        )
+
+        channel_errors: List[str] = []
+
+        # Resolve recipient user IDs
+        target_user_ids: List[int] = []
+
+        if recipients == "admins":
+            users = (
+                self.db.query(User)
+                .filter(User.organization_id == org_id, User.role.in_(["admin", "owner"]))
+                .all()
+            )
+            target_user_ids = [u.id for u in users]
+        elif recipients == "owner":
+            users = (
+                self.db.query(User)
+                .filter(User.organization_id == org_id, User.role == "owner")
+                .all()
+            )
+            target_user_ids = [u.id for u in users]
+        elif recipients == "assignee":
+            if feedback and feedback.assigned_to:
+                target_user_ids = [feedback.assigned_to]
+        elif recipients.startswith("user:"):
+            try:
+                target_user_ids = [int(recipients.split(":")[1])]
+            except (ValueError, IndexError):
+                pass
+
+        created_count = 0
+        for uid in target_user_ids:
+            if "dashboard" in channels:
+                notification = Notification(
+                    user_id=uid,
+                    organization_id=org_id,
+                    type="automation_trigger",
+                    title=f"Automation: {rule.name}",
+                    message=message_template,
+                    link=f"/feedbacks/{feedback.id}" if feedback else None,
+                    created_at=datetime.utcnow(),
+                    expires_at=datetime.utcnow() + timedelta(days=30),
+                )
+                self.db.add(notification)
+                created_count += 1
+
+            if "email" in channels:
+                # Fire-and-forget email; import lazily to avoid circular deps
+                try:
+                    user = self.db.query(User).filter(User.id == uid).first()
+                    if user:
+                        from src.services.email_service import send_alert_email
+                        send_alert_email(
+                            to_email=user.email,
+                            alert_type="automation_trigger",
+                            alert_data={
+                                "title": f"Automation: {rule.name}",
+                                "description": message_template,
+                            },
+                        )
+                except Exception as exc:
+                    logger.warning("AutomationEngine: email notify failed for user %s: %s", uid, exc)
+
+        # Slack is org-wide and fires once per rule firing, not once per
+        # recipient — posting inside the loop above would duplicate the
+        # message N times for N resolved users.
+        slack_sent = 0
+        if "slack" in channels:
+            integrations = (
+                self.db.query(Integration)
+                .filter(
+                    Integration.organization_id == org_id,
+                    Integration.type == "slack",
+                    Integration.is_active.is_(True),
+                )
+                .all()
+            )
+            if not integrations:
+                channel_errors.append("slack: no active Slack integration configured")
+
+            title = f"Automation: {rule.name}"
+            blocks = [
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": f"*{title}*\n{message_template}"},
+                }
+            ]
+            if feedback is not None:
+                blocks.append(
+                    {
+                        "type": "context",
+                        "elements": [
+                            {"type": "mrkdwn", "text": f"Feedback #{feedback.id}"}
+                        ],
+                    }
+                )
+
+            for integration in integrations:
+                try:
+                    webhook_url = (integration.config or {}).get("webhook_url")
+                    if not webhook_url:
+                        channel_errors.append(
+                            f"slack: integration {integration.id} has no webhook_url"
+                        )
+                        continue
+
+                    from src.api.routes.integrations import send_slack_message
+
+                    res = send_slack_message(
+                        webhook_url=webhook_url, blocks=blocks, text=title
+                    )
+                    if res.get("success"):
+                        slack_sent += 1
+                    else:
+                        channel_errors.append(
+                            f"slack: integration {integration.id}: {res.get('error')}"
+                        )
+                except Exception as exc:
+                    logger.warning(
+                        "AutomationEngine: slack notify failed for integration %s: %s",
+                        integration.id, exc,
+                    )
+                    channel_errors.append(f"slack: integration {integration.id}: {exc}")
+
+        # Teams is org-wide and fires once per rule firing, mirroring the
+        # slack block above.
+        teams_sent = 0
+        if "teams" in channels:
+            integrations = (
+                self.db.query(Integration)
+                .filter(
+                    Integration.organization_id == org_id,
+                    Integration.type == "teams",
+                    Integration.is_active.is_(True),
+                )
+                .all()
+            )
+            if not integrations:
+                channel_errors.append("teams: no active Teams integration configured")
+
+            title = f"Automation: {rule.name}"
+            for integration in integrations:
+                try:
+                    webhook_url = (integration.config or {}).get("webhook_url")
+                    if not webhook_url:
+                        channel_errors.append(
+                            f"teams: integration {integration.id} has no webhook_url"
+                        )
+                        continue
+
+                    from src.api.routes.integrations import send_teams_message
+
+                    res = send_teams_message(
+                        webhook_url=webhook_url, title=title, text=message_template
+                    )
+                    if res.get("success"):
+                        teams_sent += 1
+                    else:
+                        channel_errors.append(
+                            f"teams: integration {integration.id}: {res.get('error')}"
+                        )
+                except Exception as exc:
+                    logger.warning(
+                        "AutomationEngine: teams notify failed for integration %s: %s",
+                        integration.id, exc,
+                    )
+                    channel_errors.append(f"teams: integration {integration.id}: {exc}")
+
+        # Loudness: any channel string outside the known set is a silent
+        # drop unless we log and record it here.
+        for ch in channels:
+            if ch not in KNOWN_NOTIFY_CHANNELS:
+                logger.warning(
+                    "AutomationEngine: unknown notification channel %r on rule %s",
+                    ch, rule.id,
+                )
+                channel_errors.append(f"unknown channel: {ch}")
+
+        return {
+            "type": "send_notification",
+            "result": {
+                "notifications_created": created_count,
+                "slack_sent": slack_sent,
+                "teams_sent": teams_sent,
+            },
+            "error": "; ".join(channel_errors) if channel_errors else None,
+        }
+
+    def _execute_draft_response(
+        self, config: dict, feedback: Optional[FeedbackItem]
+    ) -> Dict:
+        """
+        Generate an AI draft response and persist it as status='draft'.
+
+        Calls the existing response_generator service.  Falls back to a simple
+        canned template if the LLM is unavailable or raises.
+        """
+        if feedback is None:
+            return {"type": "draft_response", "result": None, "error": "No feedback object"}
+
+        from src.models.feedback_response import FeedbackResponse
+
+        tone: str = config.get("tone", "professional")
+
+        # generate_response in response_generator is async; we can't await it here
+        # (engine runs in sync Celery task context). Use a tone-aware canned template
+        # as a starting draft — editable by the assignee before sending.
+        draft_text = (
+            f"Thank you for reaching out. We have received your feedback and appreciate "
+            f"you taking the time to share your experience with us. A member of our team "
+            f"will review this and follow up shortly.\n\n"
+            f"[Tone: {tone}]"
+        )
+
+        response = FeedbackResponse(
+            feedback_id=feedback.id,
+            organization_id=feedback.organization_id,
+            user_id=None,
+            response_text=draft_text,
+            channel="clipboard",
+            source="ai_generated",
+            tone=tone,
+            status="draft",
+        )
+        self.db.add(response)
+
+        return {
+            "type": "draft_response",
+            "result": {"tone": tone, "length": len(draft_text)},
+            "error": None,
+        }
+
+    def _execute_run_playbook(
+        self,
+        config: dict,
+        context: Dict[str, Any],
+        rule: AutomationRule,
+    ) -> Dict:
+        """
+        Auto-run a designated churn playbook for the customer in *context*.
+
+        Reuses the EXISTING playbook execution pipeline: create a
+        ChurnPlaybookExecution row (triggered_by="auto_probability") and
+        enqueue the existing Celery task, exactly as the manual "run
+        playbook" API route does (src/api/routes/playbooks.py::_dispatch_celery).
+        """
+        from src.models.churn_playbook import ChurnPlaybook, ChurnPlaybookExecution
+
+        playbook_id = config.get("playbook_id")
+        if not playbook_id:
+            return {"type": "run_playbook", "result": None, "error": "missing playbook_id"}
+
+        customer_email = context.get("customer_email")
+        if not customer_email:
+            return {"type": "run_playbook", "result": None, "error": "no customer_email in context"}
+
+        playbook = (
+            self.db.query(ChurnPlaybook)
+            .filter(
+                ChurnPlaybook.id == playbook_id,
+                ChurnPlaybook.is_active.is_(True),
+                (ChurnPlaybook.organization_id == rule.organization_id)
+                | (ChurnPlaybook.organization_id.is_(None)),
+            )
+            .first()
+        )
+        if playbook is None:
+            return {
+                "type": "run_playbook",
+                "result": None,
+                "error": "playbook not found / inactive / wrong org",
+            }
+
+        exec_row = ChurnPlaybookExecution(
+            playbook_id=playbook_id,
+            organization_id=rule.organization_id,
+            customer_email=customer_email,
+            triggered_by="auto_probability",
+            triggered_by_user_id=None,
+            status="queued",
+        )
+        self.db.add(exec_row)
+        # COMMIT BEFORE PUBLISH. The worker loads this execution by id; if it
+        # is only flushed, the commit lands later (end of _evaluate_rule) and
+        # the worker finds nothing, leaving the row `queued` forever. A flush
+        # is not enough — the row has to be visible to other connections
+        # before its id is handed to another process.
+        self.db.commit()
+
+        from src.background.celery_client import get_celery_app
+
+        get_celery_app().send_task(
+            "tasks.churn_playbooks.run_playbook", args=[exec_row.id]
+        )
+
+        return {
+            "type": "run_playbook",
+            "result": {"execution_id": exec_row.id, "playbook_id": playbook_id},
+            "error": None,
+        }
+
+    def _execute_send_customer_email(
+        self,
+        config: dict,
+        context: Dict[str, Any],
+        rule: AutomationRule,
+    ) -> Dict:
+        """
+        Email the customer (or their CS owner) with a built-in outreach template.
+
+        Writes an `automation_email_deliveries` audit row (`queued`) and enqueues
+        the worker task `tasks.outreach.send_automation_email`, which is the ONLY
+        place a send actually happens — opt-out, tokenized unsubscribe and the
+        shared per-recipient outreach cooldown are enforced there
+        (`worker-service/src/services/outreach_sender.py`).
+
+        Every skip is loud: an `error` string on the action result and nothing
+        enqueued. The no-key skip additionally leaves a `skipped` row so a
+        self-hoster can see the send never happened (the rest of the skips are
+        evaluator-side decisions with no delivery to audit).
+
+        Unlike the other handlers this one COMMITS: the delivery row must be
+        durable before its id is published to the worker (see the comment at
+        the commit call).
+        """
+        from src.models.automation_email_delivery import AutomationEmailDelivery
+        from src.models.customer_health import CustomerHealth
+        from src.models.organization import Organization
+        from src.models.user import User
+        from src.services import email_service
+        from src.services.outreach_templates import (
+            OUTREACH_TEMPLATES,
+            render_outreach_template,
+        )
+
+        def _err(message: str) -> Dict:
+            return {"type": "send_customer_email", "result": None, "error": message}
+
+        template_key = config.get("template")
+        if template_key not in OUTREACH_TEMPLATES:
+            return _err(f"unknown template key: {template_key}")
+
+        recipient = config.get("recipient", "customer")
+
+        customer_email = (context.get("customer_email") or "").strip().lower()
+        # "__org__" is the worker mirrors' org-wide sentinel — an org-wide
+        # trigger has no customer to email.
+        if not customer_email or customer_email == "__org__":
+            return _err("no customer email (org-wide trigger)")
+
+        health = (
+            self.db.query(CustomerHealth)
+            .filter(
+                CustomerHealth.organization_id == rule.organization_id,
+                CustomerHealth.customer_email == customer_email,
+            )
+            .first()
+        )
+        # A missing health row is NOT archived (mirrors the sender's
+        # missing-row-is-not-opted-out semantics).
+        if health is not None and health.is_archived:
+            return _err("customer archived")
+
+        if not email_service._is_email_enabled():
+            delivery = AutomationEmailDelivery(
+                organization_id=rule.organization_id,
+                rule_id=rule.id,
+                customer_email=customer_email,
+                to_email=customer_email,
+                template_key=template_key,
+                subject="(not rendered — email not configured)",
+                body="",
+                status="skipped",
+                reason="email not configured",
+            )
+            self.db.add(delivery)
+            self.db.commit()
+            return _err("email not configured")
+
+        if recipient == "cs_assignee":
+            if health is None:
+                return _err("no health row for customer")
+            if not health.cs_owner_user_id:
+                return _err("no CS owner assigned")
+            owner = (
+                self.db.query(User)
+                .filter(User.id == health.cs_owner_user_id)
+                .first()
+            )
+            if owner is None or not owner.email:
+                return _err("CS owner has no email")
+            to_email = owner.email
+        else:
+            to_email = customer_email
+
+        org = (
+            self.db.query(Organization)
+            .filter(Organization.id == rule.organization_id)
+            .first()
+        )
+        product_name = (org.product_name_display if org else None) or "Rereflect"
+        customer_name = (health.customer_name if health else "") or ""
+
+        tpl = OUTREACH_TEMPLATES[template_key]
+        # render_outreach_template renders the BODY only — the subject carries
+        # its own {{PRODUCT_NAME}} token.
+        subject = tpl.subject.replace("{{PRODUCT_NAME}}", product_name)
+        body = render_outreach_template(template_key, customer_name, product_name)
+
+        delivery = AutomationEmailDelivery(
+            organization_id=rule.organization_id,
+            rule_id=rule.id,
+            customer_email=customer_email,
+            to_email=to_email,
+            template_key=template_key,
+            subject=subject,
+            body=body,
+            status="queued",
+        )
+        self.db.add(delivery)
+        # COMMIT BEFORE PUBLISH. The worker loads this row by id, and it wins
+        # the race easily: a live run had it log "delivery not found" ~2ms
+        # after the publish, leaving the row `queued` forever and sending
+        # nothing. A flush is not enough — the row has to be visible to other
+        # connections before its id is handed to another process.
+        self.db.commit()
+
+        from src.background.celery_client import get_celery_app
+
+        get_celery_app().send_task(
+            "tasks.outreach.send_automation_email", args=[delivery.id]
+        )
+
+        return {
+            "type": "send_customer_email",
+            "result": {"status": "queued", "delivery_id": delivery.id},
+            "error": None,
+        }
+
+    # ------------------------------------------------------------------
+    # Internal — execution logging
+    # ------------------------------------------------------------------
+
+    def _log_execution(
+        self,
+        *,
+        rule: AutomationRule,
+        feedback: Optional[FeedbackItem],
+        customer_email: str,
+        trigger_snapshot: dict,
+        action_results: List[Dict],
+        status: str,
+    ) -> AutomationExecution:
+        """Persist an AutomationExecution audit record (no commit — caller commits)."""
+        execution = AutomationExecution(
+            rule_id=rule.id,
+            organization_id=rule.organization_id,
+            feedback_id=feedback.id if feedback else None,
+            customer_email=customer_email or None,
+            trigger_snapshot=trigger_snapshot,
+            actions_executed=action_results,
+            status=status,
+            executed_at=datetime.utcnow(),
+        )
+        self.db.add(execution)
+        return execution
+
+
+# ---------------------------------------------------------------------------
+# Activation cooldown-seeding — prevents a "stampede" of fires when a
+# churn_probability_threshold rule transitions INTO mode="active" (see
+# src/api/routes/automations.py::update_rule / create_rule, M4.4 Task 7).
+# ---------------------------------------------------------------------------
+
+def seed_churn_cooldowns(db: Session, rule: AutomationRule) -> int:
+    """
+    Pre-seed the per-(rule,customer) cooldown for every customer currently
+    above *rule*'s churn-probability threshold.
+
+    The churn trigger is level-based, so activating a rule would otherwise
+    fire it for every customer already above threshold on their very next
+    recompute. Seeding the cooldown here (using the SAME Redis key scheme
+    the engine itself uses) means only NEW crossings fire after activation.
+
+    No-op (returns 0, never raises) for:
+      - any trigger_type other than "churn_probability_threshold" (health-
+        based rules fire from the backend health seam and are naturally
+        cooldown-gated on next recompute — out of scope for this slice).
+      - Redis being unavailable.
+
+    Returns the count of customers seeded (also usable as a "would-run"
+    preview number).
+    """
+    if rule.trigger_type != "churn_probability_threshold":
+        return 0
+
+    r = _get_redis()
+    if r is None:
+        return 0
+
+    threshold = float((rule.trigger_config or {}).get("threshold", 0.7))
+
+    customers = (
+        db.query(CustomerHealth)
+        .filter(
+            CustomerHealth.organization_id == rule.organization_id,
+            CustomerHealth.churn_probability.isnot(None),
+            CustomerHealth.churn_probability >= threshold,
+        )
+        .all()
+    )
+
+    engine = AutomationEngine(db)
+    count = 0
+    for customer in customers:
+        try:
+            engine._set_cooldown(rule.id, customer.customer_email, rule.cooldown_hours)
+            count += 1
+        except Exception as exc:
+            logger.warning(
+                "seed_churn_cooldowns: failed to seed cooldown for rule %s customer %s: %s",
+                rule.id, customer.customer_email, exc,
+            )
+
+    return count

@@ -1,0 +1,147 @@
+import { describe, it, expect } from 'vitest';
+
+// Import the eventIconMap directly — it is the pure data structure we want to test.
+// We import the module after it has been patched by vi.mock if needed; here we need
+// the real implementation so we import it directly.
+import { eventIconMap } from '../../components/customers/ActivityTimeline';
+
+describe('eventIconMap — new usage/churn event types', () => {
+  const newTypes = [
+    'churned',
+    'churn_recovered',
+    'usage_first_seen',
+    'usage_feature_adopted',
+    'usage_reactivated',
+  ] as const;
+
+  it.each(newTypes)('%s has an icon defined (not undefined)', (type) => {
+    expect(eventIconMap[type]).toBeDefined();
+    expect(eventIconMap[type].icon).toBeDefined();
+  });
+
+  it.each(newTypes)('%s has a CSS-var color (not a hardcoded hex/rgb)', (type) => {
+    const config = eventIconMap[type];
+    expect(config.color).toMatch(/^var\(--/);
+  });
+
+  it.each(newTypes)('%s has a CSS-var bg via color-mix', (type) => {
+    const config = eventIconMap[type];
+    expect(config.bg).toMatch(/color-mix/);
+  });
+
+  it('all 10 event types are represented in the map', () => {
+    const allTypes = [
+      'feedback_created',
+      'status_changed',
+      'health_score_changed',
+      'llm_analysis_generated',
+      'action_completed',
+      'churned',
+      'churn_recovered',
+      'usage_first_seen',
+      'usage_feature_adopted',
+      'usage_reactivated',
+    ] as const;
+    for (const type of allTypes) {
+      expect(eventIconMap[type], `Missing icon config for: ${type}`).toBeDefined();
+    }
+  });
+});
+
+describe('eventIconMap — playbook_auto_run (churn-triggered-playbooks)', () => {
+  it('has an icon defined', () => {
+    expect(eventIconMap.playbook_auto_run).toBeDefined();
+    expect(eventIconMap.playbook_auto_run.icon).toBeDefined();
+  });
+
+  it('has a CSS-var color (not a hardcoded hex/rgb)', () => {
+    expect(eventIconMap.playbook_auto_run.color).toMatch(/^var\(--/);
+  });
+
+  it('has a CSS-var bg via color-mix', () => {
+    expect(eventIconMap.playbook_auto_run.bg).toMatch(/color-mix/);
+  });
+});
+
+describe('eventIconMap — CRM event types (F2)', () => {
+  const crmTypes = [
+    'crm_contact_synced',
+    'crm_renewal_upcoming',
+  ] as const;
+
+  it.each(crmTypes)('%s has an icon defined', (type) => {
+    expect(eventIconMap[type]).toBeDefined();
+    expect(eventIconMap[type].icon).toBeDefined();
+  });
+
+  it.each(crmTypes)('%s has a CSS-var color (not a hardcoded hex/rgb)', (type) => {
+    const config = eventIconMap[type];
+    expect(config.color).toMatch(/^var\(--/);
+  });
+
+  it.each(crmTypes)('%s has a CSS-var bg via color-mix', (type) => {
+    const config = eventIconMap[type];
+    expect(config.bg).toMatch(/color-mix/);
+  });
+
+  it('all 12 event types (incl. CRM) are in the map', () => {
+    const allTypes = [
+      'feedback_created',
+      'status_changed',
+      'health_score_changed',
+      'llm_analysis_generated',
+      'action_completed',
+      'churned',
+      'churn_recovered',
+      'usage_first_seen',
+      'usage_feature_adopted',
+      'usage_reactivated',
+      'crm_contact_synced',
+      'crm_renewal_upcoming',
+    ] as const;
+    for (const type of allTypes) {
+      expect(eventIconMap[type], `Missing icon config for: ${type}`).toBeDefined();
+    }
+  });
+
+  it('unknown event type returns undefined from eventIconMap (fallback to muted dot)', () => {
+    const unknownType = 'totally_unknown_event' as never;
+    expect(eventIconMap[unknownType]).toBeUndefined();
+  });
+});
+
+describe('eventIconMap — usage_trend_change (timeline-trend-event, N1)', () => {
+  it('has an icon defined', () => {
+    expect(eventIconMap.usage_trend_change).toBeDefined();
+    expect(eventIconMap.usage_trend_change.icon).toBeDefined();
+  });
+
+  it('has a CSS-var color (not a hardcoded hex/rgb)', () => {
+    expect(eventIconMap.usage_trend_change.color).toMatch(/^var\(--/);
+  });
+
+  it('has a CSS-var bg via color-mix', () => {
+    expect(eventIconMap.usage_trend_change.bg).toMatch(/color-mix/);
+  });
+
+  it('all 13 event types (incl. usage_trend_change) are in the map', () => {
+    const allTypes = [
+      'feedback_created',
+      'status_changed',
+      'health_score_changed',
+      'llm_analysis_generated',
+      'action_completed',
+      'churned',
+      'churn_recovered',
+      'usage_first_seen',
+      'usage_feature_adopted',
+      'usage_reactivated',
+      'crm_contact_synced',
+      'crm_renewal_upcoming',
+      'usage_trend_change',
+    ] as const;
+    for (const type of allTypes) {
+      expect(eventIconMap[type], `Missing icon config for: ${type}`).toBeDefined();
+    }
+  });
+});

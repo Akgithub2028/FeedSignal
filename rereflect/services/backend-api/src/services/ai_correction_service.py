@@ -1,0 +1,71 @@
+"""
+AI correction service — shared helper for persisting human-in-the-loop
+correction/rating signals.
+
+Extracted from the internal ``POST /api/v1/ai-corrections`` route so that both
+the internal route and the public write API create corrections identically.
+"""
+from typing import Optional
+
+from sqlalchemy.orm import Session
+
+from src.models.ai_correction import AICorrection
+
+# Urgency `corrected_value` vocabulary for AICorrection(correction_type="urgency").
+# MUST stay identical to analysis-engine's
+# `analyzer.corrections_classifier.labels.URGENCY_LABELS = ("not_urgent", "urgent")`
+# — a mismatch here silently drops all rows in build_urgency_dataset. See
+# tests/test_ai_correction_service_urgency.py for the cross-service equality guard.
+URGENCY_CORRECTED_VALUES = ("not_urgent", "urgent")
+
+
+def urgency_label(is_urgent: bool) -> str:
+    """Map a boolean ``is_urgent`` flag to the fixed URGENCY_CORRECTED_VALUES vocab.
+
+    Always returns a value from ``URGENCY_CORRECTED_VALUES`` — never trust
+    client-supplied casing/strings for ``corrected_value``.
+    """
+    return "urgent" if is_urgent else "not_urgent"
+
+
+def create_ai_correction(
+    db: Session,
+    *,
+    organization_id: int,
+    user_id: Optional[int],
+    correction_type: str,
+    entity_type: str,
+    entity_id: Optional[int] = None,
+    signal: str,
+    original_value: Optional[str] = None,
+    corrected_value: Optional[str] = None,
+    feedback_text: Optional[str] = None,
+    commit: bool = True,
+) -> AICorrection:
+    """Persist an ``AICorrection`` and return the refreshed row.
+
+    ``user_id`` may be ``None`` for API-key writes (the FK is nullable).
+    Commits internally by default (``commit=True``), mirroring the original
+    route behavior byte-for-byte — this default must never change.  Pass
+    ``commit=False`` to flush-only (row visible in-session, not yet durable)
+    so a caller can batch multiple corrections into one final ``db.commit()``
+    (used by the bulk-write handler).
+    """
+    correction = AICorrection(
+        organization_id=organization_id,
+        user_id=user_id,
+        correction_type=correction_type,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        signal=signal,
+        original_value=original_value,
+        corrected_value=corrected_value,
+        feedback_text=feedback_text,
+    )
+    db.add(correction)
+    if commit:
+        db.commit()
+        db.refresh(correction)
+    else:
+        db.flush()
+    return correction

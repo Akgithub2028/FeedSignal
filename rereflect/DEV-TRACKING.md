@@ -1,0 +1,1576 @@
+# Development Tracking
+
+**Vision**: Open-source, self-hosted AI feedback analysis you run on your own infrastructure
+**Last Updated**: 2026-07-26 (v1.0.0)
+
+---
+
+## Current Status
+
+Shipped as **v1.0.0** (2026-07-26) — free, open-source, self-hosted, MIT, BYOK.
+
+| Milestone | Status |
+|-----------|--------|
+| Phase 1: MVP | Complete |
+| Phase 2: Growth features | Complete |
+| Phase 3: Enterprise features | Complete except the items listed as deferred below |
+
+> The MRR targets that used to sit in this table were from the hosted-SaaS era and
+> are no longer meaningful — there is nothing to sell. They have been removed rather
+> than updated. Individual sections below still carry SaaS-era framing; see the
+> pivot note that follows.
+
+---
+
+## ⚠️ Open-Source Self-Hosted Pivot (2026-06)
+
+Rereflect pivoted to **free, open-source, self-hosted (MIT, BYOK)**. The SaaS/MRR framing and plan-gating below are **stale** — every feature is unlocked. See [`docs/archive/prd/PRD-OSS-SELF-HOSTED-PIVOT.md`](docs/archive/prd/PRD-OSS-SELF-HOSTED-PIVOT.md).
+
+**Open-Source Feature Batch — shipped 2026-06-22** (`PRD-LOCAL-LLM-CUSTOM-AI-PUBLIC-API.md`):
+- ✅ **Local / Offline LLM** — Ollama / any OpenAI-compatible endpoint, keyless; VADER fallback with no model.
+- ✅ **Custom AI** — custom pain-point/feature-request/urgency taxonomies + configurable health-score weights.
+- ✅ **Public REST API** — API keys (read/ingest/write), reads + feedback ingestion + feedback mutation (`PATCH /feedback/{id}`: status + record-only corrections, shipped 2026-07-06; `tags`/`is_urgent` + `DELETE /feedback/{id}` shipped 2026-07-07) + bulk feedback writes (`POST /feedback/bulk`, ≤500 ids/request, uniform patch, per-id results, `?count_only=true` dry-run, shipped 2026-07-15) + custom-category (taxonomy) CRUD (`GET/POST/PATCH/DELETE /categories`, 409 on dup / 404 other-org, `X-Rereflect-Warning` header on delete when referenced by an active automation rule, shipped 2026-07-15) + webhooks + OpenAPI docs. See `docs/planning/public-api-write-crud/`, `docs/planning/public-api-write-v2/`, `docs/planning/public-api-crud-v3/`. **Deferred:** mutating the stored category/sentiment column; customer CRUD (resolved as incoherent — customers are a derived view over feedback + health scores, not a directly-authored entity).
+
+---
+
+## Post-1.0.0 User Feedback Backlog (opened 2026-07-29)
+
+Sourced from real user comments on the v1.0.0 release, triaged against the shipped code
+on 2026-07-29. **This is the highest-priority queue** — it is the first external feedback
+the project has had, and every item below traces to a named user ask rather than to an
+internal guess. `rereflect-next` should pick from here before the older roadmap sections.
+
+**Two batches so far, seven comments total:** batch 1 (four comments) and batch 2 (three
+comments, added 2026-07-29). Five of the seven needed no build work and are recorded under
+*No build required* so nobody re-litigates them.
+
+### P0 — `mutation-route-rbac` — **FIXED**, merged `23efe010`, PR #33 (2026-10-02)
+> Most mutation routes carried no role dependency, so any **member** could delete feedback, edit
+> and run churn playbooks, mark/import/recover churn labels, rewrite workflow assignment rules, and
+> queue org-wide LLM analysis. Flagged but deferred by three PRDs
+> (`copilot-suggested-actions`, `crm-churn-labels`, `usage-decline-churn-labels`).
+>
+> Fixed with `require_admin_or_owner` on: playbook create/update/delete/run/run-batch
+> (`playbooks.py`); churn-event bulk mark/create/CSV import/recover (`churn_events.py`); workflow
+> assignment-rules CRUD + `auto-assignment-settings` (`workflow.py`); feedback delete + bulk-delete
+> (`feedback.py`); `POST /analyze/batch` (`analyze.py`). Churn-event delete keeps its author-24h and
+> system-admin rules and additionally allows org admin/owner (inline check, new 403 message).
+> Deliberately member-open (unchanged): feedback create/update/urgent/CSV import, workflow
+> assign/status/notes, pending-feedback approve/reject, `POST /analyze/`. The frontend gets a
+> `useRole()` hook and hides the gated controls from members (playbook pages, churn marking/import/
+> recover/bulk run, feedback delete everywhere, Workflow settings page + sidebar link).
+>
+> A per-route AST guard, `tests/test_mutation_route_rbac_sweep.py` (213 routes: 141 gated, 72
+> member-open, each on a reasoned allowlist), fails CI on a new ungated mutation route. See
+> `docs/planning/mutation-route-rbac/prd.md` and the CHANGELOG entry for the upgrade note.
+>
+> **Limits / unpinned (worth keeping):**
+> - The guard silently skips routers that are not top-level `router = APIRouter(...)` assignments
+>   (annotated assignments, `add_api_route`, imported routers). None exist in the tree today.
+> - The two inline role checks (churn-event delete, organizations update) are not pinned by the
+>   guard; churn delete is allowlisted rather than verified. Allowlist reasons are checked for
+>   length only.
+> - The manual member-vs-admin check in a real browser was **not** performed; frontend coverage is
+>   component tests only.
+> - Member-open regression is not tested for feedback CSV import, urgent, workflow notes, or
+>   pending-feedback approve/reject.
+>
+> **Follow-ups:**
+> - [ ] **`organizations-patch-rejects-owner`** (NOT STARTED): `organizations.py` `PATCH /me` checks
+>       `current_user.role != "admin"` (`organizations.py:57`), so an **owner** gets 403 while the
+>       docstring says "admin only" and the CLAUDE.md matrix implies owners outrank admins. Likely
+>       should use `require_admin_or_owner`. Found during this work, out of its scope.
+
+### P0 — `automation-playbook-dispatch-commit` — **FIXED** on `feat/automation-playbook-dispatch-commit` (2026-09-25)
+> Same family as the P0 below: marked shipped, did nothing. Every automation-fired
+> `run_playbook` (backend `automation_engine._execute_run_playbook`, worker
+> `automation_churn_trigger` + `automation_usage_trend_trigger`, and therefore the playbook
+> `trigger_automation` action) did `db.flush()` → publish id → commit later. The worker loads the
+> row on another connection, gets nothing, returns `execution not found` (`playbook_engine.py`,
+> no retry), and the row sits at `queued` forever while the audit row says `success`. Manual runs
+> were fine (`playbooks.py` commits first), which is why nobody noticed.
+>
+> Fixed by committing before publishing at all three sites (the `send_customer_email` precedent),
+> with an ordering test per site that was RED first. Same fix for webhook- and pull-ingested
+> feedback → `analyze_single_feedback` (`source_events`, Zendesk/Intercom pull syncs). That one
+> was lower severity because the 30 s `process_unanalyzed_feedback` sweeper recovered it. **Live
+> proof** (scratch Postgres + real Celery worker): with 50 ms between publish and commit, master
+> orphaned 40/40 executions and the fix completed 40/40. With no gap, master happened to win on a
+> quiet machine, so the window is narrow but real, and it is wider under load or when later
+> actions run in the rule. See
+> `docs/planning/automation-playbook-dispatch-commit/live-acceptance-and-tracking/evidence.md`.
+>
+> **Review rule:** in any code that hands a row id to another process, `grep` for `flush()`
+> followed by `send_task` / `.delay` / `.apply_async`. That shape is this bug.
+>
+> **Follow-ups:**
+> - [x] If the publish itself fails *after* the commit (broker down), the execution stays
+>       `queued`. The manual route has the same gap (`playbooks.py`, log-and-continue).
+>       **FIXED on `feat/playbook-execution-reaper` (2026-09-25):**
+>       `churn_playbooks.reap_stale_executions` runs on beat every 10 min. It re-publishes `queued`
+>       rows aged 15 min–24 h and marks older `queued` rows `failed` ("never picked up", which also
+>       closes out pre-fix orphans). It marks `running` rows older than 1 h `failed` ("worker
+>       stopped mid-run"), never re-running them. `playbook_engine.execute` now claims with a
+>       conditional `UPDATE … WHERE status='queued'`, so a re-published or doubly delivered id
+>       cannot run twice. See `docs/planning/playbook-execution-reaper/prd.md`.
+> - [x] The rule API let any action sit on any trigger. **FIXED on `feat/automation-action-support`
+>       (2026-09-26).** Investigating it found real inert behaviour: the churn and usage-trend mirrors
+>       *silently* skipped every action but run_playbook / send_customer_email while logging `success`.
+>       That made the shipped `usage_decline_outreach` template (usage_trend → send_notification)
+>       fully inert. Health triggers never carry a feedback item, so `churn_prevention`'s auto_assign
+>       and draft_response failed on every fire. The fix:
+>       - one `SUPPORTED_ACTIONS_BY_TRIGGER` matrix, enforced with a 422 on create and on update when
+>         the trigger or actions change, and served at `GET /api/v1/automations/action-support`
+>       - the worker mirrors now execute `send_notification` (delegating to the feedback mirror's
+>         notifier) and log an explicit error for anything else
+>       - `churn_prevention` is now notify-only, and its description says so
+>       - the rule editors offer only supported actions and warn on legacy rows
+>
+>       A golden fixture (`worker-service/tests/fixtures/automation_action_support.json`) is read
+>       by the backend, worker and frontend suites, so the matrix and the executors can't drift.
+>       See `docs/planning/automation-action-support/prd.md`.
+
+### P0 — `automation-worker-triggers-dead` — **FIXED** on `bug/automation-slack-channel` (2026-07-29)
+> Shipped: worker-side mirror `automation_feedback_trigger.py` (two triggers, four actions,
+> cooldown parity with the backend), module-level import in `analysis.py` so a broken import
+> fails loudly at startup, and migration `12a1003fbfe0` moving pre-existing rules on the two
+> repaired triggers to `mode='shadow'`. Worker suite 1372 passed; backend automation suites
+> 138 passed.
+> Found 2026-07-29 while digging the P1 Slack-channel bug. **Verified, not inferred.**
+
+- [ ] `services/worker-service/src/tasks/analysis.py:175` does
+      `from src.services.automation_engine import AutomationEngine` inside a
+      `try/except Exception` that only logs a warning. **That module does not exist in
+      worker-service** (`services/worker-service/src/services/` contains only
+      `automation_churn_trigger.py` and `automation_usage_trend_trigger.py`), and the
+      worker image never gets backend-api's package — `services/worker-service/Dockerfile`
+      copies only `worker-service/src` and `analysis-engine/src/analyzer` under
+      `PYTHONPATH=/app`.
+- [ ] **Consequence:** the `feedback_category_match` and `sentiment_pattern` triggers
+      **never fire in any deployment.** They are dispatched from nowhere else. That means
+      **four of the six** shipped automation templates — **Critical Bug Escalation**,
+      **Feature Request Triage**, **Negative Sentiment Alert** and **Positive Feedback
+      Follow-up** — do nothing at all, while the UI happily shows them as enabled. Only
+      Churn Prevention (backend `health_score_threshold` path) and Usage Decline Outreach
+      (worker `usage_trend` mirror, ships in shadow) actually work.
+- [ ] Already known internally and deliberately left alone: the docstring of
+      `worker-service/src/services/automation_churn_trigger.py` calls it "a pre-existing
+      dead import … that has silently never fired," out of scope for that task. It is in
+      scope now.
+- [ ] **Fix with care.** Repairing the import will *activate* rules that users created
+      months ago and that have never once run. That is a real behaviour change on a
+      notification path — it needs a shadow-mode/backfill-suppression story, not just an
+      import fix.
+- **Why P0 over the Slack bug:** the Slack bug drops one channel of a firing rule. This
+  one means the rule never fires. It also invalidates the natural answer to the P1 feature
+  request below — pointing a user at the "Negative Sentiment Alert" template today points
+  them at something inert.
+
+### P0b — `worker-resolution-time-scoring-dead` — **FIXED**, merged `26818cf8`
+> Marked NOT STARTED long after it shipped. Corrected 2026-08-01. The `resolution_time`
+> churn factor scores correctly; `bug/worker-resolution-time-scoring` fixed the
+> `FeedbackWorkflowEvent` import and added DB-backed coverage for all five customer-level
+> factors. **Do not re-do it.** Original triage kept below for the reasoning.
+> Found 2026-07-29 by sweeping worker-service for imports that resolve to nothing.
+> **Verified empirically**, not inferred.
+
+- [ ] `services/worker-service/src/tasks/analysis.py:821` does
+      `from src.models.feedback_workflow_event import FeedbackWorkflowEvent`. That
+      submodule does not exist in worker-service — the class lives at `src.models`
+      (`src/models/__init__.py:551`). Proof:
+      `ModuleNotFoundError: No module named 'src.models.feedback_workflow_event'`, while
+      `from src.models import FeedbackWorkflowEvent` succeeds.
+- [ ] The `except Exception: pass` at line ~864 swallows it, so the **"Resolution time
+      (0-10 pts)" component of the churn-risk score is always 0** for every customer.
+      Churn scores have been silently missing up to 10 points of their range.
+- [ ] Fix is one line: `from src.models import FeedbackWorkflowEvent`. The value is in the
+      test that proves the component now contributes, plus narrowing that bare `except`.
+- **Why tracked separately:** the same file is being edited by the automations fix; landing
+  both at once risks a collision. Trivial to do immediately after.
+
+> **Sweep result (for whoever picks these up).** Three worker imports resolve to nothing:
+> `src.services.automation_engine` (P0, in flight), `src.models.feedback_workflow_event`
+> (this item), and `src.services.health_score_service` — the third is **already handled**
+> by `src/services/health_recompute.py`, which makes its absence loud (shipped as #3,
+> commit `f5d43234`). A fourth site, `src/tasks/segments.py:115`, imports
+> `health_score_service` inside a try with a comment documenting deliberate degradation —
+> not a bug, but it does mean the segment sentiment-trend signal is permanently absent.
+
+### P1 — `automation-slack-channel` — **FIXED** on `bug/automation-slack-channel` (2026-07-29)
+> Shipped: `slack` branch in `_execute_notify` posting org-wide once per rule firing to every
+> active Slack integration, a real `error` on the action result so a dropped channel becomes
+> `partial_failure` instead of a false `success`, and a warning for any unknown channel.
+- [ ] `AutomationEngine._execute_notify` (`automation_engine.py:485-571`) implements only
+      the `dashboard` and `email` channels, but the **Critical Bug Escalation** template
+      (`src/config/automation_templates.py:72`) declares
+      `channels: ["dashboard", "email", "slack"]`. The `slack` string matches no branch, so
+      it is **silently dropped** — no Slack post, no log line, no execution-log entry.
+      A user enabling that template believes they are covered for critical bugs and
+      security breaches, and is not.
+- [ ] `_execute_notify` returns `{"error": None}` unconditionally, so a rule whose only
+      channel is unimplemented still logs `status="success"` with
+      `notifications_created: 0`. The execution log actively reports a lie.
+- [ ] Route `slack` through the existing Slack integration (`Integration` rows with
+      `type="slack"`; `send_slack_message()` in `src/api/routes/integrations.py`) and make
+      an unknown/unroutable channel **loud** instead of silent.
+- **Why it still matters below P0:** same silent-failure class, but narrower — it drops one
+  channel of a rule that fires. Note the two bugs **compound**: Critical Bug Escalation is
+  hit by both.
+- *Note:* Slack alerting itself is **not** broken — the customer-health path
+  (`worker-service/src/notification_dispatch.py::_dispatch_slack_health_alert`) does post
+  to Slack. Only the automations engine drops it.
+
+### P1 — Batch-level sentiment threshold trigger — **SHIPPED** on `feat/batch-sentiment-trigger` (2026-07-29)
+> New `batch_sentiment_threshold` trigger — the first **org-wide** one. Config: `sentiment`,
+> `window_hours` (1–168), `mode` (percentage/count), `threshold`, `min_total` (sample floor).
+> Evaluated in the existing per-item worker seam (not a new Celery beat task — the action
+> executors need a feedback object, and a new dispatch path is a new silently-never-fires
+> surface). Org-wide cooldown identity via a `"__org__"` sentinel kept out of
+> `AutomationExecution.customer_email`. Template ships in shadow. Seam test included, and
+> verified to catch the bug class by temporarily breaking the registration.
+> Backend 4544 passed · worker 1394 passed · frontend 1507 passed.
+> **Defaults are reasoned, not measured** — documented as such in `docs/SELF_HOSTING.md`.
+
+### P4 — `[id]/page.tsx` category-match editor writes the wrong config keys — **FIXED** 2026-08-01 (`bug/backlog-batch`)
+> The editor now writes `categories`/`is_urgent`, matching `FeedbackCategoryConfig` and the
+> worker evaluator, and still READS the legacy `tags`/`urgent` keys so rules saved while the
+> bug was live still display their values instead of appearing empty. Pinned by
+> `settings/automations/__tests__/CategoryMatchConfigKeys.test.tsx`.
+> Found 2026-07-29 while mapping the trigger-registration surface for P1. Not ours; scoped out.
+
+- [ ] `services/frontend-web/app/(dashboard)/settings/automations/[id]/page.tsx`'s
+      `CategoryMatchTriggerFields` reads and writes `config.tags` and `config.urgent`
+      (~lines 96, 145), while `new/page.tsx`'s `CategoryMatchConfig` **and** the backend's
+      `FeedbackCategoryConfig` use `categories` and `is_urgent`.
+- [ ] **Consequence:** editing an existing category-match rule through the detail page writes
+      keys the backend ignores. The edit appears to save and silently does nothing to the
+      rule's actual matching behaviour.
+- [ ] Fix is a rename in one component plus a test that round-trips create → edit → verify
+      the persisted config keys.
+- **Why P4:** real and user-visible, but narrower than the delivery bugs — it affects editing
+  an existing rule, not whether rules fire at all.
+
+### ~~P1 (original entry)~~ — superseded, kept for the reasoning
+> "it would be great if you could plug in a Slack or Discord webhook to get pinged whenever
+> a **batch** of new feedback crosses a certain sentiment threshold."
+
+- [ ] Today's `sentiment_pattern` trigger fires on *N negative feedbacks from **one
+      customer** within D days* (`automation_engine.py::_trigger_sentiment_pattern`). The
+      user is asking for a threshold across an **incoming batch** — a different axis
+      entirely (import/window scoped, not customer scoped).
+- [ ] Needs a new trigger type. Open design question to settle with the requester before
+      building: is the threshold a **percentage negative**, an **absolute count**, and is
+      the window **per import** or **per rolling hour**?
+- **Why P1:** direct user ask, lands on the existing automations trigger/action spine, and
+  P0 makes its Slack delivery path actually work. Do P0 first or this ships broken.
+
+### P2 — Native Discord webhook support — **SHIPPED** on `feat/discord-notifications` (2026-07-29)
+> Discord integration CRUD + test route, a sender per process (backend returns a status
+> dict, worker raises — matching each process's existing Slack contract), and Discord
+> dispatch on the main alert pipe and the health-drop path. Frontend: `DiscordIcon`, provider
+> tile, and fixes to the `intercom ? … : Slack` ternaries that would otherwise have rendered
+> a Discord row with a Slack icon and a Test button that 404s.
+> Backend 63 passed · worker 1417 passed · frontend 1523 passed.
+>
+> **Scope deliberately excluded** the automations notify channel: there is no channels editor
+> in the automations UI at all, so `channels: ["discord"]` would have been unreachable except
+> via a seeded template or a direct API call. Also excluded: per-user `channel_discord`
+> preference (schema change), the Slack-mrkdwn custom-template path, and 429 retry.
+
+### P5 — Discord rides the Slack notification toggle — **SHIPPED** on `feat/discord-channel-preferences` (2026-08-09)
+> Delivered as `feat/discord-channel-preferences`, planned in
+> `docs/planning/discord-channel-preferences/`. A per-type `channel_discord` preference
+> (default **true** — opt-out, so existing Discord-sending orgs keep receiving) decouples
+> Discord dispatch from the Slack toggle on **both** worker pipes (`dispatch_alert` +
+> `dispatch_health_drop_alert`); the worker `UserAlertPreference` mirror also gained the
+> previously-missing `channel_intercom` column (drift closed). The API round-trips the
+> field with a `None = unchanged` sentinel so a stale client PUT cannot silently flip
+> Discord off. UI: per-type Discord switch in Settings → Notifications (Settings →
+> Integrations connection unchanged). **Still excluded (unchanged):** the automations
+> engine's `send_notification` channel list (no channels editor) — Discord stays out of
+> scope there.
+- [x] Fix is a `channel_discord` column + Alembic migration + a Settings → Notifications
+      toggle, then decoupling the two dispatch calls.
+- **Why P5:** documented in `docs/SELF_HOSTING.md` and the changelog, so it is a known
+  limitation rather than a surprise — but it will read as a bug to the first person who hits it.
+
+### P6 — Dead anomaly-alert functions — **FIXED**, merged `1cc46b37`, PR #22 (2026-08-18)
+> Shipped (the wire-or-delete decision landed as **delete**): `_send_anomaly_slack`
+> (:238-310), `_send_anomaly_discord` (:313-363) and `_send_anomaly_email` (:223-235)
+> were fully implemented and **never called** — anomaly alerts route via
+> `_dispatch_anomaly_alerts` → `dispatch_alert`, which delivers **both** Slack and
+> Discord on the main pipe with per-user preferences + health bookkeeping. All three
+> orphans are deleted, plus their dead callee `src.email.send_anomaly_alert_email`,
+> the `send_discord_message_webhook` import and the `_decrypt` helper (they were the
+> orphans' only users — every other worker decrypt mirror stays), and the two test
+> files pinning them (10 tests). Sweep proof: grep
+> `_send_anomaly_slack|_send_anomaly_discord|_send_anomaly_email|send_anomaly_alert_email`
+> → zero hits in `services/` production code; the only remaining mentions are the
+> historical docstring lines in the deliberately-untouched
+> `TestDispatchAnomalyAlerts` (:345-409, stays green) and the planning docs. Worker
+> suite 1824 passed. **Anomaly email delivery is gone entirely — stated honestly:** it
+> was unreachable before this change; the main pipe never delivered anomaly email
+> (Slack/Discord only), so this is not a regression.
+- [ ] `services/worker-service/src/tasks/anomaly.py::_send_anomaly_slack` is fully
+      implemented and **never called** — anomaly alerts route via `_dispatch_anomaly_alerts`
+      → `dispatch_alert` (`anomaly.py:169` → `:185`). Its new Discord twin
+      `_send_anomaly_discord` mirrors it, so there are now two tested, orphaned functions.
+- [ ] Discord anomaly alerts **do** work, through the main pipe — this is dead code, not a
+      delivery gap.
+- [ ] Decide: wire them up, or delete both. Deleting only the Discord one would leave the
+      next person wiring up the Slack one with no Discord equivalent.
+
+### P7 — Provider duplication is now structural (debt, NOT STARTED)
+- [ ] The integration-selection loop (`query type == <provider>, is_active`) is duplicated
+      **four** times and the low-level sender **three** times across the two processes.
+      Discord made both worse. Adding a fifth provider (Teams is already named in the
+      `Integration.type` comment) means another full round.
+- [ ] Deliberately not refactored during the Discord work — a provider abstraction would
+      touch every Slack path at once, and that scope was explicitly declined. Deferred debt,
+      not avoided debt.
+- [ ] **Teams shipped via sibling senders (2026-09-02, merged as PR #26, `1756361`)** — the bounded-sender decision:
+      `feat/teams-notifications` added Teams as another sibling sender (backend
+      `send_teams_message` / worker `send_teams_message_webhook`, MessageCard shape) plus a
+      mirror `teams` block in each dispatch seam (`automation_engine.py`,
+      `automation_feedback_trigger.py`, `playbook_engine._handle_notify`,
+      `notification_dispatch.py` health-drop + generic alert paths), with **no
+      provider-abstraction refactor** — the duplication count is now 5×/3×-plus, refactor
+      still deferred. The next provider should make the abstraction decision, not add
+      another sibling.
+
+### ~~P2 (original entry)~~ — superseded, kept for the reasoning
+- [ ] Discord is not supported. Its webhook API requires a `{content}` or `{embeds}` body;
+      the custom-webhook dispatcher posts Rereflect's own JSON envelope, so aiming an
+      endpoint at a Discord URL returns **400**. The URL validator accepts it
+      (`https://` passes), so the failure surfaces only in the delivery log.
+- [ ] Needs a Discord **formatter** on the outbound path, mirroring how Slack Block Kit is
+      built — not a new transport.
+- **Why P2:** same user, same sentence as P1, but strictly smaller and independent.
+
+### P3 — Discoverability: Analytics trends — **SHIPPED** on `chore/trends-discoverability` (2026-07-29)
+> Docs only, no code. The README Highlights row said "Trends, distributions and top-insight
+> tables", which is true and tells a reader nothing — rewritten to name the 7/30/90-day
+> ranges, the five time series, and the ↑/↓/→ per-theme arrows. Added a
+> `docs/SELF_HOSTING.md` section that also states the two real limits (90-day cap; bucketed
+> counts, **not** statistical change detection) and points at
+> `batch_sentiment_threshold` for people who want an alert rather than a chart.
+>
+> **Deliberately did not touch** `README.md`'s "ingests customer feedback from CSV, email,
+> webhooks and Slack" line or the *Sources & integrations* row — those are the target of the
+> concurrent `chore/intercom-zendesk-docs` work, which is fixing the same class of
+> under-selling for the ingestion side.
+
+### ~~P3 (original entry)~~ — superseded, kept for the reasoning
+> "one thing i'd love to see is a built in trend view over time … watch how sentiment and
+> recurring pain points shift week to week rather than just looking at a snapshot"
+
+- [ ] **This shipped in 1.0.0 and the user did not find it.** `/analytics` already provides
+      7d/30d/90d ranges, daily/weekly buckets, average sentiment + volume + urgent + pain
+      point + feature request series over time, and top pain points/feature requests each
+      carrying an `up`/`down`/`stable` trend arrow (`TopItem.trend`), plus source breakdown,
+      CSV export, saved views and read-only share links.
+- [ ] Treat as a **discoverability defect**, not a feature gap: surface the trends view on
+      the landing page and in `README.md` / onboarding.
+- [ ] Genuine limits worth stating honestly rather than hiding: the window caps at **90
+      days**, and it is bucketed counts — **not** statistical change detection. Longer
+      retention and anomaly flagging are the real follow-ups if asked again.
+
+### P1 — Intercom/Zendesk ingestion: shipped, invisible, and half-documented (batch 2, NOT STARTED)
+> "integrating directly with Intercom or Zendesk so feedback flows in automatically instead
+> of pasting tickets manually. Would save a ton of time on weekly reviews."
+>
+> Triaged 2026-07-29 against the shipped code. **Both integrations already exist.** This is
+> the same class as the P3 analytics-trends item — a user asking for something that shipped —
+> except that here one half of the ask is genuinely unreachable for a self-hoster.
+
+**Part A — discoverability (docs/marketing, no backend work).** Straight repeat of P3.
+- [ ] `README.md:38` says Rereflect "ingests customer feedback from CSV, email, webhooks
+      and Slack", and the Highlights table at `README.md:61` says "CSV import, email,
+      webhooks and Slack in". **Both omit Zendesk, Intercom, Jira, Linear and Asana**, all
+      of which are registered, `available=True` source types in
+      `feedback_sources.py::list_source_types`. The README is the first thing a evaluator
+      reads, and it under-sells the product against the exact ask this user made.
+- [ ] Zendesk is the strongest answer available today and it is fully real: connect with
+      subdomain + agent email + API token, **incremental polling out of the box** plus an
+      optional HMAC-signed webhook for real-time, auto-provisioned feedback source,
+      opt-in status-sync. Documented at `docs/SELF_HOSTING.md#connecting-zendesk`. Nothing
+      to build — just say it exists.
+
+> **CLOSED 2026-08-01** on `feat/intercom-selfhost-ingestion`. Part A landed earlier on
+> `chore/intercom-zendesk-docs`. Part B is now done in full: token-paste connect (the
+> access-token path Intercom's own docs recommend for own-workspace access), a 15-minute
+> conversation pull sharing the webhook's de-duplication core, per-workspace webhook
+> signature verification, `customer_email` so Intercom feedback reaches Customer 360, and a
+> settings page. The envelope defect that made Intercom produce nothing in any release
+> shipped separately as `fix/intercom-envelope-seam`.
+>
+> **Note the follow-up below was wrong about the fix.** It proposed implementing
+> `IntercomConnector.fetch_new_items`. That abstraction was dead for *both* providers —
+> `ZendeskConnector.fetch_new_items` was also a stub, and Zendesk's real pull has always
+> lived in `zendesk_sync.py`. Implementing it would have produced a third instance of the
+> dead-code family at line 441. The connector layer and its scheduled no-op are deleted.
+>
+> See `docs/planning/intercom-selfhost-ingestion/`.
+
+**Part B — Intercom is marketed but not operable on a self-host (real gap).**
+- [ ] Intercom connect is **OAuth-only** (`integrations.py:754` → 403
+      `"Intercom OAuth is not configured. Set INTERCOM_CLIENT_ID environment variable"`).
+      `INTERCOM_CLIENT_ID`, `INTERCOM_CLIENT_SECRET` and `INTERCOM_REDIRECT_URI` appear in
+      **no** `.env.example`, **no** `.env.prod.example`, **neither** docker-compose file and
+      **nowhere** in `docs/SELF_HOSTING.md` (which has a "Connecting Zendesk" section and no
+      Intercom counterpart). A self-hoster clicking "Connect to Intercom" in the UI gets an
+      error and has no documented way to resolve it short of reading the route source.
+- [ ] Meanwhile `services/landing-web/lib/integrations.ts:147` sells it as
+      *"Authorize via OAuth in one click"*. That is a promise the shipped artifact cannot
+      keep without undocumented setup.
+- [ ] Intercom ingestion is **webhook-only in practice**:
+      `worker-service/src/tasks/integrations.py:167` `IntercomConnector.fetch_new_items` is
+      a placeholder that logs `"not implemented"` and returns nothing
+      (*"TODO: Implement actual Intercom API integration in Month 2"*), while
+      `integrations.py:30` still selects `type.in_(["intercom", "zendesk"])` for polling. So
+      there is no pull path — if the webhook is not wired, nothing arrives. Note the
+      user's phrasing is "flows in automatically", which is exactly the pull path.
+- [ ] **Minimum honest fix:** document the Intercom app + OAuth env vars in
+      `SELF_HOSTING.md` and `.env.prod.example` (mirroring the Zendesk section), and state
+      plainly that Intercom ingestion is webhook-driven. **Follow-up:** either implement
+      `IntercomConnector.fetch_new_items` against the Conversations API, or add a token-paste
+      (non-OAuth) connect path following the Zendesk/Jira/Asana BYO-token precedent — OAuth
+      was rejected as "awkward for self-host" for *every other* integration, and Intercom is
+      the last one still requiring it.
+- **Why P1:** direct user ask; Part A is nearly free and immediately answers them; Part B is
+  a shipped-and-marketed integration that a self-hoster cannot actually turn on, which is the
+  same credibility problem as the P0 automations bugs, just on the acquisition path.
+
+### P0 — `intercom-webhook-unauthenticated-cross-org-write` — **FIXED** on `feat/integration-auth-tenancy-hardening` (2026-07-29)
+> Shipped as `integration-auth-tenancy-hardening`. Both halves closed, plus more than was
+> triaged here. See `docs/planning/integration-auth-tenancy-hardening/`.
+>
+> **The triage below was narrower than the defect.** A full sweep of every JWT-less endpoint found:
+> - **Slack has the identical pair of defects** — same fail-open verifier, same unscoped
+>   fall-through. The claim below that the adjacent branch was guarded was wrong: that
+>   `else: return []` hangs off the inner `if matching_integration_ids:`, not off the
+>   discriminator check. **Zendesk is the only branch that was ever correct**, and it had been
+>   fixed as a point fix that was never swept.
+> - **The tenancy guard was needed on four branches**, not one: slack, intercom, email, webhook.
+> - **The inbound-email (Resend) verifier also failed open**, and resolves its org by matching an
+>   attacker-supplied address across every org's sources. Its rate limit is keyed on the
+>   *resolved* org, so it throttles the victim.
+> - **The internal events push endpoint was worse than this P0** — its shared secret defaulted to
+>   the literal `"dev-secret"`, compared with `!=`, with `org_id` taken from the request body. It
+>   needs no integration configured at all. Fixed; it also turned out to have **no production
+>   caller** (see [[dead-crossprocess-surface]]), so failing it closed was migration-free —
+>   and it has since been **deleted** (2026-08-18, `chore/backend-security-smalls`).
+> - **`_verify_linear_signature` also failed open** — found by the new cross-verifier test, not by
+>   the sweep. Fixed; behaviour-neutral (its sole caller already guarded).
+>
+> **The severity in this entry overstates what landed.** "Inject feedback into arbitrary
+> organizations" is not what happened: a separate payload-shape bug (route queues the unwrapped
+> `data`, adapter expects the full envelope) means `extract_content` always returns empty text, so
+> **no `FeedbackItem` was ever created — Intercom ingestion has never worked in any release.** What
+> actually landed per foreign org was a `FeedbackSourceEvent` log row with attacker-controlled JSON.
+> **That shape bug is an accident, not a control** — it was the only thing blocking full feedback
+> injection, so the tenancy guard had to land first. It now has, permanently neutralising the hazard.
+>
+> **A valid signature cannot identify a tenant here.** `INTERCOM_CLIENT_SECRET` is a single global
+> env var, unlike Zendesk's per-org `webhook_secret` which is looked up *by* the discriminator. So
+> the signature and `app_id` fixes are independent controls and both were load-bearing.
+>
+> **Slack and email ship in shadow** (accept + `SECURITY-SHADOW` log + startup warning + a Settings
+> badge) because their ingestion works and a hard flip would stop real traffic. Intercom and Linear
+> fail closed immediately. `tests/test_webhook_verifiers_fail_closed.py` enumerates all seven
+> verifiers and allowlists exactly those two — flipping either breaks that test by design, so the
+> shadow period cannot become permanent.
+>
+> Backend 4593 passed · worker 1430 passed · frontend 1526 passed · single alembic head.
+
+<details><summary>Original triage (kept for the reasoning)</summary>
+> Found 2026-07-29 while tracing Intercom for the P1 docs work. **Verified by code trace**,
+> not inferred. Two separate defects that **compose into one exploitable path**, which is why
+> they are filed together — fixing either alone leaves the hole open.
+
+- [ ] **(a) The Intercom webhook fails open.** `verify_intercom_signature`
+      (`services/backend-api/src/api/routes/source_webhooks.py:268-270`) returns `True`
+      unconditionally when `INTERCOM_CLIENT_SECRET` is empty, logging only a warning. That
+      env var is **documented nowhere** (see P1), so **unset is the default state of every
+      install**. `POST /api/v1/webhooks/intercom/events` therefore accepts arbitrary
+      unsigned payloads.
+- [ ] **(b) Missing `app_id` unscopes the org filter.** In `_find_matching_sources`
+      (`services/worker-service/src/tasks/source_events.py:142-161`) the whole
+      integration-matching block sits behind `if workspace_id:`. A payload without `app_id`
+      skips it, leaving the query filtered only by `source_type="intercom"` and
+      `is_active=True` — i.e. **matching every active Intercom source in every organization
+      on the instance.**
+- [ ] **Composed consequence:** on a default self-hosted install, an unauthenticated caller
+      who knows the URL can inject feedback into **arbitrary organizations**. Multi-tenant
+      isolation is the one guarantee a self-hosted multi-org deployment cannot compromise on.
+- [ ] `services/backend-api/tests/test_intercom.py` already exercises the
+      `workspace_id=None` case (asserting only that the event is queued) — the test encodes
+      the dangerous input as normal and asserts nothing about tenancy.
+- [ ] **Fix:** make `verify_intercom_signature` fail **closed** exactly like
+      `_verify_zendesk_signature` (`source_webhooks.py:383-403`), whose docstring already
+      calls out the contrast — so the correct pattern was known and simply not applied here.
+      Then make a missing `workspace_id` return `[]` rather than falling through.
+- **Why P0:** unauthenticated cross-tenant write. Deliberately **not** documented in
+  `docs/SELF_HOSTING.md` on the `chore/intercom-zendesk-docs` branch — writing it up publicly
+  while unpatched would publish a working exploit. **This should be the next branch after the
+  docs land**, ahead of any Intercom feature work.
+</details>
+
+### Follow-ups opened by that branch (all NOT STARTED)
+
+- ~~**`intercom-envelope-shape`**~~ — **FIXED** on `fix/intercom-envelope-seam` (2026-07-31).
+  The route queued `payload["data"]` unwrapped while `IntercomAdapter` expects the full
+  envelope, so Intercom had never produced a feedback item in any release. One production
+  line. The adapter was untouched — it was always correct, and its own tests already fed it
+  the full envelope and passed.
+  **The generalizable lesson, and the reason this is the fourth instance of the family at
+  line 441 below:** both sides were tested, both green, and they disagreed with each other,
+  because the two halves live in different services that cannot import each other, so no
+  single test could see the seam. The fix ships a golden envelope fixture committed once and
+  read by **both** suites (`services/worker-service/tests/fixtures/intercom_webhook_envelope.json`)
+  — backend asserts "this is what I send", worker asserts "given this, I create an item".
+  A one-sided test would have left the seam exactly as exposed. Prefer this shape for any
+  contract that crosses the backend/worker boundary.
+  See `docs/planning/intercom-selfhost-ingestion/envelope-seam-fix/`.
+- ~~**`slack-email-signature-enforcement`**~~ — **FIXED** (merged a2c54288, PR #19).
+  The shadow period is over; both verifiers fail closed. `verify_slack_signature`
+  (source_webhooks.py) and `_verify_webhook_signature` (email_webhooks.py) now log a
+  non-shadow warning and `return False` when the secret is unset, so unconfigured
+  Slack/email deliveries are rejected with 401. `SHADOW_ALLOWLIST` in
+  `tests/test_webhook_verifiers_fail_closed.py` is empty and pinned — the sweep guard
+  went RED first (both verifiers still failed open), then GREEN after the flip. The
+  shadow tests were flipped to fail-closed expectations; startup warnings were
+  re-scoped from "being accepted unverified" to the fail-closed notice; SELF_HOSTING,
+  `.env.example`, `.env.prod.example` and CHANGELOG (behavior-change entry +
+  correction of the grace-period note) now tell operators to set
+  `SLACK_SIGNING_SECRET` / `RESEND_INBOUND_WEBHOOK_SECRET`.
+  **Follow-up — S1 — DONE** (merged 20599748, PR #20): the generic
+  inbound webhook now **mints-and-requires**. Webhook sources created after
+  2026-08-18 carry a per-source `secret_token` (minted at creation, displayed
+  once as `webhook_secret` in the create response, stripped from every other
+  response) and fail closed on delivery — missing or wrong `X-Webhook-Secret`
+  → 401. Grandfathered sources without a secret keep the documented
+  capability-URL posture until an operator PATCHes in a secret (SELF_HOSTING
+  documents the model). Covered by `tests/test_generic_webhook_secret.py`
+  (the route had zero tests before).
+- ~~**`linear-webhook-secret-plaintext`**~~ — **FIXED** on `bug/linear-webhook-secret-plaintext`
+  (2026-08-09). Linear's `webhook_secret` is now Fernet-encrypted at rest like every other
+  integration: encrypt-on-write at the OAuth callback (missing `LLM_ENCRYPTION_KEY` → 422,
+  never 500), decrypt-once at the verify boundary with a diagnostic warning naming the
+  integration, fail-closed backfill migration `d3a2c5b7e9f4` (chained to `c7d8e9f0a1b2`),
+  ciphertext-contract fixtures, and the sweep-guard
+  `tests/test_credential_encryption_sweep.py` pinning that no route may write a credential
+  column without the encrypt helper. ORIGINAL ENTRY: — Linear is the only integration storing `webhook_secret`
+  unencrypted; Zendesk/Jira/Asana all round-trip through `encrypt_api_key`. Needs a backfill
+  migration.
+- ~~**`zendesk-replay-window`**~~ — **FIXED** 2026-08-01. 300s window, matching Slack's.
+  **Note for anyone touching this:** Zendesk's signature timestamp is **ISO-8601**
+  (`2026-07-05T00:00:00Z`), not Slack's Unix epoch. A first attempt parsed it as an int and
+  rejected every genuine delivery; 15 existing tests caught it. Those tests had hardcoded a
+  month-old timestamp, which is how the missing window went unnoticed. ORIGINAL ENTRY: — Zendesk already receives `X-Zendesk-Webhook-Signature-Timestamp`
+  and feeds it into the HMAC but never checks freshness. Content-dedup blocks duplicate content,
+  **not** status-transition replay: `_handle_zendesk_status_change`, `reconcile_issue` and
+  `reconcile_task` all run before any dedup check, so a captured "ticket closed" delivery can
+  undo manual triage indefinitely. One line, reusing Slack's 300s guard.
+- ~~**`generic-webhook-persists-headers`**~~ — **FIXED** 2026-08-01. Credential headers
+  (`x-webhook-secret`, `authorization`, signature headers, `cookie`) are stripped
+  case-insensitively before an event is persisted. ORIGINAL ENTRY: — `source_webhooks.py:229-233` writes
+  `dict(request.headers)` into `FeedbackSourceEvent.event_data`, including the source's own
+  `X-Webhook-Secret`. Anyone with read access to that table can forge the webhook.
+- ~~**`events-emit-wire-up-or-delete`**~~ — **FIXED** (merged 20599748, PR #20).
+  **Deleted.** The orphaned internal HTTP push endpoint + `InternalEventRequest`
+  (events_ws.py), its 11 tests (test_event_emitter.py keeps the `emit_event`
+  service tests), the `.env.example` / `.env.prod.example` blocks and the
+  SELF_HOSTING section are gone. It had zero production callers since
+  inception (it is a realtime-WS push seam, NOT the webhook dispatcher —
+  webhook dispatch is untouched; the WS side `/ws/events`, `emit_event` and
+  its ~11 in-process callers all survive).
+- ~~**`jwt-secret-default`**~~ — **FIXED** 2026-08-01. No default; the app refuses to start
+  without `JWT_SECRET`, and the old public default is rejected explicitly so it cannot be
+  pasted back in as a "fix". **Upgrading installs must set it, and existing sessions are
+  invalidated** — documented in `SELF_HOSTING.md`. ORIGINAL ENTRY: — `src/api/auth.py:11` defaults to `"dev-secret-key"`. Same class as
+  the internal-events push endpoint's default (fixed on
+  `feat/integration-auth-tenancy-hardening`, then deleted 2026-08-18), far larger blast radius.
+
+### Found while doing the Intercom work (2026-08-01)
+
+- **`purge-playbook-executions` had never run — FIXED (two halves; second half 2026-08-14).**
+  The beat entry referenced
+  `tasks.churn_playbooks.purge_old_executions`, missing the `src.` prefix every other
+  entry carries, so it resolved to nothing and the 90-day purge never fired. The beat
+  side was fixed on
+  `feat/intercom-selfhost-ingestion`, and safe to fix *then* specifically: churn playbooks
+  shipped 2026-07-19, so nothing is 90 days old yet and the first run deletes nothing.
+  In three months the first successful run would have purged a real backlog unannounced.
+  **Correction (2026-08-14, `feat/per-org-churn-model`):** that fix repaired only the
+  beat side — the task's own `@shared_task name="tasks.churn_playbooks.purge_old_executions"`
+  still lacked the `src.` prefix, so dispatch **still raised `NotRegistered`** and the
+  purge had *still* never run. The task-name side landed with a name-consistency test
+  (one string; see `test_beat_schedule_integrity.py::test_beat_entry_registered_task_name_matches_beat_string`).
+  A new `tests/test_beat_schedule_integrity.py` resolves every scheduled task name to a
+  real function so this class cannot recur — it is the same "wired at one end, dead at the
+  other" shape as the P0/P0b import bugs and the orphaned write-back module.
+- **`signup-promo-banner-vestigial` — FIXED** on `chore/frontend-cleanup-smalls`
+  (2026-08-18). The promo-banner machinery in `app/signup/page.tsx` is deleted:
+  the `VALID_PROMO_CODES` const, the `?promo=` + localStorage state/effect, the
+  banner JSX, the `.promo-banner` gsap refs, and the `trackEvent("Promo Signup", …)`
+  reads on both submit paths. The dead `analytics.promoSignup` /
+  `analytics.promoCheckoutStarted` helpers are gone too. The `Sparkles` import stays
+  (used by the "Start Your Free Trial" badge). Test-neutral — no test pinned the
+  banner; the signup-adjacent suites stay green. (merged bd4b192b, PR #21)
+
+### Found while doing the churn-model work (2026-08-14)
+
+- **`churn-calibration-beat-notregistered` — FIXED** on `feat/per-org-churn-model`
+  (aspect 1 of `per-org-churn-model`; closes `TRACKING.md` item (a)). Four beat
+  entries dispatched tasks that were never registered: `refit_all_orgs`,
+  `refit_global_calibration`, `purge_old_calibration_models` in `churn_calibration.py`
+  and `classifier_training.retrain_all_orgs` were **plain functions with no Celery
+  decorator**, so every dispatch raised `NotRegistered` and none of them had ever run in
+  production — the weekly per-org and daily global isotonic refits, the old-model purge,
+  and the M5.2 weekly classifier refit. Consequences: `probability_updater` always fell
+  through to the **identity fallback** (`p = score/100`), and any M5.3 A/B against "the
+  calibrated heuristic" would have measured against an incumbent that never ran. The
+  existing guard (`test_beat_schedule_integrity.py`) only asserted `hasattr(module, attr)`,
+  which an undecorated function passes — it is now hardened to assert **real Celery
+  registration** plus name-consistency, and `tasks/usage_metrics.py:482-485`'s NOTE
+  ("Do NOT edit churn_calibration.py here; address in a separate audit pass") is deleted —
+  that pass is this one. Registration-only, no task-body change. See
+  `docs/planning/per-org-churn-model/calibration-beat-fix/`.
+
+### Found while doing the copilot-suggested-actions dig (2026-09-06)
+
+Recorded so they are not re-discovered. **None of these is fixed** — the branch
+`feat/copilot-suggested-actions` was planning + a test-only contract guard when this was
+recorded; the feature shipped 2026-09-09 (action-registry, deterministic-proposer,
+frontend-actions-ui, docs-tracking all merged) and these six defects remain unfixed.
+All six were verified against the code during the dig, not inferred from docs.
+
+- [ ] **`copilot.py:5` advertises an endpoint that does not exist.** The module docstring lists
+      `POST /api/v1/conversations/suggestions`; no such route is registered. A reader auditing
+      the copilot surface is actively misled — same class as the false
+      `models/integration.py:19` comment. Correct the docstring even if nothing else changes.
+- [ ] **`regenerate` is exposed but not implemented.** `copilot_ws.py:991` returns a hardcoded
+      "not yet implemented" error, while the frontend ships `regenerate()` in the public hook
+      API (`useCopilotWebSocket.ts:35`). Either implement it or drop it from the hook.
+- [ ] **Copilot usage counters are always zero.** `copilot_ws.py:715-717` initialises
+      `tokens_in`/`tokens_out`/`cost_cents` to `0/0/0.0` and never assigns them, so the final
+      WS frame always reports zero usage. The AI Settings token-budget bars are therefore
+      reading a constant, not a measurement.
+- [ ] **Stale plan gate in `RunPlaybookDropdown.tsx:26,47`** — gates on
+      `user?.plan === 'business'`. Harmless today (`/auth/me` reports `enterprise` under
+      `SELF_HOSTED`), but it is exactly the pre-pivot drift that broke ~40 tests before 1.0.0.
+- [ ] **Inconsistent error transport on the report branch.** `copilot_ws.py:471-478` sends its
+      error with a raw `websocket.send_json` and no `message_id`; every other error path goes
+      through `manager.send`. A client correlating errors to turns silently loses this one.
+- [ ] **`AISettings.has_custom_key` is dead on the wire** — zero backend read sites.
+
+### Deferred v2 — Intercom (opened 2026-08-01; 3 SHIPPED, 1 NOT STARTED)
+
+Recorded here rather than only in `docs/planning/intercom-selfhost-ingestion/` so they are
+visible from the backlog. None block anything; the integration is fully operable without them.
+
+- ~~**`intercom-pull-replies-and-ratings`** — the 15-minute pull ingests the **first
+  message** of a conversation only. Replies and ratings arrive via the webhook path,
+  so a pull-only install (no webhook wired) never sees them. Needs conversation-parts
+  fetching.~~ — **SHIPPED 2026-08-15** via `feat/intercom-pull-replies-and-ratings`
+  (merged `873a9c1`, PR #16): the pull now enriches replies + the
+  satisfaction rating via conversation-parts — new replies merged into the item text
+  (one item per conversation, idempotent by part id), rating/remark in
+  `source_metadata`, changed items re-analyzed, unchanged untouched. No backfill:
+  older conversations stay first-message-only until the pull re-sees them.
+  **Follow-up (defect) — FIXED** via `feat/intercom-webhook-reply-rating` (merged
+  ac9b55a2, PR #18): the webhook reply/rating path is no longer inert — a
+  `conversation.user.replied` / `conversation.rating.added` delivery now enriches the
+  conversation's existing item in real time (payload-first parts + rating; detail-fetch
+  fallback when the payload lacks parts; `enriched` event-log status so the created
+  path's dedup is untouched; re-analysis dispatched once after commit for text changes,
+  rating-only changes dispatch none). Existing-item-only — no backfill; the pull stays
+  the guaranteed fallback. See `docs/planning/intercom-webhook-reply-rating/`.
+- ~~**`intercom-writeback`** — still no write-back; `intercom_service.py` remains
+  orphaned with zero production callers.~~ — **SHIPPED 2026-08-15** via
+  `feat/intercom-writeback`: the wire-or-delete P2 landed as **wire it** — opt-in
+  note + close on resolve, off by default, resolved-only. The "Two-Way Sync" rule
+  now resolves: copy may return only in the form shipped. See the FIXED P2 above.
+- ~~**`intercom-backlog-drain-visibility`** — a large backlog drains over several 20-page runs
+  with no operator-visible progress; the settings page shows a count but not "N remaining".~~
+  — **SHIPPED 2026-08-16** via `feat/intercom-backlog-drain-visibility`
+  (merged `300fb05d`, PR #17): the Intercom settings page Connection card
+  now shows **"≈ N conversations left to sync"** after a completed pull run — an
+  estimate computed from Intercom's `total_count` for the run's window (an estimate,
+  not a queue count: arrivals during the drain shift later windows, the boundary
+  conversation re-counts itself). Token-paste connections only; absent until a
+  completed run and cleared on error — a failed run never leaves a stale number.
+  Drain mechanics (20-page cap, cursor resume) unchanged. Backend
+  `intercom_integrations.backlog_remaining` (migration f5a6b7c8d9e0) + status
+  field + model-parity type-tuple entry + client 3-tuple `total_count` surface.
+- **`intercom-oauth-path-retirement`** — two credential paths now coexist (D4). If nobody is
+  using OAuth, retiring it removes a second tenancy discriminator to keep correct. Needs
+  evidence of use before deciding.
+
+### Roadmap hygiene (2026-08-01)
+
+Two entries were **present but wrong**, which is worse than absent — someone acting on either
+would have wasted a day:
+
+- P0b was marked NOT STARTED months after it shipped. Corrected.
+- `AI-TRACKING.md` M4.3 (Industry Benchmarks) sat in Q4 as seven live checkboxes while the M5
+  section of the same file described it as dropped and non-viable. Struck, with the reason.
+
+**When closing work, correct the marker in the same commit.** Every stale marker found so far
+was left by a branch that shipped the fix and did not update the row.
+
+### P1 — `oauth-tokens-stored-plaintext` — **FIXED**, merged `737bbd5` (#10, 2026-08-09)
+> Shipped: Slack/Intercom OAuth tokens are now encrypted at rest with Fernet like
+> every other integration. Encrypt-on-write at both OAuth callbacks (missing
+> `LLM_ENCRYPTION_KEY` → 422, never 500); decrypt at all 8 read sites (3 backend,
+> 5 worker) with the same never-500 contract; worker-local `_decrypt` mirrors
+> (worker-service cannot import backend-api); dead `intercom_sync` import fixed.
+> Fail-closed backfill migration `c7d8e9f0a1b2` (chained to head `a9b8c7d6e5f4`;
+> one alembic head) encrypts existing plaintext rows in place and aborts with
+> generate-a-key instructions when `LLM_ENCRYPTION_KEY` is unset; import sweep-guard
+> test (`test_worker_import_sweep.py`) pins the no-backend-import contract. Merged
+> as `737bbd5` (PR #10) on 2026-08-09. Backend 4719 passed
+> (9 new backend tests + 7 migration tests vs 4703 baseline); worker 1530 passed
+> (18 net new). **Follow-up (chore, not started): `intercom-oauth-path-retirement`** —
+> the legacy Intercom OAuth row in the generic integrations table is now write-only;
+> revisit retiring it (see the Deferred v2 entry above).
+> The false comment at `models/integration.py:19` is corrected; the migration's
+> error text is quoted verbatim in the SELF_HOSTING upgrade callout.
+
+- [ ] `Integration.oauth_access_token` is a plain `Text` column and
+      `services/backend-api/src/api/routes/integrations.py` never calls
+      `encrypt_api_key`/`decrypt_api_key` on the **Slack or Intercom** OAuth paths — while
+      every newer BYOK integration (Zendesk, Jira, Asana, HubSpot, Salesforce) does encrypt.
+      OAuth was simply never migrated when the encryption pattern was introduced.
+- [ ] **`services/backend-api/src/models/integration.py:19` carries the comment "OAuth tokens
+      (encrypted at application level before storage)" — which is false.** A reader auditing
+      this file is actively misled into believing it is handled. Fix the code; if the fix is
+      deferred, the comment must be corrected *immediately* either way.
+- [ ] Needs a migration to encrypt existing rows in place.
+
+### P1 — `integrations-routes-missing-rbac` — **FIXED** on `bug/integrations-routes-missing-rbac` (2026-08-09)
+> Shipped: `require_admin_or_owner` on all 12 JWT routes in `integrations.py` (incl. the
+> previously-**unauthenticated** `GET /slack/template-variables`, now gated; the two OAuth
+> callbacks stay JWT-less by design — provider browser redirect, state-guarded, pinned by
+> the sweep test), all 16 JWT routes in `linear_integration.py` (the audit's surprise —
+> the only provider module besides this file with zero role deps; `POST /issues` was
+> member-reachable), and the 3 write routes in `feedback_sources.py` (GETs stay
+> member-open — its pages are top-level/member-reachable by design). Commits
+> `2defcc33`/`3b76a566`/`538aa80e` (member→403 tests RED-first per module) +
+> `2e071c56` (sweep-guard `tests/test_integration_rbac_sweep.py` enumerates every
+> integration/config router module so the zero-deps class cannot silently recur — mirror
+> of `test_webhook_verifiers_fail_closed.py`). Backend suite 4674 passed. **Follow-up
+> `frontend-integration-role-guards` — FIXED** on `chore/frontend-cleanup-smalls`
+> (2026-08-18). The 3 member-reachable surfaces now mirror the backend RBAC:
+> `settings/integrations/[id]` + `new` redirect members to `/settings/preferences`
+> (house guard); the `feedbacks/[id]/create-issue` wizard shows an admins/owners-only
+> copy card instead of the (silently 403ing) wizard — Jira/Asana included, not just
+> Linear; and the `feedback-sources/*` write controls (list add/pause/configure/delete,
+> detail delete/inputs/switches/save, new create) are hidden/disabled for members while
+> the read views stay member-open and `feedback-sources/pending` is untouched. TDD:
+> member+admin tests per surface. (merged bd4b192b, PR #21)
+> See `docs/planning/integration-routes-rbac/`.
+
+- [ ] `services/backend-api/src/api/routes/integrations.py` contains **zero** occurrences of
+      `403`, `require_admin_or_owner` or `require_owner`. `get_current_org` validates the JWT
+      but never checks `current_user.role`.
+- [ ] So a **`member` can drive the OAuth connect flow via the API**, contradicting the RBAC
+      table in `CLAUDE.md` ("Manage integrations: Owner ✅ / Admin ✅ / Member ❌"). The
+      frontend hides the UI; the backend does not enforce it — the classic shape of an
+      access-control gap that looks fine in manual testing.
+- [ ] Audit the other integration route modules for the same omission before assuming it is
+      confined to this file.
+
+### P2 — `intercom-writeback-orphaned` — **FIXED**, merged `aa09cbdc` (#14, 2026-08-15)
+> Shipped: the wire-or-delete decision landed as **wire it**. `intercom_service.py`
+> deleted, its behavior ported into the worker's `IntercomClient`
+> (`add_note` / `close_conversation` / `fetch_admin_id`, 404 → `IntercomNotFoundError`,
+> 401/403 → `missing_write_scope` / `auth_error`, 429/5xx → retry ≤3 × 30s).
+> New worker task `src.tasks.intercom_writeback` registered under exactly the name
+> its dispatchers use (backend `send_task` dotted name + worker `delay()`), pinned
+> by a name-consistency test so the "green tests over code that never executes"
+> class cannot recur. Dispatch at all five status-change writers (workflow
+> `change_status`, public-api bulk + single, playbook engine, feedback automation)
+> with per-site seam tests. Durable `feedback_items.intercom_writeback_at` marker +
+> five `IntercomIntegration` writeback columns (migration `e4f5a6b7c8d9`,
+> chained to `3cb9a0d1456b`; one alembic head). `PATCH
+> /api/v1/integrations/intercom/writeback` + extended `GET /status` +
+> `IntercomWritebackCard` on Settings → Integrations → Intercom. Merged as
+> `aa09cbdc` (#14) on 2026-08-15. Backend 4927 passed (38 new
+> vs 4889 baseline); worker 1732 passed (48 net new).
+> **Follow-up `landing-intercom-entry-refresh` — DONE** (chore, merged
+> `073dfb2a` (#15, 2026-08-15)). The OAuth-era Intercom entry in
+> `services/landing-web/lib/integrations.ts` claimed OAuth-only setup and webhook-only
+> ingestion ("there is no polling fallback"); it now describes token-paste connect,
+> the 15-minute pull with the optional real-time webhook, and the opt-in write-back —
+> respecting the "claim only what shipped" rule (prd OQ3).
+> The false "stored in PLAINTEXT" comment at `models/integration.py:19-25` is
+> corrected to encrypted-at-rest (P1, merged `737bbd5`) — see the comment fix in
+> this change.
+
+### P3 — `oauth-state-in-process-dict` — **FIXED** (merged 20599748, PR #20)
+> Shipped on `chore/backend-security-smalls`: OAuth `state` for Slack, Intercom
+> and Linear is now **stateless and HMAC-signed** — the module-level
+> `oauth_states` / `linear_oauth_states` dicts are deleted and replaced by
+> `src/services/oauth_state.py` (`sign_oauth_state` / `verify_oauth_state`,
+> app-secret keyed via `JWT_SECRET`, `STATE_TTL_SECONDS = 600`, fail-closed
+> `None` on any invalid/expired/unsafe-compare mismatch, digest/encoding
+> byte-identical to the Salesforce precedent). The signed blob carries
+> `{organization_id, name, nonce, exp}` (+ `user_id` for Linear), so callbacks
+> survive multi-replica backends (no process affinity) and nothing unbounded
+> accumulates in memory. The ~12 direct-seeding test sites now drive the
+> signed-state helpers; `tests/test_oauth_state.py` adds tamper/expiry/
+> wrong-key fail-closed cases plus route-level tampered/expired redirect
+> tests for Slack.
+
+### No build required (recorded so they are not re-opened)
+- **Batch 1 — two comments** were **pure positive signal** on the no-telemetry / self-hosted
+  / BYOK positioning and on local-pipeline-without-an-API-key working out of the box. No ask
+  attached. Worth noting that **both** independently named privacy/BYOK as the hook — that
+  is the messaging that is landing, and it should stay first on the landing page.
+- **Batch 2 — two more comments (2026-07-29)**, same shape, no ask attached: one on
+  MIT + self-hosted + no telemetry *and* the free VADER pipeline producing a clean sentiment
+  breakdown with no API key; one on BYOK as data control plus "not locking anyone into a
+  specific model". **Four of seven comments now independently name privacy/BYOK/OSS as the
+  hook, and two specifically praise the zero-key local pipeline.** That is a settled result:
+  keep BYOK-and-no-telemetry first on the landing page, and keep the "works with no API key"
+  claim prominent — it is doing real acquisition work and is cheap to keep true.
+
+---
+
+## Landing site
+
+### `landing-schematic-redesign` — **SHIPPED** (2026-09-03)
+> Freeform design work, not a backlog item. The landing site was rebuilt on a new
+> visual system modelled on oxide.computer: a ruled 12-column grid, hairline-divided
+> cells instead of cards, monospace uppercase figure captions, 2px radii and
+> light-weight display type. The coral/amber palette is unchanged — only its
+> application inverted, from gradient fills and glow to surgical accents on hairlines,
+> labels, state dots and meter fills.
+>
+> `app/landing.css` was rewritten as a token system (`--surface-*`, `--content-*`,
+> `--stroke-*`, `lp-display-*`, `lp-mono-*`, `lp-band`, `lp-cell`, `lp-fig`,
+> `lp-panel`, `lp-table`, `lp-kv`, `lp-meter`). Three new sections: `Pipeline.tsx`
+> (processing stages), `Comparison.tsx` (prior art) and `Console.tsx` (the feedback
+> table drawn as real UI). Motion moved into `lib/landing/motion.ts` — short
+> expo-eased reveals, self-drawing hairlines, flat fills, tabular count-ups, all
+> no-ops under `prefers-reduced-motion`.
+>
+> **Deleted:** `Galaxy.tsx`, `GalaxyScene.tsx`, `LandingSmoothScroll.tsx`,
+> `LiveClassification.tsx` (the 280vh pinned scrub), `lib/landing/lenis.ts` and
+> `lib/landing/scrollState.ts`. **Dependencies dropped:** `three`,
+> `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`,
+> `postprocessing`, `lenis`. Fonts moved to Geist / Geist Mono, overridden in
+> landing-web's own `tailwind.config.ts` so the shared `@rereflect/ui` config used by
+> the dashboard is untouched.
+>
+> Subpages carried across: integrations index + 10 detail pages, blog index + post,
+> privacy, terms. Backend, worker and dashboard untouched.
+>
+> Verified: 27/27 landing tests passed, `tsc` clean, production build exported 60
+> static pages, output rendered and checked in Chromium at 1440px and 390px.
+> Merged as `7e09ec8e` (PR #27) on 2026-09-03.
+
+### `usage-summary-tests-month-boundary` — **FIXED**, merged `cd310e20` (PR #28, 2026-09-03)
+> **Two backend tests fail on the 1st and 2nd of every month**, and master is red
+> because of it right now (run `33687183095`, a docs-only commit — so it is provably
+> not caused by any code change).
+>
+> `tests/test_multi_model_api.py::TestUsageSummary::test_aggregates_tokens_correctly`
+> (`assert 980 == 1130`) and `::test_by_provider_breakdown` (`assert 1 == 2`).
+>
+> **Cause:** the `llm_usage_logs` fixture
+> (`services/backend-api/tests/test_multi_model_api.py:316`) creates three logs at
+> `now`, `now - 1 day` and `now - 2 days`, but `GET /api/v1/settings/ai/usage`
+> aggregates **the current calendar month**. Whenever the run happens on the 1st or
+> 2nd, the `now - 2 days` log (150 tokens, provider `openai`) falls into the previous
+> month and drops out of the summary — which is exactly the two deltas observed
+> (1130 − 150 = 980; openai 2 − 1 = 1).
+>
+> **Fixed in the fixture, not the assertions** — the endpoint's month-scoping is
+> correct behaviour and worth keeping under test. The rows keep their `now / -1d /
+> -2d` spacing whenever it fits inside the month, and otherwise fan out across
+> month-to-date, preserving oldest -> newest order and staying within
+> `[month_start, now]`.
+>
+> Verified by simulating the fixture against the endpoint's month filter for every
+> hour of a year: the old form failed 576 hours (24 days — the 1st and 2nd of each
+> month), the new form fails 0 of 8760, with ordering and in-window invariants
+> asserted at every step. Note this is **self-clearing from the 3rd**, which is both
+> why it went unnoticed and why a green CI run on the fix PR does not by itself
+> prove the fix — the simulation covers the two days a month CI cannot reach.
+>
+> **Also worth knowing:** `services/backend-api/venv` in the primary checkout is a
+> stale **Python 3.9.6** Xcode-shim venv while the project requires 3.12, so the
+> backend suite cannot be run there without rebuilding it (`python3.12 -m venv`).
+> Same class of trap as the worker venv.
+
+> **Caveat carried forward:** `services/landing-web` still has **no ESLint config and
+> is not in CI** (`.github/workflows/ci.yml` covers backend, worker and
+> `frontend-web` only). Its 27 tests only run when someone runs them locally, so this
+> suite can rot silently. Wiring landing-web into CI is an open chore.
+
+---
+
+## Phase 1: MVP SaaS (Months 1-3)
+
+### Authentication & Multi-tenancy - COMPLETE
+- [x] User authentication (email/password)
+- [x] JWT token management
+- [x] Organization model (tenant isolation)
+- [x] Multi-tenant data scoping
+
+### Dashboard & Analytics - COMPLETE
+- [x] Main dashboard with charts
+- [x] Sentiment overview widgets
+- [x] Pain points list
+- [x] Feature requests list
+- [x] Urgent feedback alerts
+- [x] Responsive design
+- [x] Dashboard v2: Drag-and-drop widget grid (react-grid-layout v2)
+
+### Feedback Management - COMPLETE
+- [x] CSV import with parsing
+- [x] Feedback list with pagination
+- [x] Feedback detail view
+- [x] Search and filtering
+- [x] Category management
+
+### Integrations - COMPLETE
+- [x] Slack OAuth integration
+- [x] Webhook support
+- [x] Feedback sources management
+- [x] Auto-refresh polling
+
+### Team Management (RBAC) - COMPLETE
+- [x] Role system (Owner/Admin/Member)
+- [x] Team invitations with email (Resend)
+- [x] Invite acceptance flow
+- [x] Role changes
+- [x] Member removal
+- [x] Ownership transfer
+- [x] Audit logging
+- [x] Frontend tab visibility by role
+- [x] Route protection
+- [x] Conditional UI rendering
+
+### Billing (Stripe) - COMPLETE
+- [x] Subscription model
+- [x] 4 tiers (Free/Pro/Business/Enterprise)
+- [x] Stripe Checkout integration
+- [x] Stripe Billing Portal
+- [x] Usage tracking
+- [x] Feature gating
+- [x] Trial support (14 days)
+
+### Quick Wins - COMPLETE
+- [x] Email notifications for role changes
+- [x] Email notifications for member removal
+- [x] OAuth signup (Google Sign-In)
+
+---
+
+## Phase 2: Growth Features (Months 4-6)
+
+**Goal**: 50 paying customers, $5K MRR
+
+### Priority Order & Reasoning
+
+| Priority | Feature Area | Why |
+|----------|--------------|-----|
+| **1st** | AI Enhancements | Core differentiator - why customers pay for Rereflect over spreadsheets |
+| **2nd** | Notifications | Drives daily engagement and retention, surfaces urgent insights |
+| **3rd** | Enhanced Analytics | Proves ROI to customers, enables data-driven decisions |
+| **4th** | Feedback Workflow | Completes the feedback loop (analyze → act), focused scope |
+| **5th** | Additional Integrations | Expands data sources, but not urgent for existing customers |
+
+---
+
+### 1. AI Enhancements (Priority: HIGH) - COMPLETE
+> *Our differentiator - this is why customers choose Rereflect*
+
+- [x] Auto-categorization (LLM-powered with custom categories)
+- [x] Impact scoring / churn risk detection (displayed on feedback detail)
+- [x] Anomaly detection (unusual spikes in negative sentiment)
+- [x] Suggested actions (AI-generated weekly insights with actions)
+
+### 2. Notifications (Priority: HIGH) - COMPLETE
+> *Keeps users engaged and surfaces critical insights proactively*
+
+- [x] Urgent feedback Slack alerts (outbound notifications)
+- [x] Email digest (daily + weekly with configurable schedule)
+- [x] Alert configuration UI (per-type thresholds, channels, retention)
+- [x] In-app notification center (header bell popover + full page)
+- [x] Notification detail page with metadata display
+- [x] Dismiss/restore workflow
+- [x] Per-type retention billing (30–365 days with Stripe metering)
+- [x] Slack brand icon for channel settings
+- [x] Replace all native HTML selects with shadcn components
+
+### 3. Enhanced Analytics (Priority: MEDIUM) - COMPLETE
+> *Proves ROI and enables data-driven product decisions*
+
+- [x] Trends over time (sentiment/volume charts with date ranges)
+- [x] Saved views and filters (quick access to common queries)
+- [x] Export dashboard as PDF (for stakeholder reports)
+- [x] Dashboard sharing (public link for read-only access)
+
+### 4. Feedback Workflow (Priority: MEDIUM) - COMPLETE
+> *Completes the feedback loop: collect → analyze → ACT. Focused scope, not project management.*
+
+- [x] Status tracking (New → In Review → Resolved → Closed) with free-form transitions
+- [x] Feedback assignment (route to team member) with bulk assign/unassign
+- [x] Internal notes (markdown, author-only edit/delete)
+- [x] Workflow overview page (`/workflow`) with kanban (drag-and-drop) and table views
+- [x] Timeline log on feedback detail page (status changes, assignments, notes)
+- [x] Bulk actions (multi-select for status change + assign)
+- [x] Auto-assignment engine (category-based rules + round-robin fallback)
+- [x] Assignment rules management (`/settings/workflow`)
+- [x] 3 new notification types (feedback_assigned, status_changed, note_added)
+- [x] Status + Assignee columns on feedbacks list with filters
+
+**Deliberately excluded** (not aligned with core value):
+- ~~Comments on feedback items~~ (turns app into Slack)
+- ~~@mentions~~ (not a project management tool)
+- ~~Activity feed~~ (nice-to-have, not essential)
+
+### 5. Additional Integrations (Priority: LOW)
+> *Expands feedback sources, but existing customers can use CSV/Slack*
+
+- [x] Intercom API (pull support conversations)
+- [x] Email forwarding (receive feedback via email)
+- [x] Linear integration (OAuth, webhooks, feedback sources, issue management)
+- [x] Zendesk API (pull support tickets)
+- [ ] HubSpot integration (sync with CRM)
+
+---
+
+## Phase 3: Enterprise (Months 7-12)
+
+**Goal**: 10 enterprise customers, $50K MRR
+
+### Security & Compliance
+- [x] SSO — **OIDC + SAML shipped** (Okta, Azure AD, Google Workspace, Keycloak; OIDC: RS256, JIT +
+  verified-email linking; SAML: SP-initiated only, signed-assertion validation, JIT + verified-email
+  linking; domain allowlist for both; config at `/settings/sso`; one SSO protocol enabled at a time).
+  SLO/SCIM/IdP-initiated deferred. Plan gate void (OSS, all unlocked).
+- [ ] Advanced RBAC (custom roles)
+- [ ] Data residency (US/EU/APAC)
+- [ ] SOC 2 Type II certification
+- [x] GDPR compliance tools
+- [ ] IP whitelisting
+
+### Enterprise Features
+- [ ] Custom AI models (train on your data)
+- [ ] White-labeling (custom domain, branding)
+- [ ] Custom data retention policies
+- [ ] SLA guarantees (99.99% uptime)
+- [ ] Dedicated support
+
+### Workflow Automation
+- [x] JIRA integration (Cloud, slice 1)
+- [x] Linear integration
+- [x] Asana integration (Cloud, slice 1)
+- [x] Custom webhooks (trigger on events)
+- [x] Auto-routing rules
+
+### M3.2 — JIRA Integration — COMPLETE (slice 1 shipped 2026-07-05, `feat/jira-integration`)
+> Delivered as `jira-integration`. **Jira Cloud + Atlassian API token (email + token, HTTP Basic auth)** — NOT the OAuth 3LO marketplace flow (awkward for self-host; HubSpot's private-token BYOK precedent). See `docs/planning/jira-integration/` (PRD + 5 aspect specs). SSRF-hardened (route DNS/private-IP gate + client scheme/host assertion). All features **unlocked** (OSS self-hosted).
+- [x] Connect via Atlassian API token (connect/status/disconnect/test), one Jira site per org, encrypted at rest (`encrypt_api_key`)
+- [x] JIRA API client (REST v3, Basic auth): validate (`/myself`), projects, issue types, create issue
+- [x] Create issue from feedback: project + issue-type selection, ADF description, duplicate guard, stale-token 4xx (activated the create-issue wizard's Jira card)
+- [x] Feedback source type: `jira` (registered as a selectable own-auth source, `requires_integration=false`)
+- [x] Frontend: token-paste settings page + integrations tile; landing page + `SELF_HOSTING.md` token-setup docs
+- [x] Plan gate: **removed** — all unlocked in the open-source self-hosted edition (not Pro+)
+- [x] **AI-drafted issue content — shipped 2026-07-07** (`feat/ai-drafted-issue-content`): "Draft with AI" button in the Jira wizard branch drafts issue title+body from the feedback item via the org's LLM (shared `POST /api/v1/feedback/{id}/issue-draft`). See `docs/planning/ai-drafted-issue-content/`.
+- [x] **Inbound status-sync — shipped 2026-07-12** (`feat/jira-status-sync`): poll-first Celery beat (15-min) reconciles a linked Jira issue's `statusCategory` back onto the feedback's `workflow_status` (`done→resolved`, `indeterminate→in_review`, `new→new`; per-org `status_mapping` JSON override). **Opt-in per org, off by default**; non-destructive first-poll baseline-seed (no retroactive bulk backfill); most-advanced-category-wins across multi-issue links; 429/`Retry-After` throttle; auth-error records (no disconnect); manual `POST /sync` "Sync now". Applies via `apply_status_change` (worker mirror) emitting one `status_changed` timeline event (`source=jira`). Reconcile core factored provider-agnostic for Zendesk/Asana reuse. UI: status-sync toggle + last-synced/error indicator on the Jira tile. Backend 122 / worker 63 / frontend 24 tests. See `docs/planning/jira-status-sync/`.
+- [x] **Real-time inbound webhook + status-mapping editor — shipped 2026-07-18** (`feat/status-sync-realtime-mapping`): optional per-org webhook enable (`POST /api/v1/integrations/jira/webhook/enable`, display-once HMAC secret + inbound URL, fail-closed HMAC verify, poll retained as guaranteed fallback) + the shared `StatusMappingEditor` mounted on the Jira tile (per-org `status_mapping` override UI, hydrated from GET `/status`); the webhook apply path shares the poller's race-safe conditional-`UPDATE` writer. See `docs/planning/status-sync-realtime-mapping/`.
+- [ ] **Deferred (v2):** OAuth 3LO, Jira Server/Data Center, outbound `feedback.status_changed` webhook on a Jira-driven change, multiple sites per org
+
+### M3.3 — Asana Integration — COMPLETE (slice 1 shipped 2026-07-06, `feat/asana-integration`)
+> Delivered as `asana-integration`. **Asana + Personal Access Token (Bearer auth)** — NOT the OAuth marketplace flow (awkward for self-host; the Jira/Zendesk/HubSpot BYOK precedent). Outbound work-management target (create tasks from feedback, like Jira/Linear), riding the existing analysis → churn → health pipeline. See `docs/planning/asana-integration/` (PRD + 5 aspect specs + plans). Fixed host `app.asana.com` (no per-org subdomain), so no SSRF DNS gate — client asserts constant scheme/host. All features **unlocked** (OSS self-hosted). 107 backend + 18 frontend Asana tests green.
+- [x] Connect via Asana **Personal Access Token** (connect/status/disconnect/test), one Asana account per org, encrypted at rest (`encrypt_api_key`)
+- [x] Asana API client (REST v1, Bearer auth): validate (`/users/me`), workspaces, projects, create task (`opt_fields=permalink_url` + `GET /tasks/{gid}` fallback)
+- [x] Create task from feedback: workspace + project selection, plain-text notes, org-scoped duplicate guard, `AsanaAuthError`→403 reconnect, `asana_task_created` timeline event (activated the create-issue wizard's Asana card)
+- [x] Feedback source type: `asana` (registered as a selectable own-auth source, `requires_integration=false`)
+- [x] Frontend: PAT token-paste settings page + integrations tile; create-task wizard Asana branch (Workspace→Project pickers, no issue-type); landing page + `SELF_HOSTING.md` token-setup docs
+- [x] Plan gate: **removed** — all unlocked in the open-source self-hosted edition (not Pro+)
+- [x] **AI-drafted task content — shipped 2026-07-07** (`feat/ai-drafted-issue-content`): "Draft with AI" button in the Asana wizard branch drafts task name+notes from the feedback item via the org's LLM (shared `POST /api/v1/feedback/{id}/issue-draft`). See `docs/planning/ai-drafted-issue-content/`.
+- [x] **Inbound status-sync — shipped 2026-07-12** (`feat/asana-status-sync`): poll-first Celery beat (15-min) reconciles a linked Asana task's completion back onto the feedback's `workflow_status` (`completed→resolved`, `not-completed→new`; per-org `status_mapping` JSON override, default `{done: resolved, new: new}`). **Opt-in per org, off by default**; non-destructive first-poll baseline-seed (no retroactive bulk backfill); **bidirectional** (re-opening a task reverts the feedback); most-advanced-category-wins across multi-task links; 429/`Retry-After` throttle; auth-error records (no disconnect); manual `POST /sync` "Sync now". Applies via the provider-agnostic reconcile core shared with Jira, emitting one `status_changed` timeline event (`source=asana`). **Asana has no intermediate state (completed vs not) — no `in_review` from Asana in slice 1.** UI: status-sync toggle + last-synced/error indicator on the Asana tile. Backend 151 / worker 46 / frontend 33 Asana tests green. See `docs/planning/asana-status-sync/`.
+- [x] **Real-time inbound webhook + status-mapping editor — shipped 2026-07-18** (`feat/status-sync-realtime-mapping`): optional per-org Asana webhook (create/delete route, `X-Hook-Secret` handshake echo + `X-Hook-Signature` HMAC, unguessable URL token, fail-closed, poll retained as fallback) + the shared `StatusMappingEditor` mounted on the Asana tile (per-org `status_mapping` override UI). See `docs/planning/status-sync-realtime-mapping/`.
+- [ ] **Deferred (v2):** OAuth 2.0, **section/custom-field → `in_review` mapping** (gives Asana an intermediate state), assignee/due-date mapping, team-scoped-project picker + search, multiple workspaces per org
+
+### M3.4 — Zendesk Integration — COMPLETE (shipped 2026-07-06, `feat/zendesk-integration`)
+> Delivered as `zendesk-integration`. **Zendesk + agent email + API token (HTTP Basic `email/token:token`)** — NOT the OAuth marketplace flow (awkward for self-host; the Jira/HubSpot BYOK precedent). Inbound feedback source: tickets → feedback, riding the existing analysis → churn → health → copilot pipeline. See `docs/planning/zendesk-integration/` (PRD + 6 aspect specs + plans). SSRF-hardened (route `*.zendesk.com` + DNS/private-IP gate on connect; client-side re-assert in the adapter's enrichment call). All features **unlocked** (OSS self-hosted).
+- [x] Connect via API token (connect/status/disconnect/test + manual `/sync`), one subdomain per org, encrypted at rest (`encrypt_api_key`), auto-provisions a default `zendesk` feedback source on connect
+- [x] `ZendeskClient` (REST v2, Basic auth): validate (`/users/me.json`), incremental ticket poller
+- [x] **Dual ingestion, shared dedup core:** (a) pull — Celery beat incremental poll (`/incremental/tickets`, new-tickets-only cursor, 429 `Retry-After` throttle); (b) optional real-time webhook (`/api/v1/webhooks/zendesk/events`, HMAC-SHA256 over raw body, fail-closed on missing secret). One feedback item per ticket, deduped by ticket ID; requester email → `customer_email`
+- [x] Feedback source type: `zendesk` (registered as a selectable own-auth source, `requires_integration=false`)
+- [x] Frontend: token-paste settings page + integrations tile + source-wizard branch; landing page flipped to "available" + `SELF_HOSTING.md` token/webhook setup docs
+- [x] Plan gate: **removed** — all unlocked in the open-source self-hosted edition (not Pro+)
+- [x] Also fixed a pre-existing `_log_event` dedup bug (was silently breaking dedup for Intercom/email adapters too)
+- [x] **Inbound status-sync — shipped 2026-07-12** (`feat/zendesk-status-sync`): reconciles a linked ticket's Zendesk `status` back onto the feedback's `workflow_status` (`new→new`, `open`/`pending`/`hold`→`in_review`, `solved→resolved`, `closed→closed`; per-org `status_mapping` JSON override) via **both** paths — a poll-first Celery beat (15-min, guaranteed fallback, works behind NAT) and an additive real-time branch on the existing ingestion webhook (`POST /api/v1/webhooks/zendesk/events`), keyed on an explicit anti-spoof discriminator (`"event": "ticket.status_changed"`, distinct from the `ticket.created` ingestion payload). **Opt-in per org, off by default** (`PATCH /status-sync`); non-destructive first-observation baseline-seed (no bulk backfill, whichever path — poll or webhook — observes a ticket first); race-safe conditional-`UPDATE` apply so poll and webhook can never double-apply or double-event the same change; manual `POST /status-sync/sync` "Sync now". Applies via a source-tagged writer (worker: `apply_zendesk_status_worker`; backend: `zendesk_status_reconcile.reconcile_ticket`) emitting one `status_changed` timeline event (`source=zendesk`). Reconcile core (`zendesk_status_core.py`) is the same provider-agnostic shape shared with Jira. Backend 192 zendesk tests green. UI status-sync toggle + mapping editor shipped 2026-07-18 (see below). See `docs/planning/zendesk-status-sync/`.
+- [x] **In-app status-sync toggle + status-mapping editor — shipped 2026-07-18** (`feat/status-sync-realtime-mapping`): the Zendesk tile gained a status-sync toggle and the shared `StatusMappingEditor` over the same `status_mapping` the API already exposed (`PATCH /status-sync` unchanged). See `docs/planning/status-sync-realtime-mapping/`.
+- [ ] **Deferred (v2):** OAuth flow, per-comment ingestion, historical backfill, status/tag/view filters, multiple subdomains per org, outbound `feedback.status_changed` webhook on a Zendesk-driven change
+
+### M3.5 — HubSpot CRM Integration (3 weeks)
+- [ ] HubSpot OAuth flow
+- [ ] Sync contacts: company, deal stage, ARR, renewal date
+- [ ] Match by email: link HubSpot contacts to Rereflect customers
+- [ ] Customer 360 enrichment: CRM data on customer profile
+- [ ] Plan gate: Business+
+
+### M3.6 — SSO — OIDC + SAML shipped (`feat/oidc-sso`, `feat/saml-sso`)
+- [x] **OIDC authorization-code login** (PKCE, state+nonce, RS256 ID-token validation) — the shipped OIDC slice
+- [x] **SAML 2.0 SP-initiated login** (`feat/saml-sso`, slice 1) — single operator-configured IdP;
+      signed-assertion validation (XSW-guarded via the validated-getters-only identity read, assertion
+      signature required); strict Audience/Recipient/`NotBefore`-`NotOnOrAfter` (±60s skew)/`InResponseTo`
+      + replay/unsolicited checks; JIT-as-`member` + verified-email linking; domain allowlist (deny-all
+      when empty); one SSO protocol per deployment (SAML XOR OIDC, enforced at save time). **Out of
+      scope:** IdP-initiated login, Single Logout (SLO), SCIM, encrypted assertions, multiple IdPs.
+- [x] Auto-provisioning: create users (as `member`) on first SSO login; link existing verified-email accounts
+- [x] Settings page: SSO configuration (`/settings/sso` — OIDC card + SAML card, domain allowlist, enable)
+- [x] Plan gate: **removed** — all features unlocked in the open-source self-hosted edition (pre-pivot framing was stale)
+
+### M3.7 — Advanced RBAC & GDPR (2 weeks) — GDPR COMPLETE
+- [ ] Custom roles with granular permissions
+- [x] GDPR data export: user can export all their data as ZIP (JSON+CSV)
+- [x] GDPR data deletion: user can request full account + data deletion (30-day grace period, deactivation, cancel flow)
+- [x] Auth middleware blocks deactivated users
+- [x] GDPR purge background task
+- [x] Settings > Preferences: Export/Delete buttons with shadcn Dialog
+- [x] Landing page: GDPR badge, Privacy Policy update, 2 FAQ entries, Bento card
+- [x] 7 backend tests
+- [ ] Plan gate: Enterprise (RBAC), all plans (GDPR)
+
+### Predictive Analytics — COMPLETE
+- [x] Improved churn prediction (9-factor: sentiment, urgency, churn keywords, frustration keywords, sentiment trend, feedback frequency, resolution time, pain severity, feature request density)
+- [x] Customer health score (weighted aggregate: churn_risk 35%, sentiment 25%, resolution 25%, frequency 15%)
+- [x] Customer health dashboard widget (top 5 at-risk, expandable with LLM analysis)
+- [x] Weekly LLM churn insights (GPT-4 deep-dive for customers with health_score < 40, Celery Beat Mondays 7AM)
+- [x] Plan gating (enhanced_churn_prediction, customer_health_scores, churn_llm_insights → Pro+)
+- [x] Feedbacks filterable by customer_email (from dashboard widget click-through)
+- [x] Cache invalidation on all feedback mutation paths (create, delete, update, CSV import, approve pending, integration sync, source events)
+- [x] Customer 360 page (`/customers` list + `/customers/[email]` profile)
+- [x] Enhanced AI Analysis System (structured JSON storage, 3-tier analysis, interactive action items)
+- [ ] Feature impact prediction — deferred (requires longitudinal data)
+- [ ] Customer lifetime value estimation — deferred (requires Stripe customer mapping)
+- [ ] Revenue impact scoring — deferred (depends on CLV)
+
+---
+
+## Technical Debt
+
+- [x] Add comprehensive test coverage (billing/Stripe tests + Vitest frontend setup)
+- [x] Performance optimization (Redis server-side caching + React Query client-side caching)
+- [x] Database query optimization (4 indexes, eager loading, SQL tag aggregation)
+- [x] Error tracking (Sentry) — COMPLETE (free tier across all 3 services)
+- [x] Monitoring dashboard — COMPLETE (health endpoint: /health/detailed)
+
+---
+
+## Success Metrics
+
+### Phase 1 Targets
+- [x] 100 signups
+- [x] 10 paying customers
+- [x] < 3s page load
+- [x] 99%+ uptime
+
+### Phase 2 Targets
+- [ ] 500 signups
+- [ ] 50 paying customers
+- [ ] $5,000 MRR
+- [ ] < 5% monthly churn
+- [ ] NPS > 40
+
+### Phase 3 Targets
+- [ ] 5,000 signups
+- [ ] 500 paying customers
+- [ ] 10 enterprise customers
+- [ ] $50,000 MRR
+- [ ] SOC 2 certified
+
+---
+
+### 0. Public Changelog - COMPLETE
+> *Transparency and trust — show customers what's shipping*
+
+- [x] Public changelog page (`/changelog`) with category + date range filters
+- [x] Auto-sync from git commits via GitHub API on every deploy (idempotent)
+- [x] Admin management UI (`/system/changelog`) for system admins
+- [x] Server-side pagination (20 per batch, "Load more")
+- [x] Conventional commit parsing (feat/fix/chore/refactor/breaking)
+
+---
+
+## Recent Completions (Feb–May 2026)
+
+- **Predictive Analytics** (4 phases, PRD-PREDICTIVE-ANALYTICS.md):
+  - Phase 1 — Enhanced Churn Scoring: `customer_email` column + index on feedback_items, email extraction from source_metadata + CSV import + all adapters, 9-factor churn risk scoring (up from 4), backfill script for existing data
+  - Phase 2 — Customer Health Score: `CustomerHealth` model with 3 indexes, `health_score_service.py` (4-component weighted scoring), health recomputation after each analysis, dashboard API returns top 5 at-risk customers, expandable dashboard widget with score badges + component breakdown + LLM analysis
+  - Phase 3 — Weekly LLM Deep-Dive: `generate_churn_insights` Celery task, `CHURN_ANALYSIS_PROMPT` for GPT-4, Celery Beat schedule (Mondays 7AM UTC), stores `llm_analysis` on CustomerHealth records
+  - Phase 4 — Plan Gating & Integration: 3 feature IDs (enhanced_churn_prediction, customer_health_scores, churn_llm_insights) gated to Pro+, `customer_email` filter on feedbacks list endpoint, dashboard widget click-through to filtered feedbacks
+  - Comprehensive cache invalidation audit: all 11 feedback mutation points now invalidate `dashboard:*` + `analytics:*` cache keys (backend routes + worker tasks)
+  - Diverse sample CSV: 1000 rows, 50 unique customers across 4 risk profiles, all categories represented
+  - Alembic migrations: customer_email column, customer_health_scores table
+- **Feedback Workflow** (6 phases):
+  - DB schema: workflow_status + assigned_to on feedback_items, FeedbackNote, FeedbackWorkflowEvent, AssignmentRule models
+  - 14+ workflow API endpoints (status change, assign, overview, timeline, notes CRUD, assignment rules, auto-assign)
+  - Feedback detail page workflow section with status dropdown, assignee selector, notes, timeline
+  - Workflow overview page (`/workflow`) with kanban drag-and-drop + table view toggle
+  - Bulk actions bar for multi-select status change and assignment
+  - Auto-assignment engine: category-based rules (priority ordered) + round-robin fallback (fewest open items)
+  - Assignment rules settings page (`/settings/workflow`) with auto-assignment toggle
+  - 3 new notification types: feedback_assigned, status_changed, note_added (targeted per-user)
+  - Status + Assignee columns on feedbacks list with filter dropdowns
+  - Sidebar navigation: Workflow page + Workflow settings
+- **Enhanced Analytics** (5 phases):
+  - Analytics trends API with 7d/30d/90d date ranges and auto granularity (daily/weekly)
+  - Analytics page with Metric Trends (line chart, dropdown metric selector), Feedback Volume (bar chart), Distribution (donut with Sentiment/Source tabs), Top Insights (table with column-aligned headers)
+  - Saved views (org-wide tab bar, plan-gated limits)
+  - PDF export with theme-aware colors (oklch support via browser color resolution)
+  - Dashboard sharing: token-based public links with optional password, expiration (24h/7d/30d/never), view counts
+  - Public shared view page (`/shared/[token]`) mirroring full analytics layout
+  - Shared links management page (`/shared-links`) with pagination, status filters, deactivation
+  - Plan gating: Free=7d only, Pro+ gets 30d/90d/export/sharing
+  - Volume spike notification deduplication (24h cooldown, re-alert only on >20% count increase)
+- **Full notification system** (10 phases):
+  - DB models, migrations, and alert preferences
+  - Notification API (list, detail, mark read, dismiss, restore, preferences, retention)
+  - Alert dispatch engine (urgent feedback, sentiment spike, churn risk, volume spike)
+  - Daily + weekly email digests with per-user scheduling (hourly Celery Beat)
+  - Per-type retention billing with Stripe metered usage
+  - Alert preferences UI (per-type thresholds, email/Slack/in-app channels)
+  - Header bell popover (5 recent, 30s polling for unread count)
+  - Full notifications page (`/notifications`) with type filters, pagination, dismissed view
+  - Notification detail page (`/notifications/[id]`) with metadata, dismiss/restore
+  - Slack brand SVG icon for channel settings
+  - Replaced all native `<select>` elements with shadcn Select components
+  - Hidden number input spinners globally via CSS
+  - Sidebar restructured: Settings as nested group, System section moved to end
+- Public changelog with auto-sync from GitHub API on deploy
+- Admin changelog management (edit/hide/delete entries)
+- AI enhancements: auto-categorization, anomaly detection, suggested actions, churn risk
+- Weekly email digest with opt-in/out preferences
+- Redis distributed lock for worker deduplication
+- Churn risk display on feedback detail page
+- Full RBAC implementation with frontend/backend enforcement
+- Tab visibility filtering by role
+- Route protection for billing/integrations pages
+- Ownership transfer with confirmation
+- Audit logging for team actions
+- Documentation consolidation
+- Google Sign-In OAuth integration
+- Email notifications for role changes
+- Email notifications for member removal
+- Resend template management script
+- **Landing Page Separation** (pnpm workspaces monorepo):
+  - Decoupled SEO-optimized landing page from authenticated dashboard
+  - Created `packages/ui` shared UI package with Logo, Select, theme, utilities
+  - New `services/landing-web` with Next.js 15 static export + nginx serving
+  - Updated `services/frontend-web` for standalone builds with workspace dependencies
+  - Railway deployment configuration with dynamic port handling
+  - Local dev: landing on port 3001, app on port 3000
+- **System Admin Management** (Users + Organizations):
+  - Admin Users page (`/system/users`): list/search/filter by org, edit (org transfer, role, system admin toggle), delete with full FK cleanup (12+ related tables)
+  - Admin Organizations page (`/system/organizations`): list/search, detail dialog with member list, delete empty orgs (cleans up 20 related tables)
+  - Shared `user_service.py` for user deletion cleanup (used by both team.py and admin_users.py)
+  - FK constraint migration: 5 columns made nullable, ondelete SET NULL/CASCADE added across 11 models
+  - Dynamic FK constraint name lookup via `information_schema` (handles mixed naming conventions)
+  - Auto-migration on deploy: Dockerfile runs `alembic upgrade head` before uvicorn
+- **Auto-refresh polling** added to workflow page and feedback detail page (30s interval)
+- **Email Forwarding Integration**:
+  - Resend inbound webhook endpoint (`/api/v1/webhooks/email/inbound`) with signature verification
+  - Email parser: strips forwarding headers (Apple Mail, Gmail, Outlook, Thunderbird), extracts original sender/subject/body
+  - Lazy body fetching from Resend API (webhook only sends metadata)
+  - EmailAdapter in worker-service: check_triggers (all_emails, specific_senders, keyword_match), extract_content (HTML→text), fetch_context
+  - Feedback source type: `email` with `all_emails` trigger
+  - Frontend: email source type in feedback sources wizard (new, detail, list pages)
+  - Redis connection fix for webhook → Celery task queuing (REDIS_HOST/PORT/PASSWORD env vars)
+  - Comprehensive tests: email parser (Apple Mail, Gmail, Outlook headers), webhook endpoint, adapter
+- **Changelog Sync Fix**: Fixed GITHUB_TOKEN env var (had literal `"` prefix breaking all GitHub API calls), added `.strip()` resilience for quoted env vars
+- **Intercom Integration** (TDD, 50 tests):
+  - OAuth flow: connect + callback endpoints with state management
+  - Webhook receiver: HMAC-SHA1 signature verification, 3 topics (conversation.user.created, conversation.user.replied, conversation.rating.added)
+  - IntercomAdapter: check_triggers (all_conversations, new_conversations, replies, ratings, keywords), extract_content (HTML stripping), get_external_ids, fetch_context
+  - Write-back service: add_note_to_conversation, close_conversation (two-way sync)
+  - Plan gating: `intercom_integration` feature on Pro+ (same as Slack)
+  - Frontend: Intercom in Available Integrations, OAuth connect flow, integration type icons
+  - 23 backend tests + 27 worker adapter tests (all passing)
+  - **Feedback Sources**: Intercom as selectable source type in feedback sources wizard
+    - Backend: `/types` endpoint, valid_types, feature gating, integration validation, workspace_id/workspace_name copying
+    - Frontend: Intercom icon/color across all 4 feedback source pages (list, new, detail, pending)
+    - Frontend: Dynamic integration selection step (no longer hardcoded to Slack)
+    - Worker: Source matching by workspace_id via Integration (same pattern as Slack's team_id)
+    - Webhook: Extract app_id from Intercom payload as workspace_id for source matching
+- **Dashboard v2 — Customizable Widget Grid**:
+  - Drag-and-drop grid layout with react-grid-layout v2 (12/6/1-col responsive breakpoints)
+  - 20 widgets across 6 categories: Overview (stat cards, NPS gauge), Charts (sentiment donut, pain points bar, 3 trend lines), Lists (pain points, feature requests, urgent feedback, top categories), Risk (churn summary, at-risk customers), Activity (activity feed, team activity), Intelligence (AI insights, anomaly alerts)
+  - Widget registry with definitions (min/max/default sizes, plan gating, icons)
+  - Widget catalog drawer for add/remove in edit mode
+  - Per-user layout persistence (all 3 breakpoints saved to server via `UserDashboardLayout` model)
+  - Debounced save with flush-on-exit (500ms debounce, immediate flush when clicking "Done")
+  - Layout reset to defaults (DELETE endpoint)
+  - v2 server format: saves lg/md/sm layouts (fixes breakpoint-aware persistence)
+  - Activity feed backend endpoint (synthesized from recent feedback by severity)
+  - Fixed sentiment trend data (backend `data` field aligned with frontend)
+  - Empty state placeholders on all widgets (icons + descriptive messages)
+  - NPS gauge widget with semicircle SVG, score color coding, delta badge, description
+  - Anomaly alerts as read-only history widget with relative timestamps
+  - Top categories with CSS grid auto-fill (responsive card layout, min 180px)
+  - Alembic migration: `user_dashboard_layouts` table
+- **Customer 360 — Customer List & Profile Pages** (PRD-CUSTOMER-360.md):
+  - Customer list page (`/customers`): sortable DataTable with health score, risk level, confidence, trend, feedback count, last active; server-side pagination/search/filter; risk distribution bar; stat cards; free plan blur gating
+  - Customer profile page (`/customers/[email]`): health score overview, 4-component progress bars (churn risk, sentiment, resolution, frequency) with shadcn tooltips, health score history chart, activity timeline, recent feedbacks list, AI analysis section
+  - Health score history: `CustomerHealthHistory` model with daily snapshots, backfill script, Recharts line chart with time range selector (7d/30d/90d)
+  - Activity timeline: synthesized from feedback creation, status changes, health score changes, LLM analysis, action completions
+  - Customer link on feedback detail page (clickable email → customer profile)
+  - Sidebar navigation: Customers page with Users icon
+  - Backend: full customers API (`/api/v1/customers/`) with list, profile, activity, analyze, batch-analyze endpoints
+  - Alembic migrations: customer_health_scores new columns, customer_health_history table
+  - 11 backend tests + 8 frontend tests (Vitest + React Testing Library)
+- **Enhanced AI Analysis System** (PRD plan, 5 phases):
+  - Phase 1 — Schema: `llm_analysis_data` (JSON) + `llm_raw_response` (JSON) columns on customer_health_scores, `customer_analysis_actions` table with audit trail, data migration from pipe-separated text to structured JSON
+  - Phase 2 — Worker: 3-tier analysis prompts (churn_risk for <40, retention for 40-69, growth_opportunity for 70+), structured JSON storage, action item creation, immediate urgency alert dispatch
+  - Phase 3 — Tiered Schedule: at-risk weekly (Mon 7AM), moderate bi-weekly (Mon 7:15AM), healthy monthly (Mon 7:30AM)
+  - Phase 4 — API: structured response fields, `PATCH /actions/{id}` endpoint for action CRUD, 24h re-analyze cooldown, system admin gated batch-analyze, activity timeline includes action completions
+  - Phase 5 — Frontend: risk-adaptive AI card styling (red/amber/green by analysis type), interactive action checklist (Business+), read-only analysis (Pro), risk driver badges, urgency indicator, "Re-analyze All" button (system admin), dashboard widget updated for structured display
+  - Plan gating: `ai_analysis_actions` feature on Business+ plans
+  - Breadcrumb fix: layout handles `/customers/*` routes, removed duplicate page-level breadcrumb
+- **Technical Debt Resolution** (4 phases):
+  - Phase 1 — DB Query Optimization: 4 compound indexes (org+sentiment, org+urgent, org+pain_cat, org+feature_cat), SQLAlchemy relationships for eager loading (feedback_source, assigned_user), SQL-level tag aggregation with json_array_elements_text (Python fallback for SQLite), SQL_ECHO env var
+  - Phase 2 — Server Caching: Redis cache service (DB 2, lazy init, graceful fallback), dashboard caching (5min TTL), analytics caching (10min TTL), cache invalidation on feedback create/analyze/status-change, HTTP Cache-Control headers on read endpoints
+  - Phase 3 — Client Caching: React Query (TanStack Query v5) with QueryProvider, dashboard/feedbacks/workflow pages migrated to useQuery, refetchInterval replaces setInterval polling, refetchIntervalInBackground: false
+  - Phase 4 — Test Coverage: Billing/Stripe test suite (test_billing.py, 15+ test cases covering checkout, webhooks, portal, usage limits, feature gating), Vitest configured with jsdom + @testing-library/react, StatCard + ThemeContext tests, frontend test scripts (npm run test/test:watch/test:coverage)
+  - Alembic migration: 9232cfa0634d_add_critical_feedback_indexes
+  - PRD: PRD-TECHNICAL-DEBT.md
+- **Churn Prediction Accuracy** (M1.4):
+  - Factor breakdown component (`ChurnFactorBreakdown.tsx`): shadcn Collapsible with 9 factors sorted by score, color-coded progress bars (red >75%, orange 40-75%, green <40%), Pro+ plan gating with upgrade CTA
+  - Confidence score on customer health scores: `confidence_score` column on `customer_health_scores`, computed from feedback count + data recency + analysis coverage
+  - Backtest validation script (`scripts/backtest_churn.py`): evaluates prediction accuracy against historical churn data
+  - `churn_risk_factors` JSON column on `feedback_items`: 9-factor breakdown (sentiment, churn_keywords, frustration_keywords, urgency, sentiment_trend, feedback_frequency, resolution_time, pain_severity, feature_density)
+  - Worker-service model fix: added missing `churn_risk_factors` column to worker's `FeedbackItem` model (was silently not persisting)
+  - Backfill script for 1000 existing analyzed feedback items
+  - Alembic migration: `6e4501930bf0` (confidence_score + churn_risk_factors columns)
+  - 11 frontend tests (ChurnFactorBreakdown: collapse/expand, sorting, colors, plan gating, null state)
+  - Feedback detail page: URL-synced tabs (`?tab=overview|analysis|timeline`), manual refresh button replacing 30s polling
+  - Deployed to production (Railway): backend-api + worker-service
+- **Multi-Model Support** (M2.1, PRD-MULTI-MODEL-SUPPORT.md):
+  - LLM abstraction layer: unified `LLMClient` with provider factory (OpenAI, Anthropic, Google)
+  - Per-org model selection: configurable default provider + model per task type (categorization, analysis, insights)
+  - BYOK key management: Fernet-encrypted API key storage per provider, add/remove/validate endpoints
+  - Fallback chain: primary → retry → system OpenAI fallback with automatic provider rotation
+  - Plan gating: Free = GPT-4o-mini only, Pro = all OpenAI models, Business+ = all providers (Anthropic, Google)
+  - Budget tracking: per-org monthly usage limits with provider-level cost breakdown
+  - Model registry: admin-managed model catalog with tier badges (cheap/mid/premium), pricing, availability
+  - Backend: 8 new API endpoints (keys CRUD, model list, model test, usage, budget), 4 new DB models (OrgAIConfig, OrgAPIKey, LLMModelPrice, LLMUsageLog), Alembic migration
+  - Worker: LLM factory with provider-specific clients, org config resolver, usage logging, pricing calculation
+  - Frontend: AI Settings page (3 tabs: General, Providers, Usage), model selector with tier badges, BYOK key management UI, usage charts, budget banner
+  - Admin: AI Models registry page (`/system/ai-models`) with pricing sync, availability toggles
+  - SVG tier badge icons replacing emoji indicators, legend labels on model selection
+  - 94 worker TDD tests + 8 backend tests + 54 frontend tests (all passing)
+- **AI Copilot: Command Bar** (M2.2, PRD-AI-COPILOT.md):
+  - Cmd+K spotlight modal: search input, 8 static template chips, dynamic AI suggestions, keyboard navigation, plan gating display
+  - Conversations page (`/conversations`): ChatGPT-style layout with auto-collapsing sidebar, folder organization, persistent history
+  - Chat UI: WebSocket streaming (token-by-token), markdown rendering (react-markdown + remark-gfm), SQL syntax highlighting, Recharts chart rendering, deep links, @mention autocomplete
+  - Intent classifier: rule-based regex patterns + LLM fallback for data/analysis/general classification with confidence scores
+  - SQL generation engine: LLM-based SQL generation → schema whitelist validation → org-scope injection → parameterized execution (5s timeout)
+  - SQL safety guardrails: read-only, schema whitelist, 3-join max, no subqueries, row limits by query type × plan tier
+  - Self-learning query templates: cosine similarity matching (OpenAI embeddings, 0.85 threshold), idempotent saving, 15 pre-built system templates
+  - Context resolver: @mention parsing (6 types: @customer:, @feedback:#, @period:, @tag:, @source:, @category:), conversation history assembly, 15K char context limit
+  - Response formatter: table/chart/deep link formatting, markdown XSS sanitization
+  - WebSocket endpoint: JWT auth via query param, streaming protocol, rate limiting, connection management
+  - REST API: conversations CRUD, folders CRUD (Pro+), template starters, usage endpoint
+  - Frontend API client: 12 API functions with full TypeScript interfaces
+  - Admin templates page (`/system/query-templates`): DataTable with search, usage stats, active toggle, delete
+  - Plan gating UI: remaining queries display (Free tier), upgrade CTAs (inline/banner/modal), token budget exceeded banner, usage section in AI Settings
+  - Backend: 6 new DB models, Alembic migration, 10 service modules, 4 route modules
+  - UUID `public_id` on conversations: all API routes, WS handler, and frontend use UUID strings instead of sequential numeric IDs for URLs and external references
+  - Alembic migration (`n3o4p5q6r7s8`): adds `public_id` column with backfill + unique index
+  - 334 backend TDD tests + 187 frontend TDD tests = 521 total tests (all passing)
+- **Customer Sentiment Alerts** (M1.3, PRD-CUSTOMER-SENTIMENT-ALERTS.md):
+  - New alert type `customer_health_drop` with 3 trigger conditions: threshold crossing (score < 50), point drop (≥ 15pts), risk level downgrade
+  - Recovery alerts on risk level upgrades (green positive notifications)
+  - `dispatch_health_drop_alert()` in worker-service with Redis 24h dedup per customer, risk level changes bypass cooldown
+  - Auto-triggers LLM analysis when health drop detected and analysis is stale (>24h)
+  - Preferences API: dual thresholds (`threshold_value` + `drop_threshold`) per user, validation (1-99 / 5-50)
+  - Slack Block Kit card with score change, risk level badge, top risk drivers, Customer 360 CTA button
+  - Email via existing daily digest pipeline (no new Resend template)
+  - Frontend: alert preferences row with dual threshold inputs, notification list/bell/detail with red (drop) / green (recovery) styling, score change display, risk badges, component breakdown
+  - Plan gated to Pro+ (reuses `customer_health_scores` feature)
+  - 90 TDD tests across 5 test files (backend alerts, preferences API, worker dispatch, frontend preferences UI, notification display)
+- **AI Response Suggestions** (M2.3, PRD-AI-RESPONSE-SUGGESTIONS.md):
+  - Response modal on feedback detail page: template suggestion, browse templates, AI generation, tone selector, copy/send actions
+  - 8 system response templates seeded on startup (Bug Report, Feature Request, Churn Risk, Positive, Complaint, Urgent, Follow-up, Onboarding)
+  - Template CRUD: system templates (read-only) + custom org templates, scoring algorithm for best-match suggestion
+  - Template browser component with search, system/custom sections
+  - Response settings per org: brand_voice, default_tone, product_name_display, support_email_display
+  - Feedback response history: tracks all responses sent per feedback item (channel, source, tone, status)
+  - AI response generation endpoint with tone selection and token tracking
+  - Send response endpoint supporting clipboard, Slack, Intercom, Linear, email channels
+  - Response usage tracking: ai_responses_generated counter, monthly limits by plan
+  - Actions dropdown: consolidated Delete, Re-analyze, Respond, Create Issue into single dropdown menu
+  - Removed standalone refresh button (realtime events via useRealtimeEvents handle auto-refresh)
+  - Create Issue stepped page (`/feedbacks/[id]/create-issue`): 3-step wizard (Select Integration → Configure → Done) matching feedback source wizard style
+  - Create Issue page: Linear form with AI-prefilled title/description, team/priority/project selectors, duplicate warning, success summary
+  - Plan gating: `response_suggestions` feature on Pro+
+  - Alembic migration (`o4p5q6r7s8t9`): Organization response columns + response_templates + feedback_responses tables
+  - Backend: 3 new route modules (response_templates, response_settings, feedback_responses), 2 new DB models, system template seeder
+  - Frontend: ResponseModal, TemplateBrowser components, responses API client, Actions dropdown, Create Issue page
+  - 10 TDD tests (FeedbackDetailActions: refresh removed, actions dropdown, create issue navigation)
+- **Linear Integration** (full-stack, Mar 2026):
+  - OAuth flow: connect + callback + disconnect endpoints with state management
+  - Linear API client: organizations, teams, issues, comments, labels, statuses, webhooks
+  - Webhook receiver: signature verification, issue/comment event processing
+  - Team mapping + status mapping configuration (per-org)
+  - Issue templates with variable substitution (sentiment, category, source, etc.)
+  - Test connection endpoint (validates access token against Linear API)
+  - Feedback source type: `linear` with triggers (all_messages, labels, keywords)
+  - Frontend: Linear settings page (header with test/delete, status toggle, mapping tabs, template editor, sticky save bar)
+  - Frontend: CreateIssueDialog, LinkedIssuesCard, LinearIcon components
+  - Frontend: Linear in feedback sources wizard with OAuth check
+  - Frontend: "Requires OAuth" badge on Linear across all feedback source pages
+  - Landing page: Linear integration detail page, added to integrations overview + IntegrationBar
+  - Plan gating: `linear_integration` feature on Pro+
+  - Alembic migration: linear_integration tables (linear_integrations, linear_team_mappings, linear_status_mappings, linear_issue_templates)
+  - Backend tests: 7 test files (client, config, issues, models, OAuth, plan gating, webhook)
+  - Frontend tests: 4 test files (CreateIssueButton, CreateIssueDialog, LinearSettings, LinkedIssuesCard)
+- **On-Demand AI Reports** (M2.4):
+  - 4 report types via Copilot: Executive Summary, Customer Health, Feature Prioritization, Churn Risk
+  - Report model + Alembic migration, ReportGenerator service, CRUD API (Business+)
+  - Intent classifier: 'report' as 4th intent type
+  - WebSocket streaming via regular chat messages
+  - Frontend: My Reports page, ReportPreview component, 4 Cmd+K template chips
+  - Reports in sidebar under Workspace
+  - 105 backend + 36 WS + 10 frontend tests
+- **GDPR + AI Trust + Blog Engine** (M3.8):
+  - GDPR (Track A): Data export endpoint (ZIP with JSON+CSV), account deletion with 30-day grace period, deactivation, cancel flow, auth middleware blocks deactivated users, GDPR purge background task, Settings > Preferences: Export/Delete buttons, landing page GDPR badge + Privacy Policy update + FAQ entries + Bento card, 7 backend tests
+  - AI Trust — Human-in-the-Loop (Track B): ai_corrections model + CRUD API (submit, stats, list), thumbs up/down on Copilot responses with feedback Dialog, category/sentiment correction on feedback detail page, health score flag icon on customer profile, AI Accuracy stats tab in AI Settings, 9 backend + 7 frontend tests
+  - Blog Engine (Track C): Status field (draft/scheduled/published) on BlogPost, date-based filter (scheduled posts auto-show after date), wrote all 17 remaining posts (#8-#24) with scheduled dates (Apr 1 - Dec 1)
+- **AI Workflow Automation** (M4.4, Apr 2026):
+  - 4 trigger types: health score threshold, sentiment pattern, churn risk level change, feedback category match
+  - 4 action types: auto-assign (user/role/round-robin), change status, send notification, draft AI response
+  - Multiple actions per rule, configurable cooldown (1h-7d), active/paused toggle
+  - 5 pre-built templates (Churn Prevention, Critical Bug Escalation, Feature Request Triage, Negative Sentiment Alert, Positive Feedback Follow-up)
+  - Real-time event-driven execution (fires on feedback analysis + health score update)
+  - Redis cooldown per customer per rule
+  - Execution audit log with 90-day retention
+  - Settings > Automations pages (list, create, detail with execution log, template picker)
+  - Plan gated: Pro=5, Business=20, Enterprise=unlimited
+  - 17 backend API + 16 engine + 10 frontend = 43 TDD tests
+- **UI Consistency Audit** (Apr 2026):
+  - Replaced all 17 native confirm() calls with shadcn Dialog across 15+ files
+  - Replaced 4 alert() calls with sonner toast
+  - Replaced 2 native `<select>` with shadcn Select
+  - Reports page: background pattern fix + View button error fix
+  - Landing page: AI Workflow Automation bento card + FAQ entry
+- **Advanced Churn Prediction (M4.1)** (May 2026, 7 phases):
+  - Phase 1 — Foundation: Alembic migration (5 new tables + 7 columns on customer_health_scores), ChurnCalibrator service (isotonic regression, bootstrap CI), seeded global model
+  - Phase 2 — Labeling UI + CSV import: MarkAsChurnedDialog, RecoverCustomerDialog, BulkMarkChurnedDialog, ChurnCsvImportDialog, `/system/churn-events` admin page, CSV validation + dedup
+  - Phase 3 — Probability integration + winback: Probability recomputation on feedback ingest (worker-service), has_potential_winback auto-flag, PotentialWinbackBanner, ChurnProbabilityBadge, ChurnTimelineBadge, risk_level derived from probability bands
+  - Phase 4 — Cohort analytics: `/analytics/churn-cohorts` page with 3 dimensions (source/month/volume), heatmap + bar chart + reason-code breakdown, Business+ gated
+  - Phase 5 — Playbooks: Full CRUD + run + run-batch + executions, 7 pre-built templates (Critical Save, Prevention, At-Risk Outreach, Light-Touch Nudge, Power-User Recovery, New-Customer Save, Silent-Churn Watch), playbook_seeder.py (idempotent startup)
+  - Phase 6 — Accuracy dashboard + weekly calibration: Celery Beat (refit Mondays 07:45 UTC, global refit daily 03:00 UTC), `/analytics/churn-accuracy` (org) + `/system/churn-accuracy` (admin), ModelAccuracyCard dashboard widget (Business+)
+  - Phase 7 — Polish: Cross-page UI audit (probability badges everywhere), landing page bento card + FAQ, blog post draft, E2E test (label → refit → predict), performance check
+  - 409 new tests (60 backend + 40 frontend + 309 worker), zero regressions
+  - New tables: customer_churn_events, churn_calibration_models, churn_backtest_runs, churn_playbooks, churn_playbook_executions
+  - New pages: /churn-cohorts (analytics), /playbooks (settings), /churn-accuracy (system admin)
+  - New components: ChurnProbabilityBadge, ChurnTimelineBadge, CohortHeatmap, ReasonCodeBreakdown, ModelAccuracyCard, PlaybookTemplateCard, RunPlaybookDropdown
+- **Other fixes** (Mar–May 2026):
+  - Changelog: full descriptions with bullet list rendering, CORS fix, build fix
+  - Sidebar: collapsible sections, conversation delete confirmation dialog
+  - Footer consistency, API docs link removed
+- **Custom Webhooks & Tech Debt** (M3.1, PRD-CUSTOM-WEBHOOKS-AND-TECH-DEBT.md):
+  - Webhook endpoints CRUD API: HMAC-SHA256 signing, custom headers (Fernet-encrypted), configurable retry (fire-and-forget or exponential backoff)
+  - Plan-gated endpoint limits: Free=2, Pro=5, Business=10, Enterprise=unlimited
+  - 5 event types: feedback.created, feedback.analyzed, feedback.status_changed, feedback.urgent, feedback.category_match (tag-based filtering)
+  - Dispatch engine: async Celery tasks, exponential backoff (1m/5m/30m), auto-disable after 10 consecutive failures
+  - Delivery log with 30-day retention (weekly purge via Celery Beat)
+  - Frontend: Settings > Webhooks pages (list, create, detail/edit with delivery log), shadcn Checkbox/ToggleGroup components
+  - Sentry error tracking: free tier across backend-api (FastAPI), worker-service (Celery), frontend-web (Next.js)
+  - Health endpoint: /health/detailed (system-admin only) with DB, Redis, Celery, memory, uptime checks
+  - Collapsible sidebar sections (Workspace, Analysis, Settings, System) with auto-expand on active route
+  - Alembic migration: webhook_endpoints + webhook_deliveries tables
+  - 60 webhook + 24 Sentry + 17 health = 101 TDD tests
+
+---
+
+## Decisions Made
+
+- Using Resend for transactional emails (with template management script)
+- Stripe for all billing
+- Railway for hosting
+- Google OAuth via access token flow (full-width custom button)
+- Phase 2 prioritizes AI/Notifications over Integrations (differentiator focus)
+- Collaboration features scoped down to "Feedback Workflow" (status, assignment, notes only)
+- Excluded @mentions, comments, activity feed (avoids becoming project management tool)
+- Changelog auto-syncs via GitHub API at startup (idempotent, strips quoted env vars for resilience)
+- `is_system_admin` boolean on User model for system-level access (separate from org roles)
+- Notification bell in header (not sidebar) with Radix popover for quick access
+- Per-type retention billing: each alert type has independent retention days, Stripe billed on total extra days
+- Digest scheduling: hourly Celery Beat, tasks filter users by preferred hour/day (no per-user cron)
+- Workflow notifications: direct DB insert from backend-api (no Celery round-trip for simple notification creation)
+- Workflow permissions: all roles (Owner/Admin/Member) can do everything; all plans have access
+- Auto-assignment: category rules checked first (by priority desc), round-robin fallback (member with fewest open items)
+- Landing page separated into standalone service for independent SEO optimization and deployment
+- Monorepo architecture with pnpm workspaces for shared UI components and dependencies
+- Auto-refresh polling (30s) on workflow and feedback detail pages for real-time collaboration
+- Intercom integration follows same pattern as Slack: OAuth flow, adapter, webhook receiver, Pro+ gating, HMAC-SHA1 verification, two-way sync (notes + close)
+- Email forwarding: Resend inbound webhooks, lazy body fetch from API, parser strips forwarding headers from all major mail clients
+- Technical debt: Sentry skipped due to $29/mo cost, deferred until paying customers cover it
+- Predictive analytics: hybrid approach — algorithmic scoring for real-time + weekly GPT-4 for at-risk customers (cost-effective)
+- Customer health score: churn-heavy weights (35% churn, 25% sentiment, 25% resolution, 15% frequency)
+- Health score recomputation: inline after each analysis task (not a separate Celery task — fast enough)
+- LLM churn insights: capped at customers with health_score < 40, Monday 7AM UTC (before weekly digest at 8:30AM)
+- Customer 360: separate list page + profile page (not inline dashboard expansion), server-side pagination for scalability
+- Enhanced AI Analysis: structured JSON column (not separate table) for analysis data, legacy `llm_analysis` kept during transition period
+- Three-tier analysis: different prompts per health tier (churn_risk/retention/growth_opportunity), tiered scheduling to balance API costs
+- Action items: reset on re-analysis (archive old pending, create new), Business+ only for interactivity
+- On-demand analysis: 1 feedback minimum (batch/scheduled requires 2), 24h cooldown on re-analyze
+- Feature impact prediction / CLV / revenue scoring deferred — insufficient data currently
+- Worker-service cache invalidation: lightweight cache.py utility connecting to Redis DB 2 (same as backend-api cache_service)
+- Redis cache uses DB 2 (DB 0=Celery, DB 1=sessions, DB 2=cache, DB 3=rate limiting)
+- React Query (TanStack Query v5) with staleTime 5min, gcTime 30min for client-side caching
+- Vitest + @testing-library/react for frontend unit tests
+- Customer sentiment alerts: 3 trigger conditions (threshold + drop + risk change), recovery alerts on risk upgrade, 24h Redis dedup bypassed for risk transitions
+- Health drop email: daily digest pipeline (no dedicated template), consistent with existing alert email pattern
+- Health drop dedup: Redis DB 2 key `health_alert_cooldown:{org_id}:{email}` with 86400s TTL, re-alerts only if score dropped further
+- Multi-model support: factory pattern with provider-specific clients, Fernet encryption for BYOK keys, fallback chain (primary → retry → system OpenAI), per-org config stored in DB
+- LLM usage tracking: per-request logging with provider/model/tokens/cost, monthly budget limits, plan-gated model access
+- Model registry: admin-managed catalog with tier classification (cheap/mid/premium), plan-based availability gating
+- AI Copilot (M2.2): Cmd+K spotlight modal → /conversations page, WebSocket streaming, self-learning query templates, SQL generation with safety guardrails, plan gating with token budgets
+- Copilot architecture: rule-based intent classifier + LLM fallback, cosine similarity template matching (0.85 threshold), schema whitelist, read-only SQL with 3-join max/5s timeout
+- Copilot conversations: ChatGPT-style with folder organization, persistent history, auto-collapsing sidebar, org-wide shared conversations, UUID public_id for shareable URLs
+- Copilot plan gating: Free=10 queries/day + 50K tokens/mo, Pro=unlimited + 500K tokens, Business=5M tokens, with upgrade CTAs and usage display in AI Settings
+- AI Response Suggestions (M2.3): modal-based compose flow (not inline), system templates seeded at startup (idempotent), template scoring by category/sentiment/urgency/churn, Actions dropdown consolidates 4 buttons, Create Issue as stepped page (not dialog) matching feedback source wizard style
+- Linear integration: own OAuth system (separate from generic Integration model), dedicated tables (not reusing integrations table), Pro+ plan gating, webhook signature verification, team/status mappings for org-level config
+- Linear feedback sources: `requires_integration=false` in backend (uses its own OAuth), frontend adds `|| type.type === 'linear'` for "Requires OAuth" badge display
+- Custom webhooks (M3.1): 5 event types, plan-gated endpoint limits, user-configurable retry mode (fire-and-forget or exponential backoff), HMAC-SHA256 signing, Fernet-encrypted headers, auto-disable after 10 failures
+- Sentry: free tier (5K errors/mo) across all 3 services, hardcoded DSN (safe per Sentry docs), separate projects for backend vs worker
+- Health endpoint: /health/detailed returns DB/Redis/Celery/memory/uptime, system-admin gated, always 200 (reports health, doesn't fail on unhealthy)
+- Sidebar: all sections collapsible with Radix Collapsible, auto-expand based on active route, no localStorage persistence
+- AI Workflow Automation (M4.4): 4 trigger types × 4 action types, event-driven execution, Redis cooldown, 5 pre-built templates, execution audit log with 90-day retention, plan-gated limits (Pro=5, Business=20, Enterprise=unlimited)
+- UI Consistency Audit (Apr 2026): replaced all 26 native browser elements (17 confirm(), 4 alert(), 2 select, 3 misc) with shadcn Dialog, sonner toast, and shadcn Select across 15+ files — zero native browser dialogs remain
+- On-Demand AI Reports (M2.4): 4 report types via Copilot Cmd+K template chips, 'report' as 4th intent type in classifier, WebSocket streaming via regular chat messages, My Reports page under Workspace sidebar, Business+ plan gating
+- GDPR (M3.8 Track A): data export as ZIP (JSON+CSV), account deletion with 30-day grace period + deactivation + cancel flow, auth middleware blocks deactivated users, GDPR purge Celery task, all plans have access
+- AI Trust Human-in-the-Loop (M3.8 Track B): ai_corrections model for thumbs up/down + category/sentiment correction, AI Accuracy stats tab in AI Settings, corrections stored as training signals for future fine-tuning
+- Blog Engine (M3.8 Track C): draft/scheduled/published status field, date-based auto-publish filter, all 17 remaining posts (#8-#24) written with scheduled dates (bi-weekly Apr 1 - Dec 1)
+- Advanced Churn Prediction (M4.1): Calibrated heuristic now (isotonic regression on 9-factor score), real ML model in v2 once labels ≥ 500 per org
+- Churn Calibration: Weekly refit Mondays 07:45 UTC with bootstrap 90% CI, idempotent per-org + global fallback, model versioning with precision/recall/F1/AUC tracking
+- Churn Probability Display: Replaces risk_level as primary signal (risk_level still shown as color hint, derived from probability bands), percentage + CI tooltip across all surfaces
+- Churn Labeling: Structured reason codes (price, competitor, product_quality, no_longer_needed, silent_churn, other), manual + CSV import + auto-suggested sources, recovered_at winback tracking
+- Churn Playbooks: 7 pre-built templates with probability-range binding, rate-limited 60min per (playbook, customer), actions reuse existing Automations engine
+- Customer Outreach (2026-08-12, `feat/customer-outreach-email-actions`): opt-out flag honored on every send path, tokenized List-Unsubscribe, shared per-recipient cooldown (Redis DB 1), built-in template registry, bulk campaign API (`POST /customers/bulk/outreach` + `?count_only` preview, campaign + per-recipient audit rows, per-recipient Celery send task, campaign list + `queued` retry endpoint, AI draft endpoint that never sends) — see `docs/planning/customer-outreach-email-actions/`
+- Churn Plan Gating: Probability + timeline + cohorts + playbooks + accuracy = Business+. Existing risk_level + factor breakdown stays Pro+. Enterprise = unlimited playbooks + custom probability bands
+- Churn Data Model: 5 new tables, BigInteger PKs (per codebase convention, not UUID), unique constraint on (org_id, email, churned_at) for dedup
+- Automation Customer Email (2026-08-20, `feat/automation-send-customer-email`, merged c4f5a431, PR #23): automation rules gain a `send_customer_email` action (`{template, recipient}`; recipient `customer` or the health row's CS owner), implemented in the backend engine and all three worker mirrors so churn/usage/feedback rules all send — reuses the outreach primitives verbatim (opt-out, tokenized unsubscribe, shared per-recipient cooldown, loud `skipped: email not configured` with no key); every fire audited in `automation_email_deliveries` (`queued` → `sent|skipped|failed`) exposed via `GET /automations/{rule_id}/deliveries` + a rule-detail tab; seeded "At-Risk Customer Outreach" template ships shadow-mode — see `docs/planning/automation-send-customer-email/`
+- Scheduled & Emailed AI Reports (2026-08-25, `feat/scheduled-ai-reports`): closes the two M2.4 non-goals (scheduling + email delivery) — `report_schedules` table + admin/owner CRUD + toggle API (list is member-readable, no plan gates), worker hourly beat claims each due window exactly-once via atomic `last_run_at` rowcount (day-31 monthly schedules skip short months), scheduled reports reuse the mirrored data-only generator with an LLM narrative when one is configured, BYO-key Resend email to schedule recipients (no key = in-app only, never a failed run), and a Scheduled tab on `/reports` (type/cadence/recipients/last-run table, create dialog with cadence-conditional day fields, optimistic toggle, confirm-delete dialog; members read-only) — see `docs/planning/scheduled-ai-reports/`
+- Playbook Action Types (2026-08-27, `feat/playbook-action-types`): closes the deferral at `customer-outreach-email-actions/prd.md:247` — the worker playbook engine gains the 5 unimplemented seeded action types: `notify` (Slack/Discord/dashboard via the org's connected integrations, target advisory), `tag` (bulk-tag constraints: 50-char/20-tag cap, sorted, deduped), `create_task`/`schedule_task` (new internal `playbook_tasks` table — the only schema change, write-only in this release), and `trigger_automation` (named `churn_probability_threshold` rule fired through the existing `_evaluate_rule` seam — mode/threshold/Redis-cooldown respected, `cooldown_hours < 1` refused, `usage_trend`/per-feedback triggers refused loudly as not evaluable from a playbook); 6 of 7 seeded templates previously hit `unsupported action type` on every run — all 7 now execute; seeder retargets New-Customer Save's `trigger_automation` to the real `At-Risk Customer Outreach` (shadow-seeded — reports `mode=off/shadow` until activated) and converges pristine seeded rows on startup (cloned/org-owned never touched); playbook editor offers the 5 new types with config forms round-tripping the engine's exact keys; execution rows expose per-action ok/error in the UI — see `docs/planning/playbook-action-types/`
+
+---
+
+## Related
+
+- [SALES-TRACKING.md](SALES-TRACKING.md) - Sales strategy and growth metrics

@@ -1,0 +1,760 @@
+# AI Feature Tracking & 1-Year Roadmap
+
+**Product**: Rereflect
+**Last Updated**: 2026-05-21
+**Killer Feature**: Churn prediction that actually works (predict 30-60 days before churn with actionable reasons)
+
+---
+
+## Strategic Decisions
+
+| Decision | Choice |
+|----------|--------|
+| **AI differentiation** | All four: predictive intelligence + deep customer understanding + real-time AI copilot + automated workflows |
+| **Target buyers** | All personas: founders/executives, CS managers, PMs, support leads |
+| **AI pricing** | Premium upsell (tiered access): basic AI free, advanced Pro+, enterprise AI Business+ |
+| **Model strategy** | Hybrid: our default model + BYOK multi-model (OpenAI + Anthropic + Google) |
+| **AI copilot UX** | Command bar (Cmd+K) — suits mixed usage patterns (quick check-ins to deep sessions) |
+| **Processing** | Hybrid: real-time algorithmic (no LLM) + batch LLM deep analysis + streaming for copilot |
+| **Customers page** | Customer 360 profiles (full per-customer view) |
+| **Response AI** | Hybrid: template suggestions (all plans) + generated custom responses (Pro+, plan-gated limits) |
+| **AI trust** | All three: confidence scores + explainability + human-in-the-loop corrections |
+| **AI moat** | All four: historical intelligence + workflow integration + custom models + network effects |
+| **CRM enrichment** | HubSpot first, then Salesforce |
+| **Usage enrichment** | Segment first (CDP covers Mixpanel/Amplitude/GA) |
+| **Copilot actions** | Read + suggest actions (user clicks to execute) — **partially delivered** (2026-09-09, `feat/copilot-suggested-actions`): read + suggest is live for **one** action type (`tag_customers`) from a deterministic, result-shape proposer (never the LLM), executed on the operator's confirmation by admins/owners. **Not done:** LLM-authored actions and every other action type remain future work. See `docs/planning/copilot-suggested-actions/` |
+| **Benchmarks** | Industry benchmarks only (opt-in, anonymized, grouped by industry) |
+| **Custom models** | Enterprise: custom categories/weights + fine-tuned classification |
+| **AI reports** | On-demand report generation via copilot |
+| **Languages** | English only (for now) |
+| **AI budget** | Minimal now ($50-100/mo), pass-through to customers via BYOK/usage pricing as we scale |
+| **Custom webhooks** | 5 event types with tag-based filtering, plan-gated limits, configurable retry |
+
+---
+
+## Current AI Capabilities (Built)
+
+| Feature | Backend | Frontend | Plan Gate |
+|---------|---------|----------|-----------|
+| VADER sentiment analysis | Yes | Feedback list badge, detail, dashboard chart, analytics | Free |
+| LLM auto-categorization (pain points, features, urgency) | Yes | Feedback detail categories, dashboard aggregates | Free |
+| Anomaly detection (sentiment + volume spikes) | Yes | Notification center + email alerts | Free |
+| Weekly GPT-4 insights (suggested actions) | Yes | Dashboard "AI Insights" card | Free |
+| 9-factor churn risk scoring | Yes | Feedback detail page only | Pro+ (enhanced) |
+| Customer health scores (4-component weighted) | Yes | Dashboard widget (top 5 at-risk) | Pro+ |
+| Weekly LLM churn deep-dive | Yes | Dashboard widget expandable section | Pro+ |
+| Tag extraction (TF-IDF) | Yes | Feedback detail tags | Free |
+| Multi-model LLM support (OpenAI, Anthropic, Google) | Yes | AI Settings page (providers, usage, budget) | Pro+ (BYOK) |
+| AI Copilot (natural language queries) | Yes | /conversations page, Cmd+K | Tiered by plan |
+| AI Copilot Suggested Actions — **shipped 2026-09-09** (`feat/copilot-suggested-actions`): a `data`/`analysis` answer whose result carries a customer-email column gets one deterministic **actions** item — **Tag these N customers…** — appended server-side to the message's `structured_data`; **no LLM in the proposal path** (pure result-shape inspection, so the action appears identically on a keyless local model) and the cohort is the **frozen, deduped email list the operator saw**, capped at 200 — a larger result offers no action rather than a silently truncated one. An admin/owner clicks the button, types the tag in the confirm dialog (the value always comes from the operator, never the model or a server guess), and `POST /api/v1/copilot/actions/execute` applies it add-mode to the org's matching customers through the registry's `tag_customers` entry (`min_role` admin, enforced server-side at execute time — members 403 even on a direct call, and never see the button). Each proposal is **one-shot per `proposal_id`** — a second execution returns the first run's stored outcome — and every execution writes one `AuditLog` row (`copilot_action_executed`); the `BulkActionSummary{matched, updated, skipped, errors}` is returned to the route and shown inline, with departed customers absorbed as `skipped`. Exactly **one** action type in this slice; proposals ride the existing `structured_data` wire format (`data_type: "actions"`), no new frame type, no migration. | Yes | Yes | Unlocked (OSS) |
+| AI Response Suggestions | Yes | Feedback detail ResponseModal, template browser | Pro+ |
+| Customer sentiment alerts | Yes | Notification center, Slack, email | Pro+ |
+| Microsoft Teams alert notifications — **outbound-only alert destination, shipped 2026-09-02 (PR #26, merged `1756361`)** (`feat/teams-notifications`): connect via classic Incoming Webhook (`outlook.office.com/webhook/…`) or Power Automate Workflows (`<tenant>.webhook.office.com/webhookb2/…`) URL — **no OAuth**; posts Microsoft **MessageCard** JSON (`themeColor #6264A7`) once per org per alert to every active `type="teams"` Integration row, for the four main alert types (urgent feedback, sentiment spike, churn risk, volume spike) + customer health-drop/recovery; per-user per-type `channel_teams` preference (Settings → Notifications, default on) honored by the worker dispatch (`notification_dispatch.py`) and the per-org once-per-alert send; automation `send_notification` supports `teams` in `KNOWN_NOTIFY_CHANNELS` (backend engine + worker mirror, `automation_feedback_trigger.py`) and playbook `notify` supports `teams` (`playbook_engine._handle_notify`; playbook editor channel select); **honest limits**: webhook-only, MessageCard-only (no Adaptive Cards), outbound-only — the `feedback_source.py` `source_type` vocabulary names `teams` but no inbound Teams ingestion exists and none is planned in this slice; digests stay email-only; automations UI has no channel editor, so `channels: ["teams"]` rules must be API-created while playbook notify picks Teams in-editor | Yes | Settings → Integrations (Teams webhook page + tile + detail, test-message button), Settings → Notifications Teams toggle, playbook editor notify-channel select | Unlocked (OSS) |
+| On-Demand AI Reports | Yes | My Reports page, Copilot Cmd+K chips, PDF export | Business+ |
+| AI Trust: Human-in-the-Loop | Yes | Thumbs up/down on Copilot, category/sentiment corrections, AI Accuracy tab | Pro+ |
+| AI Workflow Automation | Yes | Settings > Automations (list, create, detail, templates, execution log, email deliveries; email-the-customer action) | Pro+ (5 rules), Business (20), Enterprise (unlimited) |
+| Advanced Churn Prediction (probability, timeline, cohorts, playbooks, accuracy) | Yes | Churn Cohorts page, Playbooks editor, Churn Accuracy card, ChurnProbabilityBadge | Business+ |
+| Unified Customer Timeline (feedback + usage + churn + health events, cursor-paginated) | Yes | Customer profile "Full Activity Timeline" card (load-more) + `/customers/{email}/timeline` | Unlocked (OSS) |
+| Customer 360 Public API (full profile, timeline, health) | Yes | `GET /api/public/v1/customers/{email}` + `/timeline` + `/health` (API-key read scope) | Unlocked (OSS) |
+| CRM-sourced churn label **suggestions** (HubSpot, Salesforce) — opt-in, default-deny, never auto-applied | Yes | Settings → Integrations churn-labels card (toggle, renewal picker, on-demand backfill) + Customers → CRM churn suggestions review queue (confirm/reject/bulk) + readiness `pending_suggestions` counter | Unlocked (OSS) |
+| CRM Enrichment (HubSpot + Salesforce) — company/ARR/renewal/deal, provider-tagged, feeds health `crm_component`, CRM timeline events, health-score writeback to **both** HubSpot (contact property) and Salesforce (Contact field) | Yes | CrmCompanyCard on Customer 360, Settings > Integrations (HubSpot token / Salesforce OAuth), HubSpot + Salesforce writeback toggle cards, one-CRM-per-org guard | Unlocked (OSS) |
+| Jira Cloud Integration — connect via Atlassian API token (Basic auth, encrypted), create issue from feedback (project/issue-type, ADF, duplicate guard), `jira` selectable source type; SSRF-hardened. **Inbound status-sync shipped 2026-07-12** (`jira-status-sync`) — poll-first Celery beat (15-min) maps a linked issue's Jira `statusCategory` (`done→resolved`, `indeterminate→in_review`, `new→new`; per-org `status_mapping` override) back onto the feedback's `workflow_status`; **opt-in per org (off by default)**, non-destructive first-poll baseline-seed (no bulk backfill), most-advanced-category-wins across multi-issue links, 429/`Retry-After` throttle, manual "Sync now"; applies via `apply_status_change` (worker mirror) with a `status_changed` timeline event tagged `source=jira`. Reconcile core is provider-agnostic (Zendesk/Asana reuse). See `docs/planning/jira-status-sync/`. **Real-time inbound webhook + status-mapping editor shipped 2026-07-18** (`status-sync-realtime-mapping`) — optional per-org webhook enable (`POST /api/v1/integrations/jira/webhook/enable`: display-once HMAC secret + inbound URL, fail-closed HMAC verify, poll retained as guaranteed fallback) plus the shared `StatusMappingEditor` mounted on the Jira tile (per-org `status_mapping` override UI, hydrated from GET `/status`); the webhook apply path shares the poller's race-safe conditional-`UPDATE` writer. See `docs/planning/status-sync-realtime-mapping/`. | Yes | Settings > Integrations (Jira token-paste page + tile, **status-sync toggle + last-synced/error indicator + Sync now**), create-issue wizard Jira branch, landing page + `SELF_HOSTING.md`; **real-time webhook enable + display-once secret + status-mapping editor shipped 2026-07-18**; OAuth 3LO / Server-DC / outbound webhook-on-jira-change deferred v2 | Unlocked (OSS) |
+| Zendesk Integration — inbound feedback source via agent email + API token (Basic auth, encrypted); tickets → feedback (one item/ticket, deduped by ticket ID, requester → `customer_email`); dual ingestion (incremental **pull** beat + optional HMAC **webhook**) through a shared dedup core; `zendesk` selectable source type; SSRF-hardened; auto-provisions a default source on connect. **Inbound status-sync shipped 2026-07-12** (`zendesk-status-sync`) — maps a linked ticket's Zendesk `status` (`new→new`, `open`/`pending`/`hold`→`in_review`, `solved→resolved`, `closed→closed`; per-org `status_mapping` override) back onto the feedback's `workflow_status` via **both** a poll-first Celery beat (15-min, guaranteed/NAT-safe fallback) and an additive real-time branch on the same ingestion webhook, keyed on an explicit anti-spoof discriminator (`"event":"ticket.status_changed"`, kept distinct from the `ticket.created` payload so it can never reach/be reached by the ingestion path); **opt-in per org (off by default)**, non-destructive first-observation baseline-seed, race-safe conditional-`UPDATE` apply (poll and webhook can never double-apply the same change), manual "Sync now". Applies via a source-tagged writer with one `status_changed` timeline event (`source=zendesk`); reconcile core shares its shape with Jira's. See `docs/planning/zendesk-status-sync/`. **In-app status-sync toggle + status-mapping editor shipped 2026-07-18** (`status-sync-realtime-mapping`) — the Zendesk tile gained a status-sync toggle and the shared `StatusMappingEditor` over the same `status_mapping` the API already exposed. See `docs/planning/status-sync-realtime-mapping/`. | Yes | Settings > Integrations (Zendesk token-paste page + tile), source-wizard branch, landing page + `SELF_HOSTING.md`; **in-app status-sync toggle + status-mapping editor shipped 2026-07-18**; OAuth, per-comment ingestion, backfill, filters, outbound webhook-on-zendesk-change deferred v2 | Unlocked (OSS) |
+| Asana Integration (slice 1) — **outbound** work-management target via a **Personal Access Token** (Bearer auth, encrypted); create Asana **task** from feedback (workspace/project selection, plain-text notes, `permalink_url` link, org-scoped duplicate guard + `asana_task_created` timeline event); `asana` selectable own-auth source type; fixed host `app.asana.com` (no per-org subdomain → no SSRF DNS gate). **Inbound status-sync shipped 2026-07-12** (`asana-status-sync`) — poll-first Celery beat (15-min) maps a linked Asana task's completion (`completed→done→resolved`, `not-completed→new`; per-org `status_mapping` override, default `{done: resolved, new: new}`) back onto the feedback's `workflow_status`; **opt-in per org (off by default)**, non-destructive first-poll baseline-seed (no bulk backfill), **bidirectional** (re-opening a task reverts the feedback), most-advanced-category-wins across multi-task links, 429/`Retry-After` throttle, manual "Sync now"; applies via the **provider-agnostic reconcile core** shared with Jira, emitting a `status_changed` timeline event tagged `source=asana`. Asana exposes only completed/not-completed, so there is **no `in_review` state** from Asana in slice 1. See `docs/planning/asana-status-sync/`. **Real-time inbound webhook + status-mapping editor shipped 2026-07-18** (`status-sync-realtime-mapping`) — optional per-org Asana webhook (create/delete route, `X-Hook-Secret` handshake echo + `X-Hook-Signature` HMAC, unguessable URL token, fail-closed, poll retained as fallback) plus the shared `StatusMappingEditor` mounted on the Asana tile. See `docs/planning/status-sync-realtime-mapping/`. | Yes | Settings > Integrations (Asana PAT token-paste page + tile, **status-sync toggle + last-synced/error indicator + Sync now**), create-task wizard Asana branch (Workspace→Project pickers), landing page + `SELF_HOSTING.md`; **AI-drafted content shipped 2026-07-07** (see row below); **real-time webhook enable + status-mapping editor shipped 2026-07-18**; OAuth / **section/custom-field mapping** / team-scoped-project picker deferred v2 | Unlocked (OSS) |
+| AI-Drafted Issue/Task Content — "Draft with AI" in the create-work-item wizard (Jira + Asana branches) drafts issue/task **title + body** from the feedback item via the org's LLM; shared `POST /api/v1/feedback/{id}/issue-draft` (admin/owner), gated on `resolve_generation_llm().is_configured` (409 when no LLM); provider-agnostic (cloud BYOK + local Ollama/OpenAI-compatible), org tone/brand voice, `LLMUsageLog(task_type="issue_draft")`; **populates editable fields for review — never auto-creates**; button hidden when no LLM configured; prompt hardens against injection (feedback as delimited untrusted data) | Yes | "✨ Draft with AI" button in Jira + Asana wizard branches; overwrite-confirm if edited; degrades to manual fields when unconfigured | Unlocked (OSS) |
+| Per-Org Self-Improving Sentiment Classifier (M5.2) — CPU-only, offline TF-IDF + logistic regression trained on org's own feedback text + sentiment corrections; three modes (off/shadow/auto); auto-promotes challenger only when macro-F1 delta ≥ +0.02 on held-out set and correction volume ≥ 20 per type; weekly refit Mon 06:30 UTC; promoted model is reversible via one-click rollback — **durable** since 2026-07-24 (`classifier-model-versioning-rollback`): a per-type auto-promotion hold stops the weekly refit from silently re-promoting over a manual rollback until you resume, plus a version-history list + roll-back-to-any-version (see M4.2) | Yes | Settings → AI (General tab: mode toggle; Accuracy tab: incumbent-vs-challenger macro-F1 + delta + rollback) + endpoint GET `/api/v1/settings/ai/classifier/accuracy`, POST `/api/v1/settings/ai/classifier/rollback` | Unlocked (OSS) |
+| Per-Org Self-Improving **Category** Classifier (M5.2 v2) — same CPU-only offline spine trained on the org's `category` corrections; **dynamic labels from the org's own corrections** (built-ins + custom); independent `category_classifier_mode` (off/shadow/auto); in `auto` overrides `pain_point_category`/`feature_request_category` **only when the predicted label maps unambiguously to one built-in vocab** (else shadow-only); **fair-A/B** scores the challenger only over labels the keyword incumbent can emit; keyword categorizer is the incumbent; weekly refit + one-click rollback | Yes | Settings → AI (General tab: second **category** mode toggle; Accuracy tab: second incumbent-vs-challenger card) + the shared `classifier/accuracy` & `classifier/rollback` endpoints with `?classifier_type=category` | Unlocked (OSS) |
+| Per-Org Self-Improving **Urgency** Classifier (M5.2 v3) — same CPU-only offline spine trained on the org's `urgency` corrections; **binary** `not_urgent`/`urgent` head; incumbent = the built-in keyword+sentiment urgency heuristic, challenger promotes only on macro-F1 ≥ +0.02 (defeats majority-class collapse); independent `urgency_classifier_mode` (off/shadow/auto); in `auto` **add-only** — escalates `not_urgent→urgent`, never de-escalates a heuristic-raised flag (it drives churn alerts/urgent queue); capture seam = user-driven `is_urgent` change via internal `PATCH /api/v1/feedback/{id}/urgent` + dashboard toggle + public `PATCH /api/public/v1/feedback/{id}` (analyzer heuristic set/clear excluded) | Yes | Settings → AI (General tab: third **urgency** mode toggle; Accuracy tab: third card) + the shared `classifier/accuracy` & `classifier/rollback` endpoints with `?classifier_type=urgency` | Unlocked (OSS) |
+| Intercom Integration (self-host operable) — **inbound source via a private-app Access Token** (token-paste, Bearer auth, Fernet-encrypted, own-auth like Zendesk/Jira/Asana); validated against `GET /me`, which yields the `workspace_id` used as the tenancy discriminator. **Conversation pull every 15 min** (`POST /conversations/search`, `updated_at >=` cursor derived from max-seen since Intercom exposes no `end_time` watermark, `starting_after` pagination, 20-page/run cap, cursor never epoch so no historical backfill) routed through the **shared** `_find_matching_sources` / `_process_event_for_source` core, so pull and webhook share one dedup path. **Replies + rating enrichment shipped 2026-08-15** (`intercom-pull-replies-and-ratings`): the pull fetches conversation parts for conversations it re-sees and merges new reply bodies into the item text (one item per conversation, idempotent by part id, admin replies never attributed as customer), with the satisfaction `rating`/`remark` in `source_metadata`; items that gained content are re-analyzed, unchanged items are not. No backfill — older conversations stay first-message-only until re-seen. **Webhook reply/rating enrichment shipped 2026-08-17** (`intercom-webhook-reply-rating`): the webhook `replied`/`rating.added` events now enrich the conversation's existing item in real time (payload-first parts + rating, detail-fetch fallback when the payload lacks parts; existing-item-only, no backfill; the pull stays the guaranteed fallback). **Per-workspace webhook signature verification** — the org's Developer Hub Client Secret is stored encrypted and used as the HMAC key, falling back to the global `INTERCOM_CLIENT_SECRET` for OAuth orgs; this dissolves the 1.0.0 limitation "a valid signature cannot identify a tenant here". Both credential paths coexist behind a one-connection-per-org guard. `customer_email` populated from customer authors only (never admins/bots), so Intercom feedback feeds Customer 360 / health / churn. **Prerequisite fix:** the webhook route stripped the event envelope before the adapter, so Intercom produced **no feedback item in any release up to 1.0.0**; now pinned by a golden fixture read from both services' suites. Webhook topic subscription is Developer-Hub-only (Intercom offers no API for it), so it is documented, not provisioned. See `docs/planning/intercom-selfhost-ingestion/`. | Yes | Settings → Integrations → Intercom (token + optional secret paste, workspace/last-synced/last-error, honest "no client secret ⇒ webhooks rejected, pull unaffected" state); OAuth wizard entry retained | Unlocked (OSS) |
+| Single Sign-On (SSO) — **OIDC** (authorization-code + PKCE, RS256 ID-token validation, `feat/oidc-sso`) **and SAML 2.0 SP-initiated** (`feat/saml-sso`, slice 1: signed-assertion validation via validated-getters-only identity read (XSW-guarded), strict Audience/Recipient/`NotBefore`-`NotOnOrAfter` (±60s skew)/`InResponseTo` + replay/unsolicited checks); both protocols do JIT-as-`member` provisioning + verified-email account linking and a per-protocol email-domain allowlist (deny-all when empty); **one SSO protocol enabled per deployment** (enabling one while the other is enabled is rejected). IdP-initiated login, Single Logout (SLO), SCIM, encrypted assertions, and multiple IdPs are **not** supported. | Yes | Settings → SSO (`/settings/sso`, admin/owner) — OIDC card + SAML card; login-page SSO button (whichever protocol is enabled); `docs/SELF_HOSTING.md` §§ Single Sign-On (OIDC) / (SAML 2.0) | Unlocked (OSS) |
+
+---
+
+## Frontend Gaps (Data exists, not surfaced)
+
+### 1. Feedback Detail: Customer Health Badge
+- **Status**: COMPLETE (built in M1.1)
+- **Scope**: Small — frontend-only
+- **What**: Show health score badge on `/feedbacks/[id]` when item has `customer_email`
+- **PRD Reference**: PRD-PREDICTIVE-ANALYTICS.md Phase 4.3
+
+### 2. Feedbacks List: Churn Risk Indicator
+- **Status**: COMPLETE (built in M1.1)
+- **Scope**: Small — frontend column + backend already returns field
+- **What**: Add `churn_risk_score` as a visual indicator column on feedbacks list table
+- **Why**: Users can't scan for high-risk items without opening each one
+
+### 3. Dedicated /customers Page
+- **Status**: COMPLETE (built in M1.2)
+- **Scope**: Medium — new page + API endpoint
+- **What**: Full customer list with sortable health scores, search, filters, risk level breakdown
+- **Why**: Dashboard only shows top 5 at-risk. No way to browse all customers or see healthy ones
+
+---
+
+## 1-Year AI Roadmap (Milestone-Driven)
+
+### Q1 2026: Customer Intelligence Foundation (Feb-Mar)
+> *Theme: Surface all existing AI data, build Customer 360, nail churn prediction accuracy*
+
+**Goal**: Every customer with an email has a visible health profile. Churn predictions are accurate and actionable.
+
+#### M1.1 — Frontend Gaps (1 week) — COMPLETE
+- [x] Feedback detail: customer health badge (score circle + risk level when `customer_email` exists)
+- [x] Feedbacks list: churn risk indicator column (color-coded dot/bar, sortable)
+- [x] Churn risk filter on feedbacks list (filter by risk level: low/medium/high/critical)
+
+#### M1.2 — Customer 360 Page (2 weeks) — COMPLETE
+- [x] `/customers` page: sortable table (email, name, health score, risk level, feedback count, last active, sentiment trend)
+- [x] Customer search + filters (risk level, health score range, last active, feedback count)
+- [x] Risk distribution chart (pie/bar: healthy/moderate/at-risk/critical breakdown)
+- [x] `/customers/[email]` profile page: health score timeline chart, all feedbacks, sentiment trend over time, component breakdown
+- [x] LLM summary section on customer profile (latest churn analysis)
+- [x] "View all feedbacks" link from profile to filtered feedbacks list
+- [x] Customer health API endpoint (list all customers, paginated, filterable)
+- [x] Plan gate: `/customers` page requires `customer_health_scores` feature (Pro+)
+
+#### M1.3 — Customer Sentiment Alerts (1 week) — COMPLETE
+- [x] New alert type: `customer_health_drop` — triggers when health score drops by X points or crosses threshold
+- [x] Alert preferences: configurable threshold (e.g., "alert when score drops below 50" or "drops by 20+ points")
+- [x] Notification: in-app + email + Slack (uses existing notification dispatch)
+- [x] Trigger in health score recomputation: compare new vs previous score
+
+#### M1.4 — Churn Prediction Accuracy (1 week) — COMPLETE
+- [x] AI explainability on churn risk: show factor breakdown on feedback detail ("Churn risk: 72 — Sentiment trend -15, Frustration keywords +10, ...")
+- [x] Confidence score on health scores ("87% confidence" based on data volume — low feedback count = low confidence)
+- [x] Backtest validation: script to evaluate churn prediction accuracy against historical data (customers who actually churned)
+
+**Q1 Deliverables**: Customer 360 page, health badges everywhere, sentiment alerts, churn explainability
+**Plan Gating**: Customer 360 + alerts + explainability = Pro+, basic churn display stays Free
+
+---
+
+### Q2 2026: AI Copilot & Smart Responses (Apr-Jun)
+> *Theme: Interactive AI that answers questions, suggests actions, and drafts responses*
+
+**Goal**: Users can ask Rereflect questions in natural language and get instant, accurate answers. AI drafts responses and suggests actions.
+
+#### M2.1 — Multi-Model Support (1 week) — COMPLETE
+- [x] LLM abstraction layer: unified interface for OpenAI, Anthropic, Google
+- [x] Model selection per org (settings page): choose default provider
+- [x] BYOK key management: store API keys per provider (encrypted)
+- [x] Fallback chain: if primary model fails, try secondary
+- [x] Plan gate: Free = GPT-4o-mini only, Pro = OpenAI models, Business+ = all providers
+
+#### M2.2 — AI Copilot: Command Bar (3 weeks) — COMPLETE
+- [x] `Cmd+K` command bar UI: search input + template chips + keyboard navigation + Spotlight modal
+- [x] Natural language query parser: rule-based regex + LLM fallback intent classifier (data/analysis/general)
+- [x] Data queries: SQL generation from natural language (safe, read-only, org-scoped, schema-whitelisted)
+  - [x] SQL query generation with 3-join max, 5s timeout, no subqueries, row limits by plan
+  - [x] Result formatting: tables, charts (Recharts), deep links, markdown
+- [x] Analysis queries: context assembly + LLM analysis with structured response
+  - [x] Context scope selector (All Data, Feedbacks, Customers, etc.) + @mentions
+  - [x] Structured response with supporting data
+- [x] Self-learning query templates: auto-save successful queries, cosine similarity matching (0.85 threshold)
+  - [x] 15 pre-built system templates + idempotent template saving + admin management page
+- [x] WebSocket streaming: real-time token-by-token LLM response via `wss://{host}/ws/copilot?token={jwt}`
+- [x] Conversations page: ChatGPT-style with folder organization, persistent history, auto-collapsing sidebar, UUID-based shareable URLs
+- [x] Plan gating: Free = 10 queries/day + 50K tokens/mo, Pro = unlimited + 500K tokens, Business = 5M tokens
+- [x] Usage display: copilot usage section in AI Settings, token budget bars, upgrade CTAs
+
+- [x] **Follow-on — shipped (2026-09-06 → 2026-09-09, `feat/copilot-suggested-actions`):**
+      suggested actions on copilot results, partially closing `PRD-AI-COPILOT.md:33`'s "no
+      action execution" non-goal. The branch first landed planning artifacts (PRD + 5 aspect
+      specs) and the test-only `action-contract` aspect — a golden `structured_data` fixture
+      asserted by both the backend and frontend suites, with the proposer test marked
+      `xfail(strict=True)` and the renderer test marked `it.fails` so both flip green when
+      the behaviour lands. On 2026-09-09 the remaining four aspects (`action-registry`,
+      `deterministic-proposer`, `frontend-actions-ui`, and this tracking pass) all shipped
+      on the same branch: a `data`/`analysis` answer whose result carries a customer-email
+      column now appends a deterministic **Tag these N customers…** proposal (frozen
+      cohort ≤ 200) that an admin/owner executes from a confirm dialog via
+      `POST /api/v1/copilot/actions/execute` — one-shot per `proposal_id`, audited, outcome
+      returned as `BulkActionSummary{matched, updated, skipped, errors}`. **The non-goal is
+      now partially closed, not fully**: exactly one action type (`tag_customers`), and only
+      from the deterministic result-shape proposer — no LLM authors a proposal and none
+      supplies the tag; the operator types it. See
+      `docs/planning/copilot-suggested-actions/`.
+
+#### M2.3 — AI Response Suggestions (2 weeks) — COMPLETE
+- [x] Response templates library: 8 system templates seeded on startup (Bug Report, Feature Request, Churn Risk, Positive, Complaint, Urgent, Follow-up, Onboarding) with template CRUD and scoring algorithm for best-match suggestion
+- [x] Template suggestion on feedback detail: AI picks best template based on category + sentiment via scoring algorithm
+- [x] Custom response generation: ResponseModal with template browser, AI generation, and tone selector; Actions dropdown consolidating respond/re-analyze/create issue/delete
+- [x] Copy-to-clipboard + edit before sending (no auto-send)
+- [x] Plan gate: response_suggestions on Pro+; response settings per org (brand_voice, default_tone, product_name, support_email)
+
+#### M2.4 — On-Demand AI Reports (2 weeks) — COMPLETE
+- [x] Via copilot: "Generate a report on churn trends this quarter" (4 report types via Cmd+K template chips)
+- [x] Report types: executive summary, customer health report, feature request prioritization, churn risk
+- [x] Structured output: sections with headers, key metrics, charts data, recommendations
+- [x] Export as PDF (reuse existing PDF export infrastructure)
+- [x] Plan gate: Business+ feature
+- [x] Report model + Alembic migration, ReportGenerator service, CRUD API
+- [x] Intent classifier: 'report' as 4th intent type
+- [x] WebSocket streaming via regular chat messages
+- [x] Frontend: My Reports page, ReportPreview component, 4 Cmd+K template chips
+- [x] Reports in sidebar under Workspace
+- [x] 105 backend + 36 WS + 10 frontend tests
+- [x] **Follow-on (2026-08-25, `feat/scheduled-ai-reports`):** scheduled/recurring reports + email
+      delivery — closes the two M2.4 non-goals (`PRD-ON-DEMAND-AI-REPORTS.md:37-38`). See
+      `docs/planning/scheduled-ai-reports/` and the DEV-TRACKING entry.
+
+**Q2 Deliverables**: Multi-model LLM (M2.1 COMPLETE), AI copilot (M2.2 COMPLETE), response suggestions (M2.3 COMPLETE), on-demand reports (M2.4 COMPLETE)
+**Plan Gating**: Copilot queries tiered by plan, response generation Business+, reports Business+
+
+---
+
+### Q3 2026: Data Enrichment & Customer Intelligence (Jul-Sep)
+> *Theme: Enrich Customer 360 with external data sources, build deeper understanding*
+
+**Goal**: Customer profiles combine feedback + CRM + product usage data. AI has full context for predictions.
+
+#### M3.1 — HubSpot CRM Integration (3 weeks) — COMPLETE (shipped as `hubspot-crm-enrichment`)
+- [x] HubSpot connect/disconnect — **private-app access token** (BYOK, pasted by the self-hoster), not the OAuth marketplace flow (awkward for self-host)
+- [x] Sync contacts: pull company, deal stage, ARR, contract renewal date, lifecycle stage
+- [x] Match by email: link HubSpot contacts to Rereflect customers (by `customer_email`)
+- [x] Customer 360 enrichment: show CRM data on customer profile (company name, deal value, renewal date) — `CrmCompanyCard`
+- [x] Churn prediction enrichment: CRM signals in the health score via the opt-in `crm_component` (renewal date), + `crm_*` timeline events
+- [x] Bi-directional sync: push health scores to HubSpot contact properties (opt-in per org, on-change trigger + backfill, soft-pause on missing write scope/field)
+- [x] Plan gate: removed — all features unlocked in the open-source self-hosted edition
+
+#### M3.1b — Salesforce CRM Integration — COMPLETE (shipped 2026-07-01)
+> Delivered as `salesforce-crm-enrichment` (commits ~`309c37c`..`47a3733`), the 2nd CRM per `AI-TRACKING.md` line 23 ("HubSpot first, then Salesforce"). See `docs/planning/salesforce-crm-enrichment/`. Reuses the HubSpot-built consuming layer (health `crm_component`, CrmCompanyCard, timeline) via a provider-agnostic generalization.
+- [x] Salesforce **OAuth 2.0** web-server flow (connect/callback/status/disconnect/test) with CSRF-hardened, session-bound `state` (HttpOnly nonce cookie)
+- [x] `crm_enrichment` generalized with a `provider` discriminator (existing HubSpot scores byte-identical — characterization-tested); provider-driven timeline source
+- [x] Sync Account/Contact/Opportunity → company/ARR/renewal/deal (SOQL, token refresh, API-limit backoff), match by email; daily beat 03:45 UTC + manual trigger
+- [x] Health/churn signal via the shared `crm_component`; provider-tagged rows
+- [x] **One CRM connected per org at a time** — symmetric guard on both providers' connect + purge-on-disconnect
+- [x] Bi-directional push-back — **Salesforce health-score writeback shipped 2026-07-05** as `salesforce-crm-writeback` (slice 2): opt-in per-org, off by default; describe-validated writable numeric Contact field (default `Rereflect_Health_Score__c`); on-change trigger (generalized `_maybe_enqueue_writeback`, HubSpot path unchanged) + backfill-on-enable (cap 500); idempotent (reuses `last_written_health_score`); soft-pause on scope/field/not-found/daily-limit (never flips `is_active`); persists `salesforce_contact_id` (deterministic on dup email) with re-query-by-email fallback. See `docs/planning/salesforce-crm-writeback/`. **Still deferred (v2):** multi-field push, Account-object target, simultaneous dual-CRM writeback + reconciliation, real-time/streaming push.
+- [x] Plan gate: removed — OSS self-hosted, all unlocked
+
+#### M3.2 — Product Usage Enrichment (2 weeks) — COMPLETE (shipped 2026-06-29)
+> Delivered as `product-usage-enrichment` (commits ~`c64665a`..`5d7f21c`). See `docs/planning/product-usage-enrichment/`. Ingest is a plain authenticated POST (normalized, Segment-compatible), not a Segment OAuth connection — fits the OSS self-hosted / BYOK model.
+- [x] Usage webhook receiver: `POST /api/v1/webhooks/usage` (ingest-scoped API key, `identify` + `track`, dedup on `messageId`, bounded batch/payload). Emits to Celery `process_usage_event`.
+- [x] Usage metrics per customer: `usage_event` log + `customer_usage` rollup (last_active, login/active-days 7d/30d, distinct features) → `usage_score` (recency + frequency + breadth, neutral 50 when no data)
+- [x] Customer 360 enrichment: "Usage Activity" card + UsageTimeline chart on the profile; "Last active (product)" list column
+- [x] Health score enrichment: usage as **opt-in 5th component**, `health_weight_usage` **default 0** (byte-for-byte-stable upgrade), 5-field health-weights API; daily `recompute_usage_scores` applies recency decay
+- [x] Operator setup docs (`docs/SELF_HOSTING.md`) + `settings/usage-events` panel
+- [x] Plan gate: removed — all features unlocked in the open-source self-hosted edition
+
+#### M3.2b — Product-usage trend (decline) signal — COMPLETE (shipped 2026-07-22, as `usage-trend-churn-signal`)
+> The explicit v2 of M3.2 (`product-usage-enrichment/prd.md:67`, "usage factor to the churn scorer"), re-shaped to a **health-component** signal after the dig showed the per-feedback 9-factor scorer can't fire for a silent customer. See `docs/planning/usage-trend-churn-signal/`.
+- [x] **Fixed a latent M3.2 defect (D1):** the rolling-window fields (`active_days_7d/14d/30d`, `login_count_*`) only re-derived on a new event, freezing for a customer who went quiet — which also made the `silent_churner` segment unreachable. The daily `recompute_usage_scores` now re-derives them against `now`. **This corrects (lowers) inflated health scores for orgs at a non-zero usage weight** — see CHANGELOG.
+- [x] Durable, bounded daily snapshot (`customer_usage_history`, 180-day retention + prune task) — the missing history that `AI-TRACKING.md`'s M5.3 note called out as the blocker (below).
+- [x] Per-customer `usage_trend_state` (insufficient_history/stable/declining/sharp_decline) + signed `usage_trend_pct`, from the nearest snapshot in a 12–16-day band; bounded penalty on the **usage health component only** — `churn_risk_component`/`churn_probability`/the isotonic calibration are provably untouched.
+- [x] Surfaced on the Customer 360 Usage Activity card (incl. an explicit "Warming up" state); trend fields on the internal customer profile API.
+- [x] **Also fixed D4:** the usage (and CRM) health weight was editable nowhere in the UI and was silently zeroed on every weights save — now editable + preserved.
+- ~~Deferred (honest): a `usage_trend` automation trigger + timeline event (N1/N2)~~ — **N1 + N2 shipped 2026-07-23** as `usage-trend-automation-trigger` (see M3.2c below). Still deferred: seasonality dampening (N3), per-org thresholds (N4); `usage_event` retention (D2) and swallowed-enqueue (D3) remain open on their own branch.
+
+#### M3.2c — Usage-trend timeline event + automation trigger — COMPLETE (shipped 2026-07-23, as `usage-trend-automation-trigger`)
+> **Delivery fix 2026-09-25 (`automation-playbook-dispatch-commit`):** the `usage_trend → run_playbook`
+> action published the execution id before committing the row, so a worker could orphan it at
+> `queued`. Now commit-before-publish. See the M4.1.5 note below.
+> Closes M3.2b's N1 + N2 (`docs/planning/usage-trend-churn-signal/prd.md:158-160`), which named N2
+> verbatim as "the natural follow-on that reconnects the signal to the action loop". Built on the
+> M4.1.5 `churn-triggered-playbooks` pattern. See `docs/planning/usage-trend-automation-trigger/`.
+- [x] **`usage_trend` automation trigger** — **edge-triggered**: fires only on a strictly-worsening
+      transition over `stable(0) < declining(1) < sharp_decline(2)` into a configured state.
+      **`insufficient_history` has no rank**, so every transition touching it (either direction) is a
+      silent baseline observation — the same non-destructive first-observation rule as the
+      Jira/Zendesk/Asana status-syncs, and what prevents the whole population firing on the day
+      snapshot history matures. Recoveries do not fire (deferred v2).
+- [x] **No activation-time cooldown seeding, deliberately.** `seed_churn_cooldowns` exists because
+      `churn_probability_threshold` is *level-based* and re-fires while the level persists; an
+      edge-triggered rule has no such stampede mode. It stays churn-only, pinned by a test asserting a
+      `usage_trend` rule going active seeds nothing.
+- [x] **Worker-side evaluator** (`automation_usage_trend_trigger.py`) mirroring
+      `automation_churn_trigger.py` — the worker cannot import backend-api code. Shares Redis db=1 and
+      the identical cooldown key scheme; `run_playbook` only; `usage_trend_severity.py` duplicated
+      verbatim per the `usage_score_service.py` precedent.
+- [x] **Fires strictly after the commit.** `recompute_usage_scores` scans all orgs and commits once at
+      the end, so transitions are accumulated in-loop and drained post-commit; an in-loop regression
+      fails loudly via an in-`side_effect` assertion.
+- [x] **`usage_trend_change` timeline event** — derived at read time from consecutive
+      `customer_usage_history` rows (two new nullable columns; no new table). Reports **all** state
+      changes in both directions, unlike the trigger. `_fetch_playbook_runs`' `triggered_by` filter
+      widened to include `auto_usage_trend` so usage-trend auto-runs are visible.
+- [x] **Fixed a latent M3.2b defect:** the daily snapshot payload was assembled *before* trend
+      classification, so persisting trend state naively would have recorded the previous run's value.
+- [x] **Fixed a pre-existing M4.1.5 defect:** shadow-mode executions rendered as a red "failed" badge
+      with an empty actions column. Affects all shadow rules, not just this trigger.
+- [x] **Shadow is the default mode for this trigger type only** (~14-day warm-up), plus a pre-built
+      "Usage Decline Outreach" template for discoverability and a readiness count of customers holding
+      a real trend state.
+- [x] **Churn stack provably untouched** — `test_usage_trend_churn_boundary.py` green and unmodified.
+- **Honest limits:** ~14-day warm-up; **the ≥5 active-day baseline floor permanently excludes
+      light-usage customers**, so the trigger structurally cannot fire for the quietest accounts
+      (inherited from M3.2b, not changed here); ~24h latency via the daily beat. **No claim is made
+      about churn-prediction quality** — this changes what happens when an existing signal changes
+      state. And the whole feature sits downstream of an operator having instrumented usage events,
+      which is **unvalidated** — the readiness count exists to measure that rather than assume it.
+
+#### M3.2d — Usage-decline churn-label suggestions — COMPLETE (shipped 2026-07-24, as `usage-decline-churn-labels`)
+> Resolves the M5.3 "unplanned" deferral (below) — a self-hoster with product usage telemetry
+> but no CRM connected gets a **second** churn-label producer, on the same confirm-in-review
+> pattern `crm-churn-labels` established. See `docs/planning/usage-decline-churn-labels/`.
+- [x] **Per-org opt-in on `OrgAIConfig`**: `usage_churn_labels_mode` (`off`/`shadow`/`active`,
+      default **`off`**, not shadow — unlike M3.2c, this writes into a review queue an operator
+      must trust, so silent shadow accumulation by default was rejected) +
+      `usage_churn_label_config` (`{"sustain_days": N}`, `N` in `[1, 90]`, default `7`). One
+      migration (`0a3382154c27`), chained off a live-verified single head.
+- [x] **Sustained-decline detector, level-based not edge-based.** A customer qualifies only when
+      `usage_trend_state == "sharp_decline"` has held for `sustain_days` **consecutive calendar
+      days** read off `customer_usage_history` — deliberately *not* M3.2c's edge-triggered
+      post-commit drain seam, which would fire once on the day of least evidence and never
+      again. The milder `declining` state never qualifies; `insufficient_history` breaks a
+      streak like `stable` does (absence of evidence, not evidence of stability). Pure core
+      (`usage_decline_labels_core.py`) mirrored byte-identically into the worker, same as
+      `usage_trend_severity.py`.
+- [x] **Writes into the existing `crm-churn-labels` review queue**, not a new table/endpoint:
+      `ChurnLabelSuggestion(provider='usage_decline')`, `suggested_churned_at =
+      customer_usage.last_active_at` (deny — never fabricate a date — when `last_active_at` is
+      `NULL`), idempotent via `external_opportunity_id = "usage:{email}:{streak_start_date}"` (a
+      new decline episode after recovery mints a new key; a rejected suggestion is never
+      re-suggested while the same episode continues). Denies on an existing active churn event
+      or an existing suggestion row, reusing the CRM harvester's denial semantics (copied, not
+      imported — the worker cannot import backend-api code, and this module never touches
+      `churn_suggestion_harvester.py`). Per-run cap of 10 with a logged, non-silent dropped
+      count.
+- [x] **Confirm-in-review only — nothing auto-labels.** A human confirming a suggestion writes
+      `CustomerChurnEvent(source='manual')` via the pre-existing confirm path, unchanged.
+      Suggestions stay out of `churn_labels_ready`, counted only in `pending_suggestions` —
+      identically to the CRM source, with no code change required to make that true.
+- [x] **M3b population-level outage guard.** If usage instrumentation breaks (webhook
+      misconfigured, deploy drops events, API key rotated), every customer's activity collapses
+      together and — ~12-16 days later — the whole base crosses into `sharp_decline`
+      simultaneously; the sustain window *confirms* that artifact rather than protecting
+      against it. Before writing anything, the detector computes the qualifying share of that
+      org's trend-eligible population; above 25% (only once that population is ≥20 — the ratio
+      is meaningless smaller) it **suppresses the entire run**, writes nothing, and logs a loud,
+      surfaced warning instead of failing silently.
+- [x] **Runs off `recompute_usage_scores`, strictly after the daily snapshot commit** (today's
+      history row does not exist until that commit lands), in its own transaction with
+      per-customer isolation; skipped outright when `snapshot_written == 0`.
+- [x] **Settings → AI card**: mode selector + `sustain_days` input, a precision read-out
+      (confirmed/rejected/pending counts for this provider, since a self-hosted product has no
+      other way to see whether the signal is worth trusting), and the honest-limits copy below,
+      stated in the UI itself so an operator doesn't have to read source to understand an empty
+      queue.
+- [x] Source-neutral queue copy (the shared churn-suggestions page/dialog no longer says "CRM"
+      unconditionally) + a provider-aware evidence renderer for `usage_decline` suggestions
+      (trend %, active-days-14d before/after, streak length, last active date) — the generic
+      CRM evidence cell is untouched for CRM-sourced rows.
+- [x] **Churn stack provably untouched** — `test_usage_trend_churn_boundary.py` green and
+      unmodified; the trend classifier, its thresholds, and the ≥5 active-day floor are read,
+      never changed.
+- **Honest limits:** ~12-16 day warm-up **plus** the configured `sustain_days` on top (≥3 weeks
+      of silence is normal at the default of 7); **the ≥5 active-day baseline floor permanently
+      excludes light-usage customers** from ever producing a suggestion (inherited from M3.2b,
+      not changed here — and plausibly the most churn-prone segment); the detector only ever
+      sees customers declining *recently* — a customer who went quiet months ago has no in-band
+      baseline and can never surface; inert without usage events already flowing. **No claim of
+      improved churn-prediction accuracy** — this changes label *supply*, not the model, and the
+      PRD's own 0.6 precision target is a hypothesis, not a measurement (nobody has run this
+      against real data).
+
+#### M3.3 — AI Trust: Human-in-the-Loop (2 weeks) — COMPLETE
+- [x] Feedback on AI outputs: thumbs up/down on copilot answers, health scores, categorizations
+- [x] Category correction: user can override AI category → stored as training signal
+- [x] Sentiment correction: user can override sentiment label → stored as training signal
+- [x] Correction dashboard: AI Accuracy stats tab in AI Settings, accuracy over time
+- [x] Health score flag icon on customer profile
+- [x] 9 backend + 7 frontend tests
+- [ ] Corrections feed into fine-tuning pipeline (M4.2)
+
+#### M3.4 — Enhanced Customer 360 (2 weeks) — PARTIAL (unified timeline + Customer 360 API shipped 2026-06-29)
+- [x] Unified customer timeline: feedback + usage + churn + health-score events in chronological order (cursor-paginated `/timeline` endpoint + shared service; the existing `/activity` widget now delegates to it). **CRM events deferred** until HubSpot (M3.1) — the event shape is source-extensible.
+- [x] Customer segments: rule-based, single-assignment classification into 7 slugs (`at_risk`, `silent_churner`, `dormant`, `power_user`, `happy_advocate`, `new`, `unsegmented`) — computed on ingest + nightly recompute, exposed as `segment` on the list (with `?segment=` filter) and profile endpoints (internal + public API). Heuristic only, no ML.
+- [x] Bulk actions (shipped 2026-07-09 as `segment-actions`): row-selection **or** whole-filter cohort on `/customers` → **CSV export** (`GET /customers/export`, streaming, formula-injection-safe), **bulk tag** (`POST /customers/bulk/tags`, add/remove), **bulk assign CS owner** (`POST /customers/bulk/assign-owner`; new `cs_owner_user_id` + `tags` on `customer_health_scores`), and **run a churn playbook on a cohort** (`POST /playbooks/{id}/run-batch` extended with `emails`/`segment`, 500-cap + `count_only` preview). All actions share one `Cohort` contract (`emails[]` | `filter{segment,risk_level,search,include_archived}`, resolved server-side). See `docs/planning/segment-actions/`. **Trigger outreach campaign shipped 2026-08-12** (`customer-outreach-email-actions`) — see below; run-playbook on a whole-filter cohort currently requires a `segment` (or explicit emails) — a risk/search-only whole-filter cohort can be exported/tagged/assigned but not playbook-run yet.
+- [x] Customer 360 API (for external consumption): public read endpoints `GET /api/public/v1/customers/{email}` (full profile) + `/timeline` (API-key `read` scope)
+- [x] Health score API endpoint for programmatic access: `GET /api/public/v1/customers/{email}/health` (extended with component breakdown incl. usage)
+
+**Q3 Deliverables**: HubSpot integration, Segment integration, human-in-the-loop (M3.3 COMPLETE), enriched Customer 360
+**Plan Gating**: CRM/usage integrations = Business+, corrections = Pro+
+
+---
+
+### Q4 2026: Enterprise AI & Competitive Moat (Oct-Dec)
+> *Theme: Custom models, advanced predictions, industry benchmarks — create switching cost*
+
+**Goal**: Enterprise customers have custom-trained AI. Churn prediction accuracy is demonstrably high. Industry benchmarks create network effects.
+
+#### M4.1 — Advanced Churn Prediction (3 weeks) — COMPLETE
+- [x] 30-day churn probability score (percentage, not just risk level)
+- [x] Churn prediction model: calibrated heuristic with label collection (train on customer-marked churn events + CSV import)
+- [x] Churn timeline: time_to_churn_bucket (immediate / 2w / 2-4w / 1-3m / low) derived from probability + sentiment trend
+- [x] Churn cohort analysis: 3 dimensions (source, acquisition month, volume segment) with heatmap + breakdown charts
+- [x] Churn prevention playbooks: 7 pre-built templates (Critical Save, Prevention, At-Risk Outreach, etc.) + clone/edit with probability range binding
+  - **Follow-on (2026-08-27, `feat/playbook-action-types`):** the 5 unimplemented seeded
+        action types (`notify`, `tag`, `create_task`, `schedule_task`, `trigger_automation`)
+        now execute in the worker engine — 6 of 7 seeded templates previously hit
+        `unsupported action type` on every run (the same inert-template defect class as the
+        P0 automations fix, closed at `customer-outreach-email-actions/prd.md:247`).
+        `create_task`/`schedule_task` persist to a new internal `playbook_tasks` table;
+        `trigger_automation` fires a named `churn_probability_threshold` rule via the
+        existing `_evaluate_rule` seam (mode/threshold/cooldown respected, `cooldown_hours
+        < 1` refused — no rule→playbook→rule loops); seeder converges pristine template
+        rows (cloned/org-owned never touched); editor offers the new types; execution
+        action logs are surfaced per-action in the UI. See
+        `docs/planning/playbook-action-types/`.
+- [x] Accuracy tracking: precision/recall/F1/AUC metrics on organization + system admin accuracy dashboards, weekly refit Mondays 07:45 UTC
+- [x] Plan gate: Business+ (Pro gets enhanced risk_level + factor breakdown)
+
+> **Access control 2026-10-02 (`mutation-route-rbac`):** playbook create/edit/delete/run/run-batch and
+> churn-label marking/CSV import/recover are now admin/owner only (they were open to any member).
+> See `docs/planning/mutation-route-rbac/prd.md`.
+
+#### M4.1.5 — Churn-triggered playbook auto-execution — COMPLETE (shipped 2026-07-19)
+> Delivered as `churn-triggered-playbooks` (commits `9aa6650`..`f133ccf`). Closes the deferred item at
+> `PRD-ADVANCED-CHURN-PREDICTION.md:465` ("Real-time playbook execution on probability threshold
+> cross. v1 supports manual trigger + run-batch only. Auto-execution on threshold cross is M4.1.5.").
+> See `docs/planning/churn-triggered-playbooks/`.
+>
+> **Delivery fix 2026-09-25 (`automation-playbook-dispatch-commit`).** Until this date, auto-runs
+> could be silently lost. All three `run_playbook` dispatch sites (the backend engine and the
+> worker churn + usage-trend mirrors) flushed the execution row and published its id *before*
+> committing, so the worker could load nothing and leave the row `queued` forever while the audit
+> row said `success`. This also affected the `trigger_automation` playbook action. The fix commits
+> before publishing, and ordering tests pin it. Live proof on a real Postgres + worker: with 50 ms
+> between publish and commit, master lost 40/40 and the branch completed 40/40. See
+> `docs/planning/automation-playbook-dispatch-commit/live-acceptance-and-tracking/evidence.md`.
+- [x] AutomationEngine (M4.4): new `churn_probability_threshold` trigger + new `run_playbook` action
+      (as of 2026-08-20 these rules can also `send_customer_email` — see the M4.4 block)
+- [x] `AutomationRule.mode` — `off` / `shadow` (evaluate + log, don't execute) / `active`
+- [x] Worker seam: the churn-probability recompute fires these rules via an isolated evaluator, reusing
+      the identical per-(rule, customer) Redis cooldown scheme as the existing M4.4 triggers
+- [x] Auto-runs create a `ChurnPlaybookExecution(triggered_by="auto_probability")` and surface on the
+      customer timeline as `playbook_auto_run` events
+- [x] Activating a rule seeds per-customer cooldowns up front, so a batch of already-at-risk customers
+      doesn't stampede all at once on the first recompute
+- [x] SMTP-free; no plan gate — unlocked in the open-source self-hosted edition
+
+#### M4.2 — Custom AI Models (3 weeks) — COMPLETE (categories + weights 2026-06-22; classification/A-B/versioning delivered via M5.2 + `classifier-model-versioning-rollback` 2026-07-24)
+- [x] Custom category configuration: org-specific pain point, feature request, and **urgency** categories — injected into the LLM prompt + merged into the keyword categorizers
+- [x] Custom health score weights: adjust the 4 component weights per org (validated to sum to 100); `health_score_service` reads them
+- [x] Fine-tuned classification: train per-org classification model on their feedback + corrections (from M3.3) — **delivered by M5.2** (per-org TF-IDF + logistic-regression corrections classifiers: sentiment/category/urgency)
+- [x] A/B comparison: show fine-tuned vs default model accuracy side-by-side — **delivered by M5.2** (Accuracy card: incumbent-vs-challenger macro-F1 + delta; `GET /classifier/accuracy`)
+- [x] Model versioning: track model performance over time, rollback if accuracy drops — **delivered 2026-07-24 as `classifier-model-versioning-rollback`**: `GET /classifier/versions` (per-version metrics) + roll-back-to-any-version, made **durable** by a per-type auto-promotion hold (the weekly refit no longer silently re-promotes over a manual rollback) + `POST /classifier/resume` + audit. See `docs/planning/classifier-model-versioning-rollback/`.
+- [x] Plan gate: removed — all features unlocked in the open-source self-hosted edition
+
+#### M4.3 — Industry Benchmarks — **DROPPED, not deferred** (struck 2026-08-01)
+
+> **This milestone is not buildable and will not be built.** It is struck rather than left
+> unchecked, because seven open checkboxes read as planned work and this is not planned work.
+>
+> Benchmarks require a **cross-tenant pool** of aggregate metrics. Rereflect is single-tenant
+> self-hosted: each install sees only its own data and there is no central service to
+> aggregate into, and adding one would contradict the no-telemetry positioning that four of
+> seven post-1.0.0 user comments independently named as the reason they chose the product
+> (`DEV-TRACKING.md`, "No build required"). The M5 strategic framing already states this —
+> "a central cross-tenant dataset (dead single-tenant — the reason M4.3 benchmarks were
+> dropped)" — so the roadmap was contradicting itself.
+>
+> The `Plan gate: Pro+` line was doubly stale: there are no plans.
+>
+> ~~Opt-in benchmark program, industry classification, benchmark metrics/display/trends,
+> aggregate-only privacy model, Pro+ gate.~~ If a hosted multi-tenant mode ever exists
+> (`SELF_HOSTED=false`), reopen this from scratch rather than resurrecting these items.
+
+#### M4.4 — AI Workflow Automation (3 weeks) — COMPLETE
+- [x] Auto-escalation rules: "If health score drops below 30, auto-assign to CS lead + create urgent notification"
+- [x] Auto-response triggers: "If category is bug_report and severity is critical, draft response from template and suggest to user"
+- [x] AI-powered auto-routing: feedback → AI determines best team/person based on content, history, and workload
+- [x] Workflow templates: pre-built automation recipes ("Churn Prevention", "Feature Request Triage", "Critical Bug Response", "Negative Sentiment Alert", "Positive Feedback Follow-up")
+- [x] Automation audit log: every AI action is logged with reasoning and can be reviewed/overridden (90-day retention)
+- [x] Plan gate: Pro (5 rules), Business (20 rules), Enterprise (unlimited)
+- [x] 4 trigger types: health score threshold, sentiment pattern, churn risk level change, feedback category match
+- [x] 4 action types: auto-assign (user/role/round-robin), change status, send notification, draft AI response
+- [x] Multiple actions per rule, configurable cooldown (1h-7d), active/paused toggle
+- [x] Real-time event-driven execution (fires on feedback analysis + health score update)
+- [x] Redis cooldown per customer per rule
+- [x] Settings > Automations pages (list, create, detail with execution log, template picker)
+- [x] 17 backend API + 16 engine + 10 frontend = 43 TDD tests
+- [x] 5th action type `send_customer_email` — emails the customer (or their CS owner) a built-in
+      outreach template, in the backend engine and all three worker mirrors; delivery audit table
+      + `GET /api/v1/automations/{rule_id}/deliveries` + rule-detail Email Deliveries tab; seeded
+      "At-Risk Customer Outreach" shadow template (shipped 2026-08-20 as
+      `automation-send-customer-email`, merged c4f5a431, PR #23 — see
+      `docs/planning/automation-send-customer-email/`)
+
+**Q4 Deliverables**: Advanced churn prediction, custom models, benchmarks, workflow automation (M4.4 COMPLETE)
+**Plan Gating**: Custom models = Enterprise, benchmarks = Pro+, automation = Pro+ (5 rules) / Business (20) / Enterprise (unlimited)
+
+---
+
+### Open-Source Feature Batch — COMPLETE (shipped 2026-06-22)
+> First batch after the open-source self-hosted pivot. All unlocked (no plan gating). See `PRD-LOCAL-LLM-CUSTOM-AI-PUBLIC-API.md`.
+
+- [x] **Local / Offline LLM** — run the analysis pipeline against Ollama or any OpenAI-compatible endpoint, keyless (no API key, no system key); falls back to free local VADER when no model is configured. Cloud BYOK unchanged. (extends M2.1 Multi-Model)
+- [x] **Custom AI** — custom pain-point/feature-request/urgency taxonomies into the analyzer + per-org configurable customer-health-score weights (M4.2 partial)
+- [x] **Public REST API** — API-key auth (read/ingest/**write** scopes), read endpoints (feedback/customers/health/churn/analytics), feedback ingestion, webhook management, OpenAPI docs
+  - [x] **Write scope + feedback mutation (shipped 2026-07-06)** — new `write` scope + `PATCH /api/public/v1/feedback/{id}`: change `workflow_status` (via a shared `apply_status_change` helper — timeline event, `feedback.status_changed` webhook, cache invalidation; same-value = no-op) and record category/sentiment corrections as **record-only** `AICorrection` training signals (stored analyzer value unchanged, mirroring the dashboard). Org-scoped (cross-org → 404), single flat `write` scope, no DB migration. Internal (JWT) status-change + correction routes refactored onto the shared helpers with byte-identical behavior (characterization-gated). See `docs/planning/public-api-write-crud/`. **`tags`/`is_urgent` edits + `DELETE /api/public/v1/feedback/{id}` shipped 2026-07-07** — `PATCH` now also accepts `tags` (replace; `[]` clears, omitted leaves unchanged; trimmed+deduped, max 20 tags, ≤50 chars each) and `is_urgent` (bool); unknown fields → `422` (`extra="forbid"`); combined-field PATCH is best-effort/non-atomic (separate commits, carried over from the initial write-scope release). `DELETE /api/public/v1/feedback/{id}` (204, `write` scope, org-scoped 404) mirrors the internal dashboard delete (health-record archive, cache invalidation, `feedback:deleted` event). See `docs/planning/public-api-write-v2/`. **Bulk feedback writes shipped 2026-07-15** — `POST /api/public/v1/feedback/bulk` (`write` scope): one uniform `patch` (`workflow_status`/`tags`/`is_urgent`/`correction` — same fields/semantics as the single `PATCH`) applied to up to 500 deduped `ids`; response is `{matched, updated, skipped, results: [{id, status: updated|noop|skipped|error, reason?}]}` in deduped input order; ids outside the key's org (or nonexistent) are `skipped`, not errors; `?count_only=true` dry-runs just the match count with zero mutation. **Custom-category (taxonomy) CRUD shipped 2026-07-15** — `GET/POST/PATCH/DELETE /api/public/v1/categories` (`read` scope for GET, `write` for the rest), sharing the internal `/api/v1/categories/custom` routes' `custom_category_service` so semantics can't drift: 409 on a duplicate `(org, category_type, name)`, 404 on a missing/other-org id, `category_type` immutable after create (sending it on `PATCH` is an unknown field → 422), and `DELETE` (204, hard delete) sets an `X-Rereflect-Warning` response header — the delete still succeeds, advisory only — when the category's name is referenced by an active `feedback_category_match` automation rule. See `docs/planning/public-api-crud-v3/`. **Deferred:** mutating the stored category/sentiment column (corrections stay record-only training signals); customer CRUD — resolved as **incoherent** rather than merely postponed (a "customer" on the public surface is a derived/aggregated view over feedback + health scores, not a directly-authored entity, so there's nothing coherent to create/update/delete) — see `docs/planning/public-api-crud-v3/`.
+- [x] **Fully-offline AI Copilot** — the Copilot's template-matching embeddings + answer generation now run through a pluggable provider layer, so a keyless local-LLM org (Ollama / OpenAI-compatible) gets an end-to-end working Copilot; vectors are provider/dim-tagged, system templates auto-re-embed at startup, and it degrades to the LLM path when no embedding provider resolves. (extends M2.2 Copilot + the Local/Offline LLM batch above). See `PRD-AI-COPILOT.md` + `docs/planning/local-embeddings-offline-copilot/prd.md`.
+
+> **Note:** the Plan Gating tables below are pre-pivot and now stale — every feature is unlocked in the open-source self-hosted edition.
+
+---
+
+## M5 — Local Model Layer (self-improving, on-device) — COMPLETE (M5.0 + M5.1 shipped 2026-07-10; M5.2 sentiment + category heads shipped 2026-07-11, urgency head shipped 2026-07-14; M5.4 shipped 2026-07-25; M5.3 shipped 2026-08-14)
+
+> **Strategic framing.** For an OSS / self-hosted / BYOK product the moat is **not** a trained
+> foundation model, a central cross-tenant dataset (dead single-tenant — the reason M4.3 benchmarks
+> were dropped), or fine-tuning the operator's BYOK LLM (can't do it uniformly across providers). The
+> defensible play is a **per-org, local, self-improving model layer**: trains only on data one operator
+> has, runs locally with no cloud dependency, improves the more it's used/corrected, and stays honest
+> (small models, stated as such — as churn already is "a calibrated heuristic"). The heavy stack is
+> **already installed** (`torch`, `transformers`, `sentence-transformers`, `scikit-learn`, `bertopic`),
+> and per-org training is already live but shallow (`churn_calibrator.py` fits isotonic regression per
+> org at `MIN_LABELS=20`). The corrections flywheel data (`AICorrection`, M3.3) is collected but not yet
+> trained on (M4.2 fine-tuned classification was deferred). This milestone block closes that loop.
+>
+> **Cross-cutting principles:** CPU-only (no GPU ever required — adoption is the game); default analyzer
+> paths stay byte-stable; every model swap is A/B-gated and reversible; no central/cross-tenant data;
+> models are small and described honestly.
+
+#### M5.0 — Data & Model Readiness Assessment (no ML) — COMPLETE (shipped 2026-07-10, as `local-analyzer-sentiment-model`)
+- [x] Instrument, per org: feedback volume, `AICorrection` counts by type (**dynamic `by_type`** —
+      real values are `sentiment`/`category`/`churn_risk`/`copilot_response`; there is no `urgency`
+      correction in the code, so the report groups by whatever types exist), churn-label counts +
+      distribution (from `CustomerChurnEvent`); shipped `GET /api/v1/analytics/ai-readiness` + a
+      "Readiness" tab card on Settings → AI.
+- [x] Output surfaces the activation thresholds that gate M5.2 (correction volume — stated
+      `CORRECTION_VOLUME_TARGET`, explicitly unvalidated v1) and M5.3 (`CHURN_LABEL_TARGET = 500`),
+      with honest ready/not-ready flags. **Exit met:** an operator can see per-org whether the next
+      tracks are buildable.
+- *Serves:* de-risks all tracks. Cheap, first, non-negotiable given data readiness is unknown.
+
+#### M5.1 — Analyzer model-provider layer + better local defaults (Track B + spine v1) — COMPLETE (shipped 2026-07-10, as `local-analyzer-sentiment-model`)
+> See `docs/planning/local-analyzer-sentiment-model/`. Built via 5 aspects (sentiment-provider-core,
+> per-org-resolution, model-packaging, eval-harness-and-card, m5.0-readiness-report), strict TDD.
+- [x] Pluggable **sentiment**-provider abstraction (`analysis-engine/src/analyzer/sentiment_providers/`,
+      mirrors the embedding/LLM provider layers): `SentimentProvider` ABC + `VaderSentimentProvider`
+      (byte-identical default, characterization-locked) + `TransformerSentimentProvider` + factory.
+      Per-org opt-in via `OrgAIConfig.sentiment_provider` (default `'vader'`) + `resolve_sentiment_provider`
+      (backend + worker mirrors), injected at both sentiment call sites; VADER fallback on any failure,
+      per-process single model load. (category/urgency backends deferred to a later M5 slice.)
+- [x] Ship a **CPU transformer sentiment** model (`cardiffnlp/twitter-roberta-base-sentiment-latest`,
+      3-class) as an **opt-in** provider; **pull-on-first-enable + cached** (lean default image,
+      `BAKE_SENTIMENT_MODEL=false`), default stays VADER (byte-stable); documented **air-gapped
+      pre-bake** + `HF_HUB_OFFLINE` path in `docs/SELF_HOSTING.md`. (emotion head deferred.)
+- [x] **Eval harness + accuracy card** — offline harness + two labeled sets (self-authored public
+      n=180 + in-domain n=169) + precision/recall/F1/confusion (reuses the churn-accuracy metric
+      pattern); `GET /api/v1/settings/ai/sentiment/accuracy` reads a committed results artifact; card
+      on the Settings → AI "accuracy" tab.
+- *Serves:* accuracy leadership + offline/zero-cloud + credibility floor. Not data-gated → shipped first.
+      **Exit (honest, DISCLOSURE not gate):** on the in-domain set the transformer **marginally beats**
+      VADER (macro-F1 **0.552 vs 0.526**, +0.026) but does **not** clear the ambitious +0.05 target
+      (it under-recalls `neutral` on flat B2B feedback); on the public set 0.778 vs 0.758. Label order
+      verified correct. Per the plan's decision the spine ships regardless, model **off by default**,
+      and the card states the honest result (incl. `n`).
+
+#### M5.2 — Corrections flywheel: per-org self-improving classifiers (Track A — flagship moat) — COMPLETE (sentiment shipped 2026-07-11; **category head shipped 2026-07-11**; **urgency head shipped 2026-07-14**)
+> Spine + sentiment + **category head (v2)**; real-org auto-promotion is the later exit — spine proven on synthetic corrections.
+- [x] Train a small per-org model (TF-IDF + logistic regression via the installed `scikit-learn`) on the org's feedback + `AICorrection`s, on the worker, CPU, scheduled.
+- [x] Per-org **shadow A/B** on held-out corrections; **auto-promote only when the challenger beats the
+      incumbent** by a margin; operator sees the delta and can roll back.
+- [x] Activates per-org once corrections ≥ the threshold from M5.0. Honesty: "your model, trained on your
+      data, promoted only when measurably better."
+- [x] **Category head (v2, shipped 2026-07-11 as `per-org-category-classifier`)** — a unified per-org
+      **category** classifier (pain-point / feature-request) trained on `AICorrection.correction_type='category'`
+      with **dynamic labels from the org's own corrections**; independent `category_classifier_mode`
+      (off/shadow/auto, separate from sentiment); in `auto` the predicted label overrides
+      `pain_point_category`/`feature_request_category` **only when it maps unambiguously to exactly one
+      built-in vocabulary** (else shadow-log only — no silent mis-write); **fair-A/B** — the challenger is
+      scored only over labels the keyword incumbent can emit ("evaluated on labels the baseline can
+      produce"), so custom-only classes can't rig a promotion; same weekly refit + one-click rollback.
+      See `docs/planning/per-org-category-classifier/`.
+- [x] **Urgency head (M5.2 v3) shipped 2026-07-14** — a third, binary (`not_urgent`/`urgent`) head on the
+      same spine, trained on the org's `urgency` corrections. New capture seam: a user-driven urgent-flag
+      change (internal `PATCH /api/v1/feedback/{id}/urgent` + dashboard toggle, and the public
+      `PATCH /api/public/v1/feedback/{id}` `is_urgent`) records an `AICorrection(correction_type="urgency")`
+      — the analyzer's own heuristic set/clear does NOT. Incumbent = the built-in keyword+sentiment urgency
+      heuristic; challenger promotes only on macro-F1 ≥ +0.02 (guards against a majority-class collapse).
+      Independent `urgency_classifier_mode` (off/shadow/auto). **`auto` is add-only** — it may escalate
+      `not_urgent→urgent` but never de-escalates a flag the heuristic raised (the urgent flag drives churn
+      alerts / the urgent queue). See `docs/planning/urgency-classifier-head/`. **Still deferred (v3):**
+      separate per-kind category heads (pain-point vs feature-request) and multi-label per item.
+- *Serves:* the self-improving data moat (flagship goal), accuracy, offline. **Exit:** spine proven on synthetic corrections (sentiment + category); real-org exit is deferred.
+
+#### M5.3 — Per-org churn ML model (Track C — data-gated) — COMPLETE (spine shipped 2026-08-14 as `per-org-churn-model`; exit unvalidated — no real org at label volume)
+- [x] Upgrade from isotonic calibration to a gradient-boosted / logistic churn classifier per org on
+      labeled churn events + features; **activates at ~500 labels** (from M5.0); calibrated heuristic
+      remains the fallback below the gate. Reuse the existing precision/recall/F1/AUC churn dashboard.
+      **Shipped 2026-08-14** — new analysis-engine core `analyzer/churn_classifier/` (28-feature
+      customer vector, JSON-only logistic artifact, pure-stdlib predict, leakage-free A/B vs the
+      calibrated-heuristic incumbent — made real by the beat-registration fix); worker task
+      `churn_classifier_training.py` (weekly Mondays 06:00 UTC, **consecutive-runs** +0.02
+      promotion, autopromote hold, rollback/resume); `OrgAIConfig.churn_classifier_mode`
+      (off/shadow/auto, default off) — in `auto` the ML probability replaces the heuristic and
+      `churn_probability_low/high` stay NULL (no fabricated CI); gate re-derived and **kept at
+      500** (`churn-label-gate-study`, verdict `keep_500`); 4th accuracy card + mode toggle on
+      Settings → AI. See `docs/planning/per-org-churn-model/`.
+- *Serves:* churn credibility. **Exit:** for a qualifying org, ML beats the heuristic on backtest with
+      the auto-fallback preserved.
+
+> **Note — label supply now has a CRM source (shipped 2026-07-15, `crm-churn-labels`).**
+> Churn labels previously came from manual entry (Customer 360 → **Mark as churned**) and CSV
+> import only. Orgs with HubSpot or Salesforce connected can now opt in to harvest **lost renewals**
+> as **suggestions**, with an optional on-demand backfill over up to 60 months of closed-lost
+> history. Suggestions are **not labels**: they enter a review queue and become `source='manual'`
+> churn events only when an operator confirms one with a reason code. Nothing is auto-applied, and
+> the feature is **default-deny** — an org that names no renewal pipelines/opportunity types
+> produces nothing. `pending_suggestions` is reported separately on the readiness card and is
+> deliberately excluded from `churn_labels_ready`.
+>
+> **This makes no claim about churn-prediction quality.** It changes label *supply*; whether more
+> labels are sufficient for a per-org model is exactly this milestone's open question. And **no org
+> is promised it will reach the gate** — an org's real lost-renewal count is whatever it is.
+>
+> **The 500-label gate is not settled — treat it as under review (PRD R8).** `CHURN_LABEL_TARGET =
+> 500` comes from `PRD-ADVANCED-CHURN-PREDICTION.md:463` — "labels ≥ 500/org **or ≥ 5,000
+> globally**" — and `config/readiness_thresholds.py:8`'s own comment records that it was copied
+> "verbatim". Two problems. First, the "≥ 5,000 globally" half is **meaningless post-OSS-pivot**:
+> single-tenant self-hosting has no cross-org pool (the same reason M4.3 benchmarks were dropped),
+> so half the original criterion cannot be evaluated at all. Second, the surviving per-org half was
+> calibrated for a **hosted multi-tenant product that no longer exists**, and **nobody has re-derived
+> what a per-org logistic/GBM churn model actually needs single-tenant** — it could be 100, 200, or
+> more than 500. **Never present 500 as a settled target; do not restate it without this caveat.**
+> **Recommended follow-up:** an M5.3-scoped re-derivation of the gate from single-tenant data before
+> anyone builds against the number. This does not block: more human-confirmed labels help under any
+> threshold.
+>
+> **Update 2026-08-14 — re-derived, verdict `keep_500` (`churn-label-gate-study`).** The
+> recommended follow-up landed: a committed, reproducible harness
+> (`services/backend-api/scripts/eval_churn_label_gate.py` + `eval_results/churn_label_gate.json`)
+> simulates per-org learning curves for the planned logistic challenger vs the
+> calibrated-heuristic incumbent (50 simulations x 3 scenario families per volume,
+> leakage-free holdout; pooled macro-F1 delta + empirical 95% CI + promotion rate). The
+> simulated crossover — where the challenger clears the +0.02 bar — is **200 labels**, at
+> full fidelity and again at 25% missing-snapshot fidelity; at 500 the challenger clears
+> with margin, so **the gate stays 500** (no threshold change; `CHURN_LABEL_TARGET`
+> untouched). Honest limits, stated on the card: the curves are **synthetic** — a
+> simulation is a bound, not a measurement, and no real org is at label volume (PRD R2);
+> the incumbent stand-in is the post-fix calibrated-heuristic family (PRD R5); the target
+> must hold for the weakest plausible org, not the cleanest. **OQ2 answered:** at the
+> crossover only 57% of pooled simulated orgs cleared +0.02 on a single run → the churn
+> head uses **consecutive-runs promotion** (two consecutive weekly clears) rather than
+> M5.2's single-run rule. Readout: `GET /api/v1/settings/ai/churn/label-gate` +
+> ChurnLabelGateCard on Settings → AI.
+>
+> **Not viable as label source:** **Stripe** (dead post-OSS-pivot). ~~**Segment/product-usage
+> drop** (blocked — `customer_usage` keeps no history to detect a drop against).~~ **Update
+> 2026-07-22:** the no-history blocker is resolved — `usage-trend-churn-signal` (M3.2b) added the durable
+> `customer_usage_history` snapshot and a usage-decline signal.
+>
+> **Update 2026-07-24 — shipped as a third label source (`usage-decline-churn-labels`), no
+> longer unplanned.** See M3.2d below for the full record. In short: a per-org opt-in
+> (default **off**, with a **shadow** mode) detects a sustained (`sustain_days`-consecutive-day,
+> default 7) `sharp_decline` and writes a **suggestion** — `provider='usage_decline'` — into the
+> **same** review queue `crm-churn-labels` built. Exactly like the CRM source, a suggestion is
+> never a label until a human confirms it; `pending_suggestions` stays excluded from
+> `churn_labels_ready`. **This is weaker evidence than a lost renewal** (the PRD's own precision
+> target is 0.6, not the CRM source's 0.8, and is an unvalidated hypothesis, not a measurement),
+> and it inherits the trend classifier's blind spots verbatim — most notably the **≥5
+> active-day baseline floor**, which permanently excludes light-usage customers (plausibly the
+> most churn-prone segment) from ever producing a suggestion. **This is still a label-*supply*
+> change, not a claim about churn-prediction quality**, and it does not touch the 500-label gate
+> question immediately below — that gate remains under review regardless of how many sources
+> feed it.
+
+#### M5.4 — Local embedding quality (Track D) — COMPLETE (shipped 2026-07-25, as `local-embedding-quality`)
+- [x] In-process, CPU-only embedding provider (`BAAI/bge-small-en-v1.5`, 384-dim, `local`,
+      opt-in per org) for Copilot template matching — no separate Ollama/endpoint process
+      required; degrades cleanly if the `sentence-transformers` dep is missing. **Model-keyed
+      template matching**: switching the embedding model/provider re-embeds the built-in query
+      templates automatically, so vectors from different providers/models are never mixed.
+      Committed, honest retrieval eval + accuracy card (Settings → AI → Accuracy), n=69 (45
+      positives / 24 negatives): candidate `bge-small` beats the `nomic-embed-text` baseline by
+      **+0.089 recall@1** (0.178 vs 0.089),
+      no false-match regression — but absolute recall@1 is still low at the strict 0.85 match
+      threshold (most held-out paraphrases fall through to the LLM path safely; MRR≈0.75). Same
+      air-gap/pre-bake pattern as M5.1: **`BAKE_EMBEDDING_MODEL=true`** at `docker build`
+      (backend only) + `HF_HUB_OFFLINE` / `TRANSFORMERS_OFFLINE` for a fully offline container,
+      documented in `docs/SELF_HOSTING.md`.
+
+---
+
+## Plan Gating Summary (Full Year)
+
+| Feature | Free | Pro | Business | Enterprise |
+|---------|------|-----|----------|------------|
+| VADER sentiment + basic categorization | Yes | Yes | Yes | Yes |
+| Anomaly detection + alerts | Yes | Yes | Yes | Yes |
+| Enhanced 9-factor churn risk | - | Yes | Yes | Yes |
+| Customer health scores + 360 page | - | Yes | Yes | Yes |
+| Customer sentiment alerts | - | Yes | Yes | Yes |
+| Churn explainability (factor breakdown) | - | Yes | Yes | Yes |
+| AI Copilot (Cmd+K) | 10/day | 100/day | Unlimited | Unlimited |
+| Response templates | - | Yes | Yes | Yes |
+| Generated custom responses | - | 50/mo | 500/mo | Unlimited |
+| On-demand AI reports | - | - | Yes | Yes |
+| Multi-model BYOK | - | - | Yes | Yes |
+| HubSpot/CRM enrichment | - | - | Yes | Yes |
+| Segment/usage enrichment | - | - | Yes | Yes |
+| Industry benchmarks | - | Yes | Yes | Yes |
+| Advanced churn (30-day probability) | - | - | Yes | Yes |
+| Custom categories/weights | - | - | - | Yes |
+| Fine-tuned classification | - | - | - | Yes |
+| Workflow automation | - | Basic | Full | Full |
+
+---
+
+## Architecture Notes
+
+### LLM Abstraction Layer (Q2)
+```
+LLMProvider (interface)
+├── OpenAIProvider (GPT-4o, GPT-4o-mini)
+├── AnthropicProvider (Claude Sonnet, Haiku)
+├── GoogleProvider (Gemini Pro, Flash)
+└── FallbackChain (primary → secondary → tertiary)
+```
+
+### Processing Model
+- **Real-time (no LLM)**: VADER sentiment, keyword churn scoring, anomaly detection, tag extraction
+- **On-ingest (lightweight LLM)**: Auto-categorization, churn risk (9-factor)
+- **Batch (heavy LLM)**: Weekly insights, churn deep-dive, health score LLM analysis
+- **On-demand (streaming LLM)**: Copilot queries, response generation, report generation
+
+### Customer 360 Data Model
+```
+CustomerProfile
+├── Feedback data (Rereflect native): health score, sentiment history, feedback timeline
+├── CRM data (HubSpot/Salesforce): company, ARR, deal stage, renewal date
+├── Usage data (Segment): login frequency, feature usage, engagement
+└── AI signals: churn probability, confidence, risk factors, LLM analysis
+```
+
+---
+
+## Cost Projections
+
+| Quarter | Estimated AI Cost | Revenue Offset |
+|---------|------------------|----------------|
+| Q1 2026 | ~$50/mo (existing + alerts) | BYOK covers LLM costs |
+| Q2 2026 | ~$150/mo (copilot queries, response gen) | Pro+ subscription revenue + BYOK |
+| Q3 2026 | ~$300/mo (enrichment processing, corrections) | Business+ subscriptions |
+| Q4 2026 | ~$500/mo (fine-tuning, benchmarks, automation) | Enterprise contracts + pass-through |
+
+*Costs scale with customer volume. BYOK + usage-based pricing ensures AI costs are covered by revenue.*
+
+---
+
+## Success Metrics
+
+| Metric | Q1 Target | Q2 Target | Q3 Target | Q4 Target |
+|--------|-----------|-----------|-----------|-----------|
+| Churn prediction accuracy | Baseline established | 60% | 70% | 80%+ |
+| Copilot queries/day (avg) | - | 50 | 200 | 500 |
+| Customer 360 profiles | 100 | 500 | 2,000 | 5,000 |
+| AI-generated responses used | - | 100/mo | 500/mo | 2,000/mo |
+| Benchmark participants | - | - | - | 50+ orgs |
+| Human corrections collected | - | - | 500 | 2,000 |
+
+---
+
+## Related
+
+- [DEV-TRACKING.md](DEV-TRACKING.md) - Overall development tracking
+- [PRD-PREDICTIVE-ANALYTICS.md](docs/archive/prd/PRD-PREDICTIVE-ANALYTICS.md) - Predictive analytics PRD (completed)
+- [docs/archive/prd/](docs/archive/prd/) - All shipped PRDs, archived (unmaintained; their `Status:` headers are pre-implementation)

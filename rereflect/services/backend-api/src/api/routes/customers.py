@@ -1,0 +1,1744 @@
+"""
+Customer 360 API routes.
+Provides list, profile, history, feedbacks, and activity endpoints.
+"""
+from typing import Optional, List, Literal
+from datetime import datetime, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response, StreamingResponse
+from sqlalchemy.orm import Session
+from sqlalchemy import func, asc, desc, or_
+from pydantic import BaseModel, ConfigDict, field_validator
+import csv
+import io
+import logging
+
+logger = logging.getLogger(__name__)
+
+from src.database.session import get_db
+from src.models.customer_health import CustomerHealth
+from src.models.customer_analysis_action import CustomerAnalysisAction
+from src.models.customer_usage import CustomerUsage
+from src.models.organization import Organization
+from src.api.dependencies import (
+    get_current_org,
+    get_current_user,
+    require_feature,
+    require_system_admin,
+    require_admin_or_owner,
+)
+from src.models.user import User
+from src.config.plans import has_feature
+from src.schemas.cohort import Cohort, BulkActionSummary
+from src.services.cohort_service import resolve_cohort
+from src.services.customer_tags import TAG_MAX_LENGTH, TAG_CAP_PER_CUSTOMER, apply_tags
+from src.services.segment_service import SEGMENT_SLUGS
+from src.services.outreach_drafter import (
+    LLMNotConfiguredError,
+    OutreachDraftError,
+    draft_outreach_content,
+)
+
+router = APIRouter(prefix="/api/v1/customers", tags=["customers"])
+
+# Valid sort fields and risk levels for query validation
+VALID_SORT_FIELDS = {"health_score", "feedback_count", "last_feedback_at", "customer_email", "segment"}
+VALID_RISK_LEVELS = {"healthy", "moderate", "at_risk", "critical"}
+VALID_HISTORY_DAYS = {30, 60, 90}
+
+
+# ---------------------------------------------------------------------------
+# Response Schemas
+# ---------------------------------------------------------------------------
+
+class SentimentTrend(BaseModel):
+    direction: str
+    change_percent: float
+
+
+class CustomerOwnerRef(BaseModel):
+    # Compact CS-owner reference (segment-actions bulk assign-owner). The User model
+    # only has `email` — there is no name/full_name field — so this is {id, email} only.
+    id: int
+    email: str
+
+
+class CustomerListItem(BaseModel):
+    customer_email: str
+    customer_name: Optional[str] = None
+    health_score: int
+    risk_level: str
+    confidence_level: str
+    feedback_count: int
+    last_feedback_at: Optional[datetime] = None
+    last_active_at: Optional[datetime] = None  # product-usage recency (from customer_usage rollup)
+    sentiment_trend: SentimentTrend
+    is_archived: bool
+    has_llm_analysis: bool
+    segment: Optional[str] = None
+    # segment-actions: operator-managed tags + assigned CS owner
+    tags: List[str] = []
+    cs_owner: Optional[CustomerOwnerRef] = None
+
+
+class RiskDistribution(BaseModel):
+    healthy: int
+    moderate: int
+    at_risk: int
+    critical: int
+
+
+class CustomerListSummary(BaseModel):
+    total_customers: int
+    avg_health_score: int
+    risk_distribution: RiskDistribution
+
+
+class CustomerListResponse(BaseModel):
+    items: List[CustomerListItem]
+    total: int
+    page: int
+    page_size: int
+    summary: CustomerListSummary
+
+
+class ActionItemResponse(BaseModel):
+    id: int
+    action_text: str
+    status: str
+    completed_by: Optional[int] = None
+    completed_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+
+
+class CustomerProfileResponse(BaseModel):
+    customer_email: str
+    customer_name: Optional[str] = None
+    health_score: int
+    risk_level: str
+    confidence_level: str
+    feedback_count: int
+    last_feedback_at: Optional[datetime] = None
+    churn_risk_component: int
+    sentiment_component: int
+    resolution_component: int
+    frequency_component: int
+    usage_component: Optional[int] = None
+    # Usage trend (trend-detection-and-health aspect): direction of this
+    # customer's active_days_14d vs. their own activity ~14 days ago. Both
+    # None when no customer_usage row exists for this customer.
+    usage_trend_state: Optional[str] = None
+    usage_trend_pct: Optional[float] = None
+    # Structured LLM analysis fields
+    llm_analysis_summary: Optional[str] = None
+    llm_recommended_actions: Optional[List[str]] = None
+    llm_risk_drivers: Optional[List[str]] = None
+    llm_urgency: Optional[str] = None
+    llm_analysis_type: Optional[str] = None
+    llm_analyzed_at: Optional[datetime] = None
+    llm_actions: Optional[List[ActionItemResponse]] = None  # Business+ only
+    # Legacy field (transition period)
+    llm_analysis: Optional[str] = None
+    is_archived: bool
+    created_at: Optional[datetime] = None
+    # Rule-based customer segment (customer-segments feature); nullable —
+    # None = unsegmented / not yet computed.
+    segment: Optional[str] = None
+    # CRM enrichment fields (HubSpot / Salesforce)
+    crm_company_name: Optional[str] = None
+    crm_lifecycle_stage: Optional[str] = None
+    crm_arr: Optional[float] = None
+    crm_renewal_date: Optional[datetime] = None
+    crm_deal_name: Optional[str] = None
+    crm_deal_stage: Optional[str] = None
+    crm_deal_amount: Optional[float] = None
+    crm_provider: Optional[str] = None
+    # segment-actions: operator-managed tags + assigned CS owner
+    tags: List[str] = []
+    cs_owner: Optional[CustomerOwnerRef] = None
+    # customer-outreach-email-actions: per-customer outreach opt-out flag
+    # (internal profile field — the shared serializer feeds the public API,
+    # so this is injected at the route layer like tags/cs_owner).
+    outreach_opt_out: bool = False
+
+
+class HealthHistoryItem(BaseModel):
+    health_score: int
+    churn_risk_component: Optional[int] = None
+    sentiment_component: Optional[int] = None
+    resolution_component: Optional[int] = None
+    frequency_component: Optional[int] = None
+    risk_level: Optional[str] = None
+    recorded_at: datetime
+
+
+class CustomerHistoryResponse(BaseModel):
+    history: List[HealthHistoryItem]
+    period_start: datetime
+    period_end: datetime
+
+
+class FeedbackItem(BaseModel):
+    id: int
+    text_snippet: str
+    sentiment_label: Optional[str] = None
+    sentiment_score: Optional[float] = None
+    churn_risk_score: Optional[int] = None
+    workflow_status: str
+    created_at: datetime
+    source: Optional[str] = None
+
+
+class CustomerFeedbacksResponse(BaseModel):
+    feedbacks: List[FeedbackItem]
+    total_count: int
+    view_all_url: str
+
+
+class ActivityEvent(BaseModel):
+    type: str
+    description: str
+    timestamp: datetime
+    feedback_id: Optional[int] = None
+    old_score: Optional[int] = None
+    new_score: Optional[int] = None
+    # New fields added in timeline-service-v1 (additive only — all Optional)
+    risk_level: Optional[str] = None
+    reason_code: Optional[str] = None
+    feature_name: Optional[str] = None
+    source: Optional[str] = None
+    gap_days: Optional[int] = None
+    # CRM payload fields (additive — all Optional)
+    company_name: Optional[str] = None
+    renewal_date: Optional[datetime] = None
+    deal_stage: Optional[str] = None
+    arr: Optional[float] = None
+    # usage_trend_change payload fields (timeline-trend-event, additive — all Optional)
+    old_trend_state: Optional[str] = None
+    new_trend_state: Optional[str] = None
+    usage_trend_pct: Optional[float] = None
+
+
+class CustomerActivityResponse(BaseModel):
+    events: List[ActivityEvent]
+
+
+class TimelineResponse(BaseModel):
+    events: List[ActivityEvent]
+    next_cursor: Optional[str] = None
+
+
+class AnalyzeResponse(BaseModel):
+    message: str
+    estimated_wait_seconds: int
+
+
+class BatchAnalyzeResponse(BaseModel):
+    message: str
+    customer_count: int
+
+
+class ActionUpdateRequest(BaseModel):
+    status: str  # "completed" or "dismissed"
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _compute_sentiment_trend_for_customer(org_id: int, customer_email: str, db: Session) -> dict:
+    from src.services.health_score_service import compute_sentiment_trend
+    return compute_sentiment_trend(org_id, customer_email, db)
+
+
+def _queue_llm_analysis(org_id: int, customer_email: str) -> str:
+    """Queue an LLM analysis task for a customer. Returns task ID."""
+    try:
+        from src.background import get_celery_app
+        app = get_celery_app()
+        result = app.send_task(
+            "src.tasks.insights.analyze_customer_health",
+            args=[org_id, customer_email],
+        )
+        return result.id
+    except Exception:
+        # If Celery is not available (e.g., in tests), return a placeholder ID
+        import uuid
+        return str(uuid.uuid4())
+
+
+def _apply_customer_filters(
+    query,
+    org: Organization,
+    *,
+    segment: Optional[str] = None,
+    risk_level: Optional[str] = None,
+    search: Optional[str] = None,
+    include_archived: bool = False,
+):
+    """Apply the shared customer-list filter set to a `CustomerHealth` query.
+
+    Applies (in order): org scoping, archived exclusion (unless
+    `include_archived`), `risk_level` equality, `segment` equality, and a
+    `search` ILIKE match on email/name. Callers are responsible for any
+    upstream validation of `segment`/`risk_level` values (this helper does
+    not raise — an unrecognized value simply yields zero matches).
+
+    Shared by `list_customers` (GET /api/v1/customers/) and
+    `resolve_cohort` (bulk actions / CSV export) so the two never drift.
+    """
+    query = query.filter(CustomerHealth.organization_id == org.id)
+
+    if not include_archived:
+        query = query.filter(CustomerHealth.is_archived == False)
+
+    if risk_level:
+        query = query.filter(CustomerHealth.risk_level == risk_level)
+
+    if segment:
+        query = query.filter(CustomerHealth.segment == segment)
+
+    if search:
+        pattern = f"%{search}%"
+        query = query.filter(
+            or_(
+                CustomerHealth.customer_email.ilike(pattern),
+                CustomerHealth.customer_name.ilike(pattern),
+            )
+        )
+
+    return query
+
+
+def _get_summary(org_id: int, include_archived: bool, db: Session) -> CustomerListSummary:
+    base_q = db.query(CustomerHealth).filter(CustomerHealth.organization_id == org_id)
+    if not include_archived:
+        base_q = base_q.filter(CustomerHealth.is_archived == False)
+
+    total = base_q.count()
+    avg_score = base_q.with_entities(func.avg(CustomerHealth.health_score)).scalar() or 0
+
+    dist = {level: 0 for level in ("healthy", "moderate", "at_risk", "critical")}
+    rows = base_q.with_entities(CustomerHealth.risk_level, func.count(CustomerHealth.id)).group_by(
+        CustomerHealth.risk_level
+    ).all()
+    for risk_level, count in rows:
+        if risk_level in dist:
+            dist[risk_level] = count
+
+    return CustomerListSummary(
+        total_customers=total,
+        avg_health_score=round(avg_score),
+        risk_distribution=RiskDistribution(**dist),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/",
+    response_model=CustomerListResponse,
+    dependencies=[Depends(require_feature("customer_health_scores"))],
+)
+def list_customers(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    sort_by: str = Query("health_score"),
+    sort_order: str = Query("asc"),
+    risk_level: Optional[str] = Query(None),
+    segment: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    include_archived: bool = Query(False),
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """List all customers with health scores."""
+    if sort_by not in VALID_SORT_FIELDS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid sort_by value '{sort_by}'. Must be one of: {', '.join(sorted(VALID_SORT_FIELDS))}",
+        )
+
+    if risk_level is not None and risk_level not in VALID_RISK_LEVELS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid risk_level '{risk_level}'. Must be one of: {', '.join(sorted(VALID_RISK_LEVELS))}",
+        )
+
+    if segment is not None and segment not in SEGMENT_SLUGS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid segment '{segment}'. Must be one of: {', '.join(SEGMENT_SLUGS)}",
+        )
+
+    query = _apply_customer_filters(
+        db.query(CustomerHealth),
+        current_org,
+        segment=segment,
+        risk_level=risk_level,
+        search=search,
+        include_archived=include_archived,
+    )
+
+    total = query.count()
+
+    sort_column_map = {
+        "health_score": CustomerHealth.health_score,
+        "feedback_count": CustomerHealth.feedback_count,
+        "last_feedback_at": CustomerHealth.last_feedback_at,
+        "customer_email": CustomerHealth.customer_email,
+        "segment": CustomerHealth.segment,
+    }
+    sort_col = sort_column_map[sort_by]
+    sort_fn = asc if sort_order == "asc" else desc
+    query = query.order_by(sort_fn(sort_col))
+
+    offset = (page - 1) * page_size
+    records = query.offset(offset).limit(page_size).all()
+
+    # Fetch usage rollups for this page's customers in a single query (no N+1).
+    page_emails = [r.customer_email for r in records]
+    usage_map: dict[str, datetime] = {}
+    if page_emails:
+        usage_rows = (
+            db.query(CustomerUsage.customer_email, CustomerUsage.last_active_at)
+            .filter(
+                CustomerUsage.organization_id == current_org.id,
+                CustomerUsage.customer_email.in_(page_emails),
+            )
+            .all()
+        )
+        usage_map = {row.customer_email: row.last_active_at for row in usage_rows}
+
+    # Resolve CS owners for this page in a single query (no N+1).
+    owner_map: dict[int, CustomerOwnerRef] = {}
+    owner_ids = {r.cs_owner_user_id for r in records if r.cs_owner_user_id is not None}
+    if owner_ids:
+        owner_rows = (
+            db.query(User.id, User.email)
+            .filter(User.id.in_(owner_ids))
+            .all()
+        )
+        owner_map = {row.id: CustomerOwnerRef(id=row.id, email=row.email) for row in owner_rows}
+
+    items = []
+    for record in records:
+        trend = _compute_sentiment_trend_for_customer(current_org.id, record.customer_email, db)
+        items.append(CustomerListItem(
+            customer_email=record.customer_email,
+            customer_name=record.customer_name,
+            health_score=record.health_score,
+            risk_level=record.risk_level,
+            confidence_level=record.confidence_level or "low",
+            feedback_count=record.feedback_count,
+            last_feedback_at=record.last_feedback_at,
+            last_active_at=usage_map.get(record.customer_email),
+            sentiment_trend=SentimentTrend(**trend),
+            is_archived=record.is_archived or False,
+            has_llm_analysis=record.llm_analysis_data is not None or record.llm_analysis is not None,
+            segment=record.segment,
+            tags=record.tags or [],
+            cs_owner=owner_map.get(record.cs_owner_user_id),
+        ))
+
+    summary = _get_summary(current_org.id, include_archived, db)
+
+    return CustomerListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        summary=summary,
+    )
+
+
+# ---------------------------------------------------------------------------
+# CSV export  (segment-actions / bulk-actions-api, Phase 3)
+# ---------------------------------------------------------------------------
+
+# NOTE: Static paths (/export, /bulk/tags, /bulk/assign-owner) MUST be
+# registered BEFORE parametric paths (/{email}, /{email}/...) below, else
+# FastAPI would match e.g. "export" as an email path segment. (Same pattern
+# as src/api/routes/churn_events.py:157-159.)
+
+_EXPORT_CSV_COLUMNS = [
+    "email", "name", "health_score", "risk_level", "segment", "confidence_level",
+    "feedback_count", "last_feedback_at", "last_active_at", "churn_probability",
+    "tags", "cs_owner_email",
+]
+
+_EXPORT_BATCH_SIZE = 500
+
+
+def _csv_safe(v):
+    """Neutralize CSV formula injection for a user-controllable string cell.
+
+    Strips embedded CR/LF (so a cell can't inject an extra "row" when opened
+    in a spreadsheet app) and prefixes a leading apostrophe when the value
+    starts with a character a spreadsheet app would interpret as a formula
+    trigger (=, +, -, @, tab), forcing it to be treated as inert text.
+    Non-string values pass through unchanged.
+    """
+    if not isinstance(v, str):
+        return v
+    v = v.replace("\r", " ").replace("\n", " ")
+    if v and v[0] in ("=", "+", "-", "@", "\t"):
+        return "'" + v
+    return v
+
+
+def _export_rows(
+    db: Session,
+    current_org: Organization,
+    *,
+    segment: Optional[str],
+    risk_level: Optional[str],
+    search: Optional[str],
+    include_archived: bool,
+    sort_by: str,
+    sort_order: str,
+):
+    """Yield dict rows for CSV export, paginating in batches (no full materialize).
+
+    Deliberately does NOT compute sentiment_trend per row (that field is
+    omitted from the export — it's the per-row N+1 the list endpoint already
+    pays for on-page; not worth it for a potentially org-wide export).
+    """
+    query = _apply_customer_filters(
+        db.query(CustomerHealth),
+        current_org,
+        segment=segment,
+        risk_level=risk_level,
+        search=search,
+        include_archived=include_archived,
+    )
+
+    sort_column_map = {
+        "health_score": CustomerHealth.health_score,
+        "feedback_count": CustomerHealth.feedback_count,
+        "last_feedback_at": CustomerHealth.last_feedback_at,
+        "customer_email": CustomerHealth.customer_email,
+        "segment": CustomerHealth.segment,
+    }
+    sort_col = sort_column_map[sort_by]
+    sort_fn = asc if sort_order == "asc" else desc
+    query = query.order_by(sort_fn(sort_col), CustomerHealth.id)
+
+    offset = 0
+    while True:
+        batch = query.offset(offset).limit(_EXPORT_BATCH_SIZE).all()
+        if not batch:
+            break
+
+        # Batch-load usage rollups for this page (no N+1).
+        emails = [r.customer_email for r in batch]
+        usage_rows = (
+            db.query(CustomerUsage.customer_email, CustomerUsage.last_active_at)
+            .filter(
+                CustomerUsage.organization_id == current_org.id,
+                CustomerUsage.customer_email.in_(emails),
+            )
+            .all()
+        )
+        usage_map = {row.customer_email: row.last_active_at for row in usage_rows}
+
+        for record in batch:
+            owner_email = record.cs_owner.email if record.cs_owner else ""
+            yield {
+                "email": _csv_safe(record.customer_email),
+                "name": _csv_safe(record.customer_name or ""),
+                "health_score": record.health_score,
+                "risk_level": record.risk_level,
+                "segment": _csv_safe(record.segment or ""),
+                "confidence_level": _csv_safe(record.confidence_level or ""),
+                "feedback_count": record.feedback_count,
+                "last_feedback_at": record.last_feedback_at.isoformat() if record.last_feedback_at else "",
+                "last_active_at": (
+                    usage_map[record.customer_email].isoformat()
+                    if usage_map.get(record.customer_email) else ""
+                ),
+                "churn_probability": (
+                    str(record.churn_probability) if record.churn_probability is not None else ""
+                ),
+                "tags": _csv_safe("|".join(record.tags or [])),
+                "cs_owner_email": _csv_safe(owner_email),
+            }
+
+        if len(batch) < _EXPORT_BATCH_SIZE:
+            break
+        offset += _EXPORT_BATCH_SIZE
+
+
+def _csv_stream(rows):
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=_EXPORT_CSV_COLUMNS)
+
+    writer.writeheader()
+    yield buf.getvalue()
+    buf.seek(0)
+    buf.truncate(0)
+
+    for row in rows:
+        writer.writerow(row)
+        yield buf.getvalue()
+        buf.seek(0)
+        buf.truncate(0)
+
+
+@router.get(
+    "/export",
+    dependencies=[Depends(require_feature("customer_health_scores"))],
+)
+def export_customers(
+    sort_by: str = Query("health_score"),
+    sort_order: str = Query("asc"),
+    risk_level: Optional[str] = Query(None),
+    segment: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    include_archived: bool = Query(False),
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Stream all customers matching the given filters as a CSV file.
+
+    Same query params as `GET /api/v1/customers/` (segment, risk_level,
+    search, include_archived, sort_by, sort_order). Paginates internally
+    (batches of 500) rather than materializing the whole org in memory.
+
+    Columns: email, name, health_score, risk_level, segment,
+    confidence_level, feedback_count, last_feedback_at, last_active_at,
+    churn_probability, tags (pipe-joined), cs_owner_email. `sentiment_trend`
+    is intentionally omitted (avoids a per-row N+1 query on export).
+    """
+    if sort_by not in VALID_SORT_FIELDS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid sort_by value '{sort_by}'. Must be one of: {', '.join(sorted(VALID_SORT_FIELDS))}",
+        )
+
+    if risk_level is not None and risk_level not in VALID_RISK_LEVELS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid risk_level '{risk_level}'. Must be one of: {', '.join(sorted(VALID_RISK_LEVELS))}",
+        )
+
+    if segment is not None and segment not in SEGMENT_SLUGS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid segment '{segment}'. Must be one of: {', '.join(SEGMENT_SLUGS)}",
+        )
+
+    rows = _export_rows(
+        db,
+        current_org,
+        segment=segment,
+        risk_level=risk_level,
+        search=search,
+        include_archived=include_archived,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
+    filename = f"customers-{segment or 'all'}.csv"
+    return StreamingResponse(
+        _csv_stream(rows),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Bulk tag + assign-owner  (segment-actions / bulk-actions-api, Phase 4)
+# ---------------------------------------------------------------------------
+
+class BulkTagRequest(BaseModel):
+    cohort: Cohort
+    tags: List[str]
+    mode: Literal["add", "remove"]
+
+    @field_validator("tags")
+    @classmethod
+    def _clean_tags(cls, v: List[str]) -> List[str]:
+        """Trim, drop empties, dedupe (order-preserving), enforce max length."""
+        cleaned: List[str] = []
+        seen = set()
+        for raw in v:
+            tag = raw.strip()
+            if not tag:
+                continue
+            if len(tag) > TAG_MAX_LENGTH:
+                raise ValueError(
+                    f"Tag '{tag[:20]}...' exceeds the {TAG_MAX_LENGTH}-character limit"
+                )
+            if tag not in seen:
+                seen.add(tag)
+                cleaned.append(tag)
+        return cleaned
+
+
+class BulkAssignOwnerRequest(BaseModel):
+    cohort: Cohort
+    user_id: Optional[int] = None
+
+
+@router.post(
+    "/bulk/tags",
+    response_model=BulkActionSummary,
+    dependencies=[Depends(require_admin_or_owner)],
+)
+def bulk_tag_customers(
+    body: BulkTagRequest,
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Add or remove tags across a resolved cohort of customers. Admin/owner only.
+
+    `mode="add"` unions each customer's existing tags with `tags`; `mode="remove"`
+    subtracts `tags` from each customer's existing tags. `tags` are trimmed,
+    deduped, and empty entries dropped (422 if any exceeds 50 characters). If
+    applying the change would leave a customer with more than 20 tags, that
+    customer is left **unchanged** and reported in `errors` (not silently
+    truncated, and not counted toward `updated`).
+    """
+    rows, skipped = resolve_cohort(db, current_org, body.cohort)
+    updated, errors = apply_tags(rows, body.tags, body.mode)
+
+    db.commit()
+
+    return BulkActionSummary(matched=len(rows), updated=updated, skipped=skipped, errors=errors)
+
+
+@router.post(
+    "/bulk/assign-owner",
+    response_model=BulkActionSummary,
+    dependencies=[Depends(require_admin_or_owner)],
+)
+def bulk_assign_owner(
+    body: BulkAssignOwnerRequest,
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Set (or clear, with `user_id: null`) the CS owner across a resolved
+    cohort of customers. Admin/owner only.
+
+    `user_id` must be an active member of the caller's organization (any
+    role) — a non-member, cross-org, or deactivated `user_id` returns `422`
+    before any row is touched. `null` clears the owner for every customer in
+    the cohort.
+    """
+    if body.user_id is not None:
+        owner = db.query(User).filter(
+            User.id == body.user_id,
+            User.organization_id == current_org.id,
+            User.is_deactivated == False,
+        ).first()
+        if owner is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"user_id {body.user_id} is not an active member of your organization",
+            )
+
+    rows, skipped = resolve_cohort(db, current_org, body.cohort)
+    updated = 0
+    for record in rows:
+        record.cs_owner_user_id = body.user_id
+        updated += 1
+
+    db.commit()
+
+    return BulkActionSummary(matched=len(rows), updated=updated, skipped=skipped, errors=[])
+
+
+# ---------------------------------------------------------------------------
+# Bulk outreach campaign  (customer-outreach-email-actions / bulk-campaign-api)
+# ---------------------------------------------------------------------------
+
+# Queue-safety cap for one outreach campaign (matches run-batch's cap).
+OUTREACH_BATCH_MAX_CUSTOMERS = 500
+_OUTREACH_SUBJECT_MAX = 200
+_OUTREACH_BODY_MAX = 20000
+
+
+class BulkOutreachRequest(BaseModel):
+    """Body of POST /customers/bulk/outreach — exactly {cohort, subject, body}.
+
+    `extra="forbid"` so a stray field (cc, template, ...) is a loud 422 rather
+    than silently ignored (feedback_issue_draft precedent).
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    cohort: Cohort
+    subject: str
+    body: str
+
+    @field_validator("subject")
+    @classmethod
+    def _subject_length(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("subject is required")
+        if len(stripped) > _OUTREACH_SUBJECT_MAX:
+            raise ValueError(
+                f"subject exceeds the {_OUTREACH_SUBJECT_MAX}-character limit"
+            )
+        return stripped
+
+    @field_validator("body")
+    @classmethod
+    def _body_length(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("body is required")
+        if len(stripped) > _OUTREACH_BODY_MAX:
+            raise ValueError(
+                f"body exceeds the {_OUTREACH_BODY_MAX}-character limit"
+            )
+        return stripped
+
+
+class BulkOutreachResponse(BaseModel):
+    """Summary of a bulk outreach run — the exact contract bulk-campaign-ui
+    consumes.
+
+    - `matched`: resolved cohort rows (== recipient rows created; ==
+      campaign.recipient_count)
+    - `queued`: tasks dispatched (== matched - skipped on a real run; 0 on
+      count_only)
+    - `skipped`: queue-time skips (invalid email | opted out | archived)
+    - `errors`: per-recipient dispatch failures (response is still 202; the
+      retry endpoint recovers)
+    """
+    matched: int
+    queued: int
+    skipped: int
+    errors: List[str] = []
+
+
+def _classify_outreach_skip(row: CustomerHealth) -> Optional[str]:
+    """Queue-time skip classification for one resolved cohort row.
+
+    Returns the skip reason (invalid email | opted out | archived) or None
+    when the row is sendable. Shared by count_only and the real run so the
+    preview and the send can never drift. Cooldown is deliberately NOT
+    checked here — the worker sender re-checks at send time.
+    """
+    email = (row.customer_email or "").strip().lower()
+    if not email or "@" not in email:
+        return "invalid email"
+    if row.outreach_opt_out is True:
+        return "opted out"
+    if row.is_archived is True:
+        return "archived"
+    return None
+
+
+def _dispatch_outreach_tasks(
+    campaign_id: int,
+    queued_recipients: List["OutreachCampaignRecipient"],
+) -> List[str]:
+    """Dispatch one Celery task per queued recipient; collect loud failures.
+
+    Returns a list of error strings (empty on full success). Task name is
+    byte-identical to the worker's decorator + retry dispatch
+    (`tasks.outreach.send_outreach_email`).
+    """
+    from src.background.celery_client import get_celery_app
+
+    app = get_celery_app()
+    errors: List[str] = []
+    for recipient in queued_recipients:
+        try:
+            app.send_task(
+                "tasks.outreach.send_outreach_email",
+                args=[campaign_id, recipient.id],
+            )
+        except Exception as exc:
+            logger.warning(
+                "bulk outreach: dispatch failed campaign=%s recipient=%s: %s",
+                campaign_id, recipient.id, exc,
+            )
+            errors.append(f"{recipient.customer_email}: {exc}")
+    return errors
+
+
+@router.post(
+    "/bulk/outreach",
+    response_model=BulkOutreachResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_admin_or_owner)],
+)
+def bulk_outreach(
+    body: BulkOutreachRequest,
+    response: Response,
+    count_only: bool = Query(False),
+    current_org: Organization = Depends(get_current_org),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Trigger an outreach campaign across a resolved cohort of customers.
+
+    Admin/owner only. Resolves the cohort (loud queue-time skips: invalid
+    email / opted out / archived), writes one campaign + per-recipient audit
+    row, and enqueues one Celery task per sendable recipient — the request
+    returns a summary, never a blocking send. `?count_only=true` previews
+    `{matched, queued: 0, skipped, errors: []}` with zero mutation.
+
+    Cooldown and the send-time opt-out re-check live in the worker sender —
+    never here.
+    """
+    from src.models.outreach_campaign import (
+        OutreachCampaign,
+        OutreachCampaignRecipient,
+    )
+
+    rows, _ = resolve_cohort(db, current_org, body.cohort)
+
+    skip_reasons = [_classify_outreach_skip(row) for row in rows]
+    skipped = sum(1 for reason in skip_reasons if reason is not None)
+    matched = len(rows)
+
+    if count_only:
+        response.status_code = status.HTTP_200_OK
+        return BulkOutreachResponse(matched=matched, queued=0, skipped=skipped, errors=[])
+
+    if matched == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="cohort is empty",
+        )
+    if matched > OUTREACH_BATCH_MAX_CUSTOMERS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"cohort of {matched} exceeds batch cap of "
+                f"{OUTREACH_BATCH_MAX_CUSTOMERS}; narrow the filter"
+            ),
+        )
+
+    campaign = OutreachCampaign(
+        organization_id=current_org.id,
+        created_by_user_id=current_user.id,
+        subject=body.subject,
+        body=body.body,
+        recipient_count=matched,
+        status="queued",
+    )
+    db.add(campaign)
+    db.flush()
+
+    queued_recipients: List[OutreachCampaignRecipient] = []
+    for row, reason in zip(rows, skip_reasons):
+        recipient = OutreachCampaignRecipient(
+            campaign_id=campaign.id,
+            customer_email=(row.customer_email or "").strip().lower(),
+            status="skipped" if reason else "queued",
+            error=reason,
+        )
+        db.add(recipient)
+        if reason is None:
+            queued_recipients.append(recipient)
+
+    campaign.status = "in_progress" if queued_recipients else "done"
+    db.commit()
+
+    dispatch_errors = _dispatch_outreach_tasks(campaign.id, queued_recipients)
+
+    # `queued` counts tasks actually dispatched; failed dispatches stay loud
+    # in `errors` and are recovered by POST /outreach/campaigns/{id}/retry.
+    return BulkOutreachResponse(
+        matched=matched,
+        queued=len(queued_recipients) - len(dispatch_errors),
+        skipped=skipped,
+        errors=dispatch_errors,
+    )
+
+
+class OutreachDraftRequest(BaseModel):
+    """Body of POST /customers/bulk/outreach/draft — {cohort?, tone?} only.
+
+    `cohort` is optional; when present it is validated by `Cohort`
+    (exactly one of emails/filter) and only its derived context (count +
+    dominant segment) reaches the LLM — never the raw emails or search text.
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    cohort: Optional[Cohort] = None
+    tone: Optional[str] = None
+
+
+class OutreachDraftResponse(BaseModel):
+    subject: str
+    body: str
+
+
+@router.post(
+    "/bulk/outreach/draft",
+    response_model=OutreachDraftResponse,
+    dependencies=[Depends(require_admin_or_owner)],
+)
+async def create_outreach_draft(
+    body: OutreachDraftRequest,
+    current_org: Organization = Depends(get_current_org),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """AI-draft a {subject, body} outreach message for the bulk composer.
+
+    Admin/owner only. Optional `cohort` adds honest context to the prompt —
+    the resolved count + dominant segment, never raw emails or search text.
+    The draft NEVER sends: no campaign or recipient rows are created and
+    nothing is dispatched — the human clicks Send in the composer.
+    """
+    cohort_context = None
+    if body.cohort is not None:
+        rows, _ = resolve_cohort(db, current_org, body.cohort)
+        if rows:
+            segment_counts: dict = {}
+            for row in rows:
+                if row.segment:
+                    segment_counts[row.segment] = segment_counts.get(row.segment, 0) + 1
+            dominant_segment = (
+                max(segment_counts.items(), key=lambda kv: kv[1])[0]
+                if segment_counts
+                else None
+            )
+            cohort_context = {"count": len(rows), "dominant_segment": dominant_segment}
+
+    try:
+        draft = await draft_outreach_content(
+            current_org,
+            db,
+            cohort_context=cohort_context,
+            tone=body.tone,
+        )
+    except LLMNotConfiguredError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc)
+            or "No AI model configured. Configure a provider in AI Settings or set a local LLM to use AI drafting.",
+        )
+    except OutreachDraftError as exc:
+        logger.warning("outreach draft: unusable model output: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="The AI model returned an unusable draft. Try again.",
+        )
+    except Exception as exc:
+        logger.error("outreach draft: provider error: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI drafting failed due to an upstream error. Try again.",
+        )
+
+    return OutreachDraftResponse(subject=draft["subject"], body=draft["body"])
+
+
+class OutreachOptOutUpdate(BaseModel):
+    """Per-customer outreach opt-out toggle (admin/owner only).
+
+    Accepts exactly `{"outreach_opt_out": bool}` — extra fields 422
+    (`extra="forbid"`, the customer-outreach-email-actions contract).
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    outreach_opt_out: bool
+
+
+@router.patch(
+    "/{email}",
+    response_model=CustomerProfileResponse,
+    dependencies=[Depends(require_admin_or_owner)],
+)
+def set_customer_outreach_opt_out(
+    email: str,
+    body: OutreachOptOutUpdate,
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Set the outreach opt-out flag for one customer (admin/owner).
+
+    Org-scoped: an email with no health row in this org returns 404. Returns
+    the updated profile so the UI can re-render the toggle state.
+    """
+    record = db.query(CustomerHealth).filter(
+        CustomerHealth.organization_id == current_org.id,
+        CustomerHealth.customer_email == email,
+    ).first()
+
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No health record found for customer '{email}'",
+        )
+
+    record.outreach_opt_out = body.outreach_opt_out
+    db.commit()
+    db.refresh(record)
+
+    return _build_customer_profile_response(record, current_org, db)
+
+
+@router.get(
+    "/{email}",
+    response_model=CustomerProfileResponse,
+    dependencies=[Depends(require_feature("customer_health_scores"))],
+)
+def get_customer_profile(
+    email: str,
+    current_org: Organization = Depends(get_current_org),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get full profile for a customer by email."""
+    record = db.query(CustomerHealth).filter(
+        CustomerHealth.organization_id == current_org.id,
+        CustomerHealth.customer_email == email,
+    ).first()
+
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No health record found for customer '{email}'",
+        )
+
+    return _build_customer_profile_response(record, current_org, db)
+
+
+def _build_customer_profile_response(
+    record: CustomerHealth,
+    current_org: Organization,
+    db: Session,
+) -> CustomerProfileResponse:
+    """Serialize a CustomerHealth row into the full v1 profile response.
+
+    Shared by GET /{email} and PATCH /{email} (outreach opt-out toggle) so
+    the two can't drift. Internal-only fields (tags, cs_owner,
+    outreach_opt_out) are injected here, NOT in the shared serializer —
+    that serializer also feeds the public REST API.
+    """
+    # Delegate core field mapping to the shared serializer (no drift vs. public API).
+    from src.services.customer_profile_serializer import serialize_customer_profile
+    profile_data = serialize_customer_profile(record, db)
+
+    # Load plan-gated action items on top (Business+ only).
+    llm_actions = None
+    if has_feature(current_org.plan, "ai_analysis_actions"):
+        action_records = db.query(CustomerAnalysisAction).filter(
+            CustomerAnalysisAction.customer_health_id == record.id,
+        ).order_by(CustomerAnalysisAction.created_at.desc()).all()
+
+        llm_actions = [
+            ActionItemResponse(
+                id=a.id,
+                action_text=a.action_text,
+                status=a.status,
+                completed_by=a.completed_by,
+                completed_at=a.completed_at,
+                created_at=a.created_at,
+            )
+            for a in action_records
+        ]
+
+    # segment-actions: tags + assigned CS owner (internal profile only; the shared
+    # serializer feeds the public API too, so we add these here to avoid changing it).
+    profile_data["tags"] = record.tags or []
+    owner_ref = None
+    if record.cs_owner_user_id is not None:
+        owner = db.query(User.id, User.email).filter(User.id == record.cs_owner_user_id).first()
+        if owner:
+            owner_ref = CustomerOwnerRef(id=owner.id, email=owner.email)
+    profile_data["cs_owner"] = owner_ref
+
+    # customer-outreach-email-actions: per-customer outreach opt-out (internal).
+    profile_data["outreach_opt_out"] = bool(record.outreach_opt_out)
+
+    return CustomerProfileResponse(
+        **{k: v for k, v in profile_data.items() if k in CustomerProfileResponse.model_fields},
+        llm_actions=llm_actions,
+    )
+
+
+@router.get(
+    "/{email}/history",
+    response_model=CustomerHistoryResponse,
+    dependencies=[Depends(require_feature("customer_health_scores"))],
+)
+def get_customer_history(
+    email: str,
+    days: int = Query(30),
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Get health score history for a customer. days must be 30, 60, or 90."""
+    if days not in VALID_HISTORY_DAYS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid days value '{days}'. Must be one of: {sorted(VALID_HISTORY_DAYS)}",
+        )
+
+    from src.models.customer_health_history import CustomerHealthHistory
+
+    now = datetime.utcnow()
+    period_start = now - timedelta(days=days)
+    period_end = now
+
+    # Find CustomerHealth record for this org+email
+    health = db.query(CustomerHealth).filter(
+        CustomerHealth.organization_id == current_org.id,
+        CustomerHealth.customer_email == email,
+    ).first()
+
+    if not health:
+        # Return empty history even if not found (more useful than 404)
+        return CustomerHistoryResponse(history=[], period_start=period_start, period_end=period_end)
+
+    records = db.query(CustomerHealthHistory).filter(
+        CustomerHealthHistory.customer_health_id == health.id,
+        CustomerHealthHistory.recorded_at >= period_start,
+        CustomerHealthHistory.recorded_at <= period_end,
+    ).order_by(asc(CustomerHealthHistory.recorded_at)).all()
+
+    history = [
+        HealthHistoryItem(
+            health_score=r.health_score,
+            churn_risk_component=r.churn_risk_component,
+            sentiment_component=r.sentiment_component,
+            resolution_component=r.resolution_component,
+            frequency_component=r.frequency_component,
+            risk_level=r.risk_level,
+            recorded_at=r.recorded_at,
+        )
+        for r in records
+    ]
+
+    return CustomerHistoryResponse(
+        history=history,
+        period_start=period_start,
+        period_end=period_end,
+    )
+
+
+@router.get(
+    "/{email}/feedbacks",
+    response_model=CustomerFeedbacksResponse,
+    dependencies=[Depends(require_feature("customer_health_scores"))],
+)
+def get_customer_feedbacks(
+    email: str,
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Get last 15 feedbacks for a customer (compact view)."""
+    from src.models.feedback import FeedbackItem as FeedbackModel
+
+    total = db.query(func.count(FeedbackModel.id)).filter(
+        FeedbackModel.organization_id == current_org.id,
+        FeedbackModel.customer_email == email,
+    ).scalar() or 0
+
+    records = db.query(FeedbackModel).filter(
+        FeedbackModel.organization_id == current_org.id,
+        FeedbackModel.customer_email == email,
+    ).order_by(desc(FeedbackModel.created_at)).limit(15).all()
+
+    def truncate_text(text: str, max_len: int = 100) -> str:
+        if len(text) <= max_len:
+            return text
+        return text[:max_len] + "..."
+
+    feedbacks = [
+        FeedbackItem(
+            id=r.id,
+            text_snippet=truncate_text(r.text),
+            sentiment_label=r.sentiment_label,
+            sentiment_score=r.sentiment_score,
+            churn_risk_score=r.churn_risk_score,
+            workflow_status=r.workflow_status,
+            created_at=r.created_at,
+            source=r.source,
+        )
+        for r in records
+    ]
+
+    view_all_url = f"/feedbacks?customer_email={email}"
+
+    return CustomerFeedbacksResponse(
+        feedbacks=feedbacks,
+        total_count=total,
+        view_all_url=view_all_url,
+    )
+
+
+def _timeline_event_to_activity(event) -> ActivityEvent:
+    """Convert an internal TimelineEvent to the external ActivityEvent Pydantic model."""
+    return ActivityEvent(
+        type=event.type,
+        timestamp=event.timestamp,
+        description=event.description,
+        feedback_id=event.feedback_id,
+        old_score=event.old_score,
+        new_score=event.new_score,
+        risk_level=event.risk_level,
+        reason_code=event.reason_code,
+        feature_name=event.feature_name,
+        source=event.source,
+        gap_days=event.gap_days,
+        company_name=getattr(event, "company_name", None),
+        renewal_date=getattr(event, "renewal_date", None),
+        deal_stage=getattr(event, "deal_stage", None),
+        arr=getattr(event, "arr", None),
+        old_trend_state=getattr(event, "old_trend_state", None),
+        new_trend_state=getattr(event, "new_trend_state", None),
+        usage_trend_pct=getattr(event, "usage_trend_pct", None),
+    )
+
+
+@router.get(
+    "/{email}/activity",
+    response_model=CustomerActivityResponse,
+    dependencies=[Depends(require_feature("customer_health_scores"))],
+)
+def get_customer_activity(
+    email: str,
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Get last 10 mixed activity events for a customer.
+
+    Delegates to the shared timeline service — same external response shape
+    as before, now including usage and churn events where present.
+    """
+    from src.services.customer_timeline_service import build_timeline
+
+    timeline_events, _ = build_timeline(db, current_org.id, email, limit=10)
+    activity_events = [_timeline_event_to_activity(e) for e in timeline_events]
+    return CustomerActivityResponse(events=activity_events)
+
+
+@router.get(
+    "/{email}/timeline",
+    response_model=TimelineResponse,
+    dependencies=[Depends(require_feature("customer_health_scores"))],
+)
+def get_customer_timeline(
+    email: str,
+    before: Optional[str] = Query(None, description="Opaque cursor from a previous next_cursor"),
+    limit: int = Query(20, ge=1, le=100, description="Max events per page (1-100)"),
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Cursor-paged, reverse-chronological timeline for a customer.
+
+    Merges all event sources: feedback, health, churn, and notable usage events.
+
+    Query params:
+    - before: opaque cursor string (value of next_cursor from a previous response)
+    - limit: number of events per page (default 20, max 100)
+
+    Response:
+    - events: list of timeline events (newest first)
+    - next_cursor: opaque cursor to fetch the next page; null on the last page
+    """
+    from src.services.customer_timeline_service import build_timeline
+    from fastapi import HTTPException
+
+    # Validate / decode the before cursor early so we return 422 on bad input
+    if before is not None:
+        from src.services.customer_timeline_service import _decode_cursor
+        try:
+            _decode_cursor(before)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid cursor: {exc}",
+            )
+
+    timeline_events, next_cursor = build_timeline(
+        db, current_org.id, email, before=before, limit=limit
+    )
+    activity_events = [_timeline_event_to_activity(e) for e in timeline_events]
+    return TimelineResponse(events=activity_events, next_cursor=next_cursor)
+
+
+@router.post(
+    "/{email}/analyze",
+    response_model=AnalyzeResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_feature("churn_llm_insights"))],
+)
+def analyze_customer(
+    email: str,
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Queue an on-demand LLM analysis for a customer. Returns 202 immediately."""
+    record = db.query(CustomerHealth).filter(
+        CustomerHealth.organization_id == current_org.id,
+        CustomerHealth.customer_email == email,
+    ).first()
+
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No health record found for customer '{email}'",
+        )
+
+    # 24h cooldown check
+    if record.llm_analyzed_at:
+        hours_since = (datetime.utcnow() - record.llm_analyzed_at).total_seconds() / 3600
+        if hours_since < 24:
+            hours_remaining = round(24 - hours_since, 1)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Analysis was run {round(hours_since, 1)}h ago. Try again in {hours_remaining}h.",
+            )
+
+    _queue_llm_analysis(current_org.id, email)
+
+    return AnalyzeResponse(
+        message="Analysis queued",
+        estimated_wait_seconds=15,
+    )
+
+
+@router.post(
+    "/batch-analyze",
+    response_model=BatchAnalyzeResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_feature("churn_llm_insights")), Depends(require_system_admin)],
+)
+def batch_analyze_customers(
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """
+    Queue LLM analysis for all customers in the organization.
+
+    Dispatches a single batch_churn_analysis Celery task for this org.
+    The task processes customers with missing or stale analysis (>7 days old),
+    using the appropriate prompt based on health score tier.
+    Returns 202 with the count of customers eligible for analysis.
+    Requires system admin role.
+    """
+    customer_count = db.query(func.count(CustomerHealth.id)).filter(
+        CustomerHealth.organization_id == current_org.id,
+        CustomerHealth.is_archived == False,
+    ).scalar() or 0
+
+    try:
+        from src.background import get_celery_app
+        app = get_celery_app()
+        app.send_task(
+            "src.tasks.insights.batch_churn_analysis",
+            args=[current_org.id],
+        )
+    except Exception:
+        pass
+
+    return BatchAnalyzeResponse(
+        message="Analysis queued for all customers",
+        customer_count=customer_count,
+    )
+
+
+@router.patch(
+    "/{email}/actions/{action_id}",
+    response_model=ActionItemResponse,
+    dependencies=[Depends(require_feature("ai_analysis_actions"))],
+)
+def update_action_item(
+    email: str,
+    action_id: int,
+    body: ActionUpdateRequest,
+    current_org: Organization = Depends(get_current_org),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update the status of an analysis action item (complete or dismiss)."""
+    if body.status not in ("completed", "dismissed"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Status must be 'completed' or 'dismissed'",
+        )
+
+    # Verify the customer belongs to this org
+    health = db.query(CustomerHealth).filter(
+        CustomerHealth.organization_id == current_org.id,
+        CustomerHealth.customer_email == email,
+    ).first()
+
+    if not health:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No health record found for customer '{email}'",
+        )
+
+    action = db.query(CustomerAnalysisAction).filter(
+        CustomerAnalysisAction.id == action_id,
+        CustomerAnalysisAction.customer_health_id == health.id,
+    ).first()
+
+    if not action:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Action item {action_id} not found",
+        )
+
+    action.status = body.status
+    action.completed_by = current_user.id
+    action.completed_at = datetime.utcnow()
+    db.commit()
+    db.refresh(action)
+
+    return ActionItemResponse(
+        id=action.id,
+        action_text=action.action_text,
+        status=action.status,
+        completed_by=action.completed_by,
+        completed_at=action.completed_at,
+        created_at=action.created_at,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Churn Factors Endpoint
+# ---------------------------------------------------------------------------
+
+class AggregatedFactorItem(BaseModel):
+    avg_score: float
+    max: int
+    description: str
+
+
+class ChurnFactorsResponse(BaseModel):
+    customer_email: str
+    period_days: int
+    feedback_count: int
+    aggregated_factors: dict
+    top_risk_drivers: List[str]
+
+
+@router.get(
+    "/{email}/churn-factors",
+    response_model=ChurnFactorsResponse,
+    dependencies=[Depends(require_feature("enhanced_churn_prediction"))],
+)
+def get_customer_churn_factors(
+    email: str,
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """
+    Get aggregated churn risk factor breakdown for a customer over the last 30 days.
+    Pro+ only (enhanced_churn_prediction feature).
+    """
+    from src.models.feedback import FeedbackItem
+
+    PERIOD_DAYS = 30
+    now = datetime.utcnow()
+    cutoff = now - timedelta(days=PERIOD_DAYS)
+
+    # Get feedbacks with churn_risk_factors in the last 30 days
+    feedbacks = db.query(FeedbackItem).filter(
+        FeedbackItem.organization_id == current_org.id,
+        FeedbackItem.customer_email == email,
+        FeedbackItem.churn_risk_factors.isnot(None),
+        FeedbackItem.created_at >= cutoff,
+    ).all()
+
+    if not feedbacks:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No churn factor data found for customer '{email}' in the last {PERIOD_DAYS} days",
+        )
+
+    FACTOR_MAXES = {
+        "sentiment": 15,
+        "churn_keywords": 15,
+        "frustration_keywords": 10,
+        "urgency": 10,
+        "sentiment_trend": 15,
+        "feedback_frequency": 10,
+        "resolution_time": 10,
+        "pain_severity": 10,
+        "feature_density": 5,
+    }
+
+    # Aggregate factor scores across all feedbacks
+    factor_sums: dict = {key: 0.0 for key in FACTOR_MAXES}
+    factor_counts: dict = {key: 0 for key in FACTOR_MAXES}
+
+    for fb in feedbacks:
+        factors = fb.churn_risk_factors
+        if not isinstance(factors, dict):
+            continue
+        for key in FACTOR_MAXES:
+            if key in factors and "score" in factors[key]:
+                factor_sums[key] += factors[key]["score"]
+                factor_counts[key] += 1
+
+    aggregated_factors = {}
+    for key, max_pts in FACTOR_MAXES.items():
+        count = factor_counts[key]
+        avg = (factor_sums[key] / count) if count > 0 else 0.0
+        pct = (avg / max_pts * 100) if max_pts > 0 else 0.0
+        if pct > 75:
+            desc = f"Consistently high {key.replace('_', ' ')} risk"
+        elif pct > 40:
+            desc = f"Moderate {key.replace('_', ' ')} risk"
+        else:
+            desc = f"Low {key.replace('_', ' ')} risk"
+        aggregated_factors[key] = {
+            "avg_score": round(avg, 2),
+            "max": max_pts,
+            "description": desc,
+        }
+
+    # Top risk drivers: factors with highest avg_score relative to max, top 3
+    sorted_factors = sorted(
+        aggregated_factors.items(),
+        key=lambda x: x[1]["avg_score"] / x[1]["max"] if x[1]["max"] > 0 else 0,
+        reverse=True,
+    )
+    top_risk_drivers = [k for k, _ in sorted_factors[:3] if sorted_factors[0][1]["avg_score"] > 0]
+
+    return ChurnFactorsResponse(
+        customer_email=email,
+        period_days=PERIOD_DAYS,
+        feedback_count=len(feedbacks),
+        aggregated_factors=aggregated_factors,
+        top_risk_drivers=top_risk_drivers,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Usage rollup + time-series endpoint  (aspect 3 — usage-rollup-and-score)
+# ---------------------------------------------------------------------------
+
+_VALID_USAGE_DAYS = {30, 60, 90}
+
+
+class UsageRollupResponse(BaseModel):
+    """Snapshot of the customer_usage rollup row."""
+    customer_email: str
+    usage_score: int
+    events_total: int
+    last_active_at: Optional[datetime]
+    first_seen_at: Optional[datetime]
+    login_count_7d: Optional[int]
+    login_count_30d: Optional[int]
+    active_days_7d: Optional[int]
+    active_days_30d: Optional[int]
+    distinct_features: Optional[List[str]]
+    distinct_feature_count: Optional[int]
+    updated_at: Optional[datetime]
+
+
+class UsageTimeSeriesBucket(BaseModel):
+    """Daily event count bucket for the chart."""
+    date: str          # ISO date string, e.g. "2026-06-28"
+    event_count: int
+
+
+class CustomerUsageResponse(BaseModel):
+    """Combined rollup + daily time series for the customer usage card."""
+    rollup: UsageRollupResponse
+    time_series: List[UsageTimeSeriesBucket]
+    period_days: int
+
+
+@router.get(
+    "/{email}/usage",
+    response_model=CustomerUsageResponse,
+)
+def get_customer_usage(
+    email: str,
+    days: int = Query(30, ge=1),
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """
+    Return the product-usage rollup and a daily event time series for a customer.
+
+    Args:
+        email: Customer email (URL-encoded if needed).
+        days:  Rolling window size for the time series (must be 30, 60, or 90).
+               Defaults to 30.
+
+    Returns:
+        JSON with ``rollup`` (snapshot) and ``time_series`` (daily buckets).
+
+    Raises:
+        422 if ``days`` is not one of the valid values.
+        404 if no usage rollup exists for this customer in the caller's org.
+    """
+    from src.models.customer_usage import CustomerUsage as CustomerUsageModel
+    from src.models.usage_event import UsageEvent as UsageEventModel
+    from collections import defaultdict
+
+    if days not in _VALID_USAGE_DAYS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"'days' must be one of {sorted(_VALID_USAGE_DAYS)}; got {days}.",
+        )
+
+    # Fetch rollup (org-scoped)
+    rollup = (
+        db.query(CustomerUsageModel)
+        .filter_by(organization_id=current_org.id, customer_email=email)
+        .first()
+    )
+    if rollup is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No usage data found for customer '{email}'.",
+        )
+
+    # Build daily time series from raw events within the window
+    now = datetime.utcnow()
+    cutoff = now - timedelta(days=days)
+
+    events = (
+        db.query(UsageEventModel)
+        .filter(
+            UsageEventModel.organization_id == current_org.id,
+            UsageEventModel.customer_email == email,
+            UsageEventModel.occurred_at >= cutoff,
+        )
+        .all()
+    )
+
+    # Bucket events by calendar day
+    counts: dict = defaultdict(int)
+    for ev in events:
+        if ev.occurred_at:
+            day_key = ev.occurred_at.date().isoformat()
+            counts[day_key] += 1
+
+    time_series = [
+        UsageTimeSeriesBucket(date=day, event_count=cnt)
+        for day, cnt in sorted(counts.items())
+    ]
+
+    rollup_response = UsageRollupResponse(
+        customer_email=rollup.customer_email,
+        usage_score=rollup.usage_score,
+        events_total=rollup.events_total,
+        last_active_at=rollup.last_active_at,
+        first_seen_at=rollup.first_seen_at,
+        login_count_7d=rollup.login_count_7d,
+        login_count_30d=rollup.login_count_30d,
+        active_days_7d=rollup.active_days_7d,
+        active_days_30d=rollup.active_days_30d,
+        distinct_features=rollup.distinct_features,
+        distinct_feature_count=rollup.distinct_feature_count,
+        updated_at=rollup.updated_at,
+    )
+
+    return CustomerUsageResponse(
+        rollup=rollup_response,
+        time_series=time_series,
+        period_days=days,
+    )

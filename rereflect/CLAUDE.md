@@ -1,0 +1,656 @@
+# Rereflect - Customer Feedback Analyzer
+
+AI-powered customer feedback analysis platform for SaaS businesses.
+
+## Project Overview
+
+**Rereflect** transforms raw customer feedback into actionable insights using AI-powered sentiment analysis, pain point detection, and feature request extraction.
+
+### Key Features
+- Sentiment Analysis (positive/neutral/negative)
+- Pain Point Detection with categorization
+- Feature Request Extraction with prioritization
+- Urgent Feedback Flagging (churn risk detection)
+- Topic Clustering and tagging
+- Multi-tenant organization support
+
+## Architecture
+
+```
+┌─────────────────┐
+│  frontend-web   │  Next.js 16 + TypeScript + TailwindCSS
+└────────┬────────┘
+         │ REST API
+         ▼
+┌─────────────────┐
+│   backend-api   │  FastAPI + PostgreSQL + SQLAlchemy
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    ▼         ▼
+┌────────┐ ┌────────────┐
+│analysis│ │worker-     │  Celery + Redis
+│-engine │ │service     │
+└────────┘ └────────────┘
+```
+
+## Tech Stack
+
+### Frontend (`services/frontend-web`)
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript 5.9
+- **Styling**: TailwindCSS 3.4 with custom "Sunset Horizon" theme
+- **UI Components**: shadcn/ui (Radix primitives)
+- **Charts**: Recharts
+- **Icons**: Lucide React
+
+### Backend (`services/backend-api`)
+- **Framework**: FastAPI 0.115
+- **Database**: PostgreSQL with SQLAlchemy 2.0
+- **Migrations**: Alembic
+- **Auth**: JWT (python-jose) with bcrypt password hashing
+- **Background Jobs**: Celery 5.3 with Redis broker
+
+### Analysis Engine (`services/analysis-engine`)
+- **Sentiment**: VADER sentiment analysis
+- **NLP**: scikit-learn, BERTopic
+- **Categorization**: Custom AI categorizer for pain points, features, urgency
+
+## Development Setup
+
+### Prerequisites
+- Python 3.12+ (3.9 will not work — Authlib and others require 3.12)
+- Node.js 22+ and pnpm 10 (`corepack enable`)
+- PostgreSQL 14+
+- Redis
+
+### Quick Start
+
+```bash
+# Start all services (recommended)
+./start-all.sh
+
+# Or start individually:
+# Terminal 1: Redis
+redis-server
+
+# Terminal 2: Celery worker
+cd services/worker-service && ./start.sh
+
+# Terminal 3: Backend API
+cd services/backend-api && ./start.sh
+
+# Terminal 4: Frontend (pnpm workspace — `pnpm install` from the repo root first)
+cd services/frontend-web && pnpm dev
+```
+
+### Service Ports
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+- Redis: localhost:6379
+
+## Project Structure
+
+```
+rereflect/
+├── services/
+│   ├── frontend-web/          # Next.js frontend
+│   │   ├── app/               # App Router pages
+│   │   │   ├── (dashboard)/   # Protected dashboard routes
+│   │   │   │   ├── dashboard/
+│   │   │   │   ├── feedbacks/
+│   │   │   │   ├── pain-points/
+│   │   │   │   ├── feature-requests/
+│   │   │   │   ├── urgent-feedbacks/
+│   │   │   │   ├── categories/
+│   │   │   │   └── settings/
+│   │   │   ├── login/
+│   │   │   └── signup/
+│   │   ├── components/        # React components
+│   │   │   ├── ui/            # shadcn/ui components
+│   │   │   └── shared/        # Shared components (skeletons, etc.)
+│   │   ├── contexts/          # React contexts (Theme, FeedbackPage)
+│   │   ├── hooks/             # Custom React hooks
+│   │   └── lib/               # Utilities and API client
+│   │
+│   ├── backend-api/           # FastAPI backend
+│   │   ├── src/api/           # API routes
+│   │   │   ├── routes/        # Endpoint handlers
+│   │   │   └── main.py        # App entry point
+│   │   ├── src/models/        # SQLAlchemy models
+│   │   ├── src/database/      # DB session setup
+│   │   ├── src/background/    # Celery scheduler
+│   │   └── alembic/           # Database migrations
+│   │
+│   ├── analysis-engine/       # AI analysis service
+│   │   └── src/analyzer/      # Core analysis logic
+│   │
+│   └── worker-service/        # Celery background workers
+│       └── src/tasks/         # Async task definitions
+│
+├── shared/                    # Shared libraries
+├── infrastructure/            # K8s, Terraform, Docker configs
+├── TRACKING.md                # Development progress tracking
+└── start-all.sh               # Start all services script
+```
+
+## Key Files
+
+### Frontend
+- `app/(dashboard)/dashboard/page.tsx` - Main dashboard with charts and stats
+- `app/(dashboard)/feedbacks/page.tsx` - Feedback list with DataTable
+- `components/StatCard.tsx` - Stat card component with navigation
+- `contexts/ThemeContext.tsx` - Dark/light theme management
+- `contexts/FeedbackPageContext.tsx` - Feedback page state with URL sync
+- `lib/api/` - API client functions
+
+### Backend
+- `src/api/main.py` - FastAPI app configuration
+- `src/api/routes/` - API endpoint handlers
+- `src/models/` - SQLAlchemy ORM models
+- `src/background/scheduler.py` - Background job scheduler
+
+### Advanced Churn Prediction (M4.1)
+- `services/backend-api/src/services/churn_calibrator.py` - Isotonic regression, bootstrap CI, timeline bucketing
+- `services/backend-api/src/api/routes/churn_events.py` - Label CRUD + CSV import + recovery
+- `services/backend-api/src/api/routes/churn_analytics.py` - Cohort analytics + accuracy metrics
+- `services/backend-api/src/api/routes/playbooks.py` - Playbook CRUD + execution
+- `services/backend-api/src/services/playbook_seeder.py` - 7 pre-built templates (idempotent)
+- `services/worker-service/src/tasks/churn_calibration.py` - Weekly refit (Mondays 07:45 UTC)
+- `services/frontend-web/app/(dashboard)/churn-cohorts/page.tsx` - Cohort heatmap + breakdown
+- `services/frontend-web/app/(dashboard)/settings/playbooks/page.tsx` - Playbook editor + templates
+- `services/frontend-web/components/customers/` - ChurnProbabilityBadge, MarkAsChurnedDialog, RunPlaybookDropdown
+
+### Automations engine (two copies — change both)
+
+The automations engine exists **twice**, on purpose, and the two must stay in agreement:
+
+- `services/backend-api/src/services/automation_engine.py` — the full engine. Evaluates
+  `health_score_threshold` and `churn_risk_level_change`, dispatched from
+  `health_score_service`.
+- `services/worker-service/src/services/automation_feedback_trigger.py` — mirrors
+  `feedback_category_match` and `sentiment_pattern` (two triggers, four actions). These are
+  dispatched **only** from the worker's analysis task, so in production this mirror — not
+  the backend engine — is what evaluates them.
+
+Plus two narrower mirrors that each handle one trigger and three actions (`run_playbook`,
+`send_customer_email`, `send_notification`), recording an explicit error for anything else:
+`automation_churn_trigger.py` (`churn_probability_threshold`) and
+`automation_usage_trend_trigger.py` (`usage_trend`).
+
+Which actions each trigger can run is one matrix, `SUPPORTED_ACTIONS_BY_TRIGGER` in
+`routes/automations.py`, enforced by the API and served at `GET /api/v1/automations/action-support`.
+It is pinned by the golden fixture `worker-service/tests/fixtures/automation_action_support.json`,
+which the backend, worker and frontend suites all read. **Adding an action to an executor means
+updating that fixture and the matrix together.**
+
+**Why the duplication:** worker-service cannot import backend-api. The worker image copies
+only `worker-service/src` and `analysis-engine/src/analyzer` under `PYTHONPATH=/app`. There
+is no shared Python package (`shared/` is the pnpm `@rereflect/ui` workspace).
+
+**The trap this caused:** `analysis.py` previously imported the backend engine inside a bare
+`try/except Exception`. The `ImportError` fired on every analysis and was swallowed, so those
+two triggers never ran in any deployment and four of six built-in templates were inert while
+the UI showed them enabled. **A bare `except` around an import in worker-service should be
+treated as a defect on sight** — see `docs/planning/automations-delivery-integrity/`.
+
+Cooldowns are shared across processes: Redis DB 1, key
+`automation_cooldown:{rule_id}:{customer_email}`, TTL `cooldown_hours * 3600`. A cooldown set
+by either process is honoured by the other, so that key scheme must not drift.
+
+## Theme System
+
+The app uses a custom "Sunset Horizon" theme with CSS variables:
+
+```css
+/* Light mode palette */
+--chart-1: oklch(0.65 0.18 25);   /* Primary coral */
+--chart-2: oklch(0.72 0.14 65);   /* Warm amber/gold */
+--chart-3: oklch(0.78 0.10 55);   /* Soft peach */
+--destructive: oklch(0.55 0.22 25); /* Deep coral red */
+
+/* Dark mode uses same hues with adjusted lightness */
+```
+
+Theme is applied via `data-theme` attribute and `.dark` class on `<html>`.
+
+## API Patterns
+
+### Authentication
+All protected endpoints require JWT token:
+```
+Authorization: Bearer <token>
+```
+
+### Multi-tenancy
+All data is scoped by `organization_id` extracted from JWT.
+
+### Pagination
+```
+GET /api/v1/feedback?page=1&page_size=20&sort_by=created_at&sort_order=desc
+```
+
+### Filtering
+```
+GET /api/v1/feedback?sentiment=negative&is_urgent=true&search=payment
+```
+
+## Role-Based Access Control (RBAC)
+
+### Role Hierarchy
+```
+Owner (level 3) > Admin (level 2) > Member (level 1)
+```
+
+### Permission Matrix
+
+| Action | Owner | Admin | Member |
+|--------|-------|-------|--------|
+| View dashboard & analytics | ✅ | ✅ | ✅ |
+| View feedback items | ✅ | ✅ | ✅ |
+| Import feedback (CSV) | ✅ | ✅ | ✅ |
+| View team list & invites | ✅ | ✅ | ✅ |
+| Manage integrations | ✅ | ✅ | ❌ |
+| Invite/remove members | ✅ | ✅ | ❌ |
+| Change member roles | ✅ | ✅ | ❌ |
+| Access billing | ✅ | ❌ | ❌ |
+| Transfer ownership | ✅ | ❌ | ❌ |
+| Create/edit/delete/run playbooks (incl. bulk run) | ✅ | ✅ | ❌ |
+| Mark churned (single/bulk), import churn CSV, recover | ✅ | ✅ | ❌ |
+| Workflow assignment rules & auto-assignment settings | ✅ | ✅ | ❌ |
+| Delete feedback (single & bulk) | ✅ | ✅ | ❌ |
+| Queue org-wide analysis (`POST /analyze/batch`) | ✅ | ✅ | ❌ |
+
+Members still create/edit feedback, assign it, change status and notes, approve/reject pending
+feedback, and analyze a single item. Churn-event delete is the exception to "admin only": the
+author within 24h, an org admin/owner, or a system admin.
+
+### Mutation route sweep
+
+`services/backend-api/tests/test_mutation_route_rbac_sweep.py` scans every `POST`/`PUT`/`PATCH`/
+`DELETE` route with `ast`. **A new mutation route needs a role dependency
+(`require_admin_or_owner` / `require_owner` / `require_system_admin`) or an entry in the test's
+`ALLOWLIST` with a one-line reason** (member-open by policy). Stale or already-gated allowlist
+entries also fail. `include_router(..., dependencies=...)` is invisible to the scan and is forbidden.
+
+### Backend Enforcement
+
+Role checking dependencies in `src/api/dependencies.py`:
+```python
+require_admin_or_owner  # For admin/owner-only endpoints
+require_owner           # For owner-only endpoints (billing, delete org)
+```
+
+Usage in routes:
+```python
+@router.post("/invite", dependencies=[Depends(require_admin_or_owner)])
+@router.post("/billing/checkout", dependencies=[Depends(require_owner)])
+```
+
+### Frontend Enforcement
+
+1. **Tab Visibility** (`components/SettingsTabs.tsx`):
+   - Billing tab: owner only
+   - Integrations tab: admin/owner only
+   - Preferences & Team: all roles
+
+2. **Route Protection** (in page components):
+   - `/settings/billing` → redirects non-owners to `/settings/preferences`
+   - `/settings/integrations` → redirects members to `/settings/preferences`
+   - `/settings/workflow` → redirects non-admin/owner users to `/settings/preferences`
+   - `/settings/playbooks/new` and `/settings/playbooks/[id]` → redirect non-admin/owner users to `/settings/playbooks` (the list)
+   - New gating uses the `useRole()` hook (`hooks/useRole.ts`: `isAdminOrOwner`, `isLoading`)
+
+3. **Conditional UI** (buttons, actions):
+   - `isOwner = user?.role === 'owner'`
+   - `isAdminOrOwner = user?.role === 'owner' || user?.role === 'admin'`
+
+### Key RBAC Files
+- `src/api/dependencies.py` - Backend role checking
+- `src/api/routes/team.py` - Team management endpoints
+- `components/SettingsTabs.tsx` - Tab visibility by role
+- `contexts/AuthContext.tsx` - User role from JWT
+
+## Plans & Feature Gating (all unlocked)
+
+Rereflect is free, open-source and self-hosted. **There is no billing.** Stripe was
+removed in the OSS pivot and the last of its scaffolding (the promo-code admin
+surface, the `stripe_service` stub) was deleted for 1.0.0.
+
+The plan/feature machinery still exists in `src/config/plans.py`, but `SELF_HOSTED`
+defaults to `true`, and in that mode:
+
+- `has_feature(plan, anything)` returns `True`
+- every limit getter (`get_feedback_limit`, `get_seat_limit`, `get_webhook_limit`, …)
+  returns `None`, meaning unlimited
+- `/auth/me` reports `plan="enterprise"` regardless of the stored plan
+
+So `require_feature("...")` dependencies and `PLAN_*` limit maps are inert. They are
+kept because they are harmless, well-tested, and the only thing standing between this
+codebase and a tiered hosted mode should anyone want to run one (`SELF_HOSTED=false`).
+
+**When adding a feature, do not add a plan gate.** If you see documentation, UI copy,
+or a test asserting that something is restricted to Pro/Business/Enterprise, it is
+stale — that is exactly the class of drift that broke ~40 tests before 1.0.0.
+
+### Usage counters
+
+`GET /api/v1/billing/usage` still exists and is Stripe-free: it reports feedback and
+seat counts for the current calendar month so a self-hoster can see their own volume.
+`GET /api/v1/billing/plans` returns plan metadata for the same historical reason.
+
+
+## Email Templates (Resend)
+
+Transactional email is **optional and BYO-key**: set `RESEND_API_KEY` plus the
+`RESEND_TEMPLATE_*` ids and Rereflect will send invites, digests and alerts through
+[Resend](https://resend.com). With no key configured, those sends are skipped — the
+app runs fine without email, it just cannot notify anyone off-platform. Nothing here
+phones home to a Rereflect-operated service; the account and templates are yours.
+
+### Template Management Script
+
+Use the management script to create, update, list, and delete templates:
+
+```bash
+cd services/backend-api
+
+# List all templates
+python scripts/manage_resend_templates.py list
+
+# Get a specific template (view HTML content)
+python scripts/manage_resend_templates.py get <template_id>
+
+# Create a new template from HTML file
+python scripts/manage_resend_templates.py create "template-name" "Subject Line" templates/email/template.html
+
+# Update an existing template
+python scripts/manage_resend_templates.py update <template_id> templates/email/template.html
+
+# Delete a template (with confirmation)
+python scripts/manage_resend_templates.py delete <template_id>
+```
+
+### Template Variable Syntax
+
+Use triple curly braces for variables in HTML templates:
+```html
+<p>Hello, your role in {{{ORGANIZATION_NAME}}} has changed to {{{NEW_ROLE}}}.</p>
+```
+
+**Reserved variable names** (cannot be used): `FIRST_NAME`, `LAST_NAME`, `EMAIL`, `RESEND_UNSUBSCRIBE_URL`, `contact`, `this`
+
+### Current Templates
+
+| Template | Env Variable | Variables |
+|----------|--------------|-----------|
+| Team Invite | `RESEND_TEMPLATE_TEAM_INVITE` | `ORGANIZATION_NAME`, `INVITER_EMAIL`, `ROLE`, `INVITE_URL` |
+| Welcome | `RESEND_TEMPLATE_WELCOME` | `ORGANIZATION_NAME`, `DASHBOARD_URL` |
+| Password Reset | `RESEND_TEMPLATE_PASSWORD_RESET` | `RESET_URL` |
+| Weekly Digest | `RESEND_TEMPLATE_WEEKLY_DIGEST` | `ORGANIZATION_NAME`, `WEEK_DATE`, `TOTAL_FEEDBACK`, `PAIN_POINTS`, `FEATURE_REQUESTS`, `POSITIVE_PERCENT`, `NEUTRAL_PERCENT`, `NEGATIVE_PERCENT`, `URGENT_COUNT`, `DASHBOARD_URL`, `UNSUBSCRIBE_URL` |
+| Role Change | `RESEND_TEMPLATE_ROLE_CHANGE` | `ORGANIZATION_NAME`, `OLD_ROLE`, `NEW_ROLE`, `CHANGED_BY_EMAIL`, `DASHBOARD_URL` |
+| Member Removed | `RESEND_TEMPLATE_MEMBER_REMOVED` | `ORGANIZATION_NAME`, `REMOVED_BY_EMAIL` |
+
+### Adding a New Email Template
+
+1. **Create HTML file** in `templates/email/`:
+   ```bash
+   # Use existing templates as reference for consistent styling
+   cp templates/email/role_change.html templates/email/new_template.html
+   ```
+
+2. **Create template in Resend**:
+   ```bash
+   python scripts/manage_resend_templates.py create "new-template" "Subject with {{{VAR}}}" templates/email/new_template.html
+   ```
+
+3. **Add env variable** to `.env` and Railway:
+   ```
+   RESEND_TEMPLATE_NEW_TEMPLATE=<template_id_from_step_2>
+   ```
+
+4. **Add to email_service.py**:
+   ```python
+   TEMPLATE_NEW_TEMPLATE = os.getenv("RESEND_TEMPLATE_NEW_TEMPLATE")
+
+   def send_new_template_email(to_email: str, var1: str) -> bool:
+       return _send_with_template(
+           to=to_email,
+           template_id=TEMPLATE_NEW_TEMPLATE,
+           variables={"VAR1": var1},
+       )
+   ```
+
+5. **Call from route handler**:
+   ```python
+   from src.services.email_service import send_new_template_email
+   send_new_template_email(user.email, some_value)
+   ```
+
+### Key Email Files
+- `src/services/email_service.py` - Email sending functions
+- `templates/email/` - HTML template source files
+- `scripts/manage_resend_templates.py` - Template management CLI
+
+## Common Commands
+
+```bash
+# Frontend — this is a pnpm workspace; install once from the REPO ROOT.
+pnpm install             # from the repo root, not services/frontend-web
+cd services/frontend-web
+pnpm dev                 # Start dev server
+pnpm build               # Production build
+pnpm lint                # Run ESLint
+pnpm test                # Run vitest
+
+# Backend
+cd services/backend-api
+./start.sh               # Start with auto-reload
+pytest tests/ -v         # Run tests
+
+# Worker
+cd services/worker-service
+pytest tests/ -v         # Run tests
+
+# Database
+alembic upgrade head     # Apply migrations
+alembic revision -m "description"  # Create migration
+alembic heads            # Must print exactly one head — CI asserts this
+
+# All services
+./start-all.sh           # Start all in tmux
+./stop-all.sh            # Stop all services
+```
+
+CI (`.github/workflows/ci.yml`) runs the backend suite (against a clean, migrated
+PostgreSQL), the worker suite, and the frontend's lint + tests on every pull request.
+
+## Development Guidelines
+
+### Frontend
+- Use TypeScript strict mode
+- Follow shadcn/ui patterns for new components
+- Use CSS variables for theming (never hardcode colors)
+- Prefer `color-mix(in oklch, ...)` for color variations
+- Use Skeleton components for loading states
+- Keep components small and focused
+
+### Backend
+- All routes must validate organization_id
+- Use Pydantic models for request/response validation
+- Add appropriate error handling with HTTP status codes
+- Write tests for new endpoints
+
+### Git Workflow
+- Feature branches from `master`
+- Descriptive commit messages
+- PR reviews before merge
+
+## Troubleshooting
+
+### FOUC (Flash of Unstyled Content)
+Theme is initialized synchronously in `layout.tsx` via inline script before CSS loads.
+
+### useSearchParams SSR Error
+Wrap components using `useSearchParams` in `<Suspense>` boundary.
+
+### 422 Validation Errors
+- Check trailing slashes in API URLs
+- Verify `page_size` doesn't exceed 100
+- Ensure required fields are present
+
+### Analysis Not Running
+- Verify Redis is running: `redis-cli ping`
+- Check Celery worker is active
+- Look for errors in worker logs
+
+## Agent Teams
+
+Agent Teams coordinate multiple Claude Code sessions working in parallel. Use them for complex tasks where parallel work adds real value. Each teammate is an independent session with its own context window.
+
+### When to Use Teams vs Subagents
+
+| Scenario | Use |
+|---|---|
+| Quick focused task (search, single file edit) | **Subagent** |
+| Complex cross-service feature (frontend + backend + worker) | **Agent Team** |
+| Multi-angle code review (security + performance + architecture) | **Agent Team** |
+| Bug investigation with competing hypotheses | **Agent Team** |
+| Refactoring with test coverage | **Agent Team** |
+| Simple code generation or single-file review | **Subagent** |
+
+### Team Composition Patterns
+
+When creating agent teams for Rereflect, use these compositions. Each references existing agent definitions from `~/.claude/agents/`.
+
+#### 1. Full-Stack Feature Team
+
+For implementing features that span frontend, backend, worker, and database layers.
+
+**Teammates:**
+- **frontend-dev** (`fe-react-specialist`): Next.js pages, React components, API client functions in `services/frontend-web/`
+- **backend-dev** (`be-fastapi-specialist`): FastAPI routes, Pydantic schemas, SQLAlchemy models in `services/backend-api/`
+- **worker-dev** (`be-fastapi-specialist`): Celery tasks, background jobs in `services/worker-service/`
+- **db-architect** (`db-schema-designer`): Alembic migrations, schema design, index planning
+
+**File ownership** (avoids conflicts):
+- frontend-dev: `services/frontend-web/`
+- backend-dev: `services/backend-api/src/api/`, `services/backend-api/src/models/`
+- worker-dev: `services/worker-service/`
+- db-architect: `services/backend-api/alembic/`
+
+**Execution order:**
+1. db-architect designs schema + creates migration
+2. backend-dev implements models + API routes (depends on schema)
+3. worker-dev implements background tasks (depends on models)
+4. frontend-dev builds UI + API client (depends on API routes)
+
+**Example prompt:**
+```
+Create an agent team to implement [FEATURE NAME]. Spawn 4 teammates:
+- "frontend-dev" (fe-react-specialist): Build Next.js pages and components in services/frontend-web/
+- "backend-dev" (be-fastapi-specialist): Implement FastAPI routes and Pydantic models in services/backend-api/
+- "worker-dev" (be-fastapi-specialist): Build Celery tasks in services/worker-service/
+- "db-architect" (db-schema-designer): Design schema and create Alembic migration
+
+Require plan approval for db-architect before they create migrations.
+Execution order: db-architect first, then backend-dev + worker-dev in parallel, then frontend-dev last.
+Each teammate owns only their service directory — no cross-file edits.
+```
+
+#### 2. Code Review Squad
+
+For thorough multi-angle review of PRs or significant changes.
+
+**Teammates:**
+- **security-reviewer** (`review-security`): OWASP vulnerabilities, auth issues, input validation, secrets
+- **perf-reviewer** (`review-performance`): N+1 queries, re-renders, bundle size, API response size
+- **arch-reviewer** (`review-architecture`): SOLID principles, separation of concerns, coupling, testability
+
+**All teammates are read-only** — they review and report findings without making changes.
+
+**Example prompt:**
+```
+Create an agent team to review the recent changes. Spawn 3 reviewers:
+- "security-reviewer" (review-security): Check for OWASP vulnerabilities, auth issues, input validation
+- "perf-reviewer" (review-performance): Check for N+1 queries, unnecessary re-renders, API payload size
+- "arch-reviewer" (review-architecture): Check SOLID principles, coupling, testability
+
+All reviewers are read-only — report findings only, do not edit code.
+Focus on files changed in the current branch: [LIST FILES OR use `git diff --name-only master`]
+Have each reviewer report findings with severity levels, then synthesize a combined review.
+```
+
+#### 3. Debug Investigation Team
+
+For investigating bugs with multiple competing hypotheses in parallel.
+
+**Teammates:**
+- **detective-1** (`util-debug-detective`): Hypothesis A investigation
+- **detective-2** (`util-debug-detective`): Hypothesis B investigation
+- **backend-expert** (`be-fastapi-specialist`): FastAPI/SQLAlchemy-specific debugging
+- **frontend-expert** (`fe-react-specialist`): React/Next.js-specific debugging
+
+**Example prompt:**
+```
+Create an agent team to investigate [BUG DESCRIPTION]. Spawn teammates to test competing hypotheses:
+- "detective-backend" (util-debug-detective): Investigate if the issue is in the FastAPI backend — check routes, models, DB queries in services/backend-api/
+- "detective-frontend" (util-debug-detective): Investigate if the issue is in the Next.js frontend — check components, API calls, state in services/frontend-web/
+- "detective-worker" (util-debug-detective): Investigate if the issue is in the Celery worker — check tasks, Redis connection in services/worker-service/
+
+Have them share findings with each other and challenge each other's hypotheses.
+The bug symptoms are: [DESCRIBE SYMPTOMS]
+```
+
+#### 4. Refactoring Team
+
+For safe, well-tested refactoring of existing code.
+
+**Teammates:**
+- **architect** (`review-architecture`): Analyze current structure, design target architecture (read-only)
+- **refactorer** (`util-refactoring-specialist`): Execute the refactoring changes
+- **test-writer** (`qa-unit-test`): Write/update tests to maintain coverage through the refactoring
+
+**Example prompt:**
+```
+Create an agent team to refactor [MODULE/AREA]. Spawn 3 teammates:
+- "architect" (review-architecture): Analyze current structure and design the target architecture — read-only, plan approval required
+- "refactorer" (util-refactoring-specialist): Execute refactoring changes following the architect's plan
+- "test-writer" (qa-unit-test): Write tests before refactoring (characterization tests) and update after
+
+Execution order: architect plans first (require approval), then test-writer writes characterization tests, then refactorer executes changes, then test-writer updates tests.
+Focus area: [DESCRIBE WHAT TO REFACTOR]
+```
+
+### Team Usage Tips
+
+- **Delegate mode**: Press `Shift+Tab` to restrict the lead to coordination only (no coding)
+- **Direct messaging**: Use `Shift+Up/Down` to select and message individual teammates
+- **Task list**: Press `Ctrl+T` to toggle the shared task list
+- **Plan approval**: Add "Require plan approval" for risky changes (DB migrations, auth changes)
+- **File ownership**: Always assign clear file boundaries to avoid edit conflicts
+- **Cleanup**: Tell the lead to "shut down all teammates, then clean up the team" when done
+
+### Rereflect-Specific Agent Mapping
+
+| Layer | Primary Agent | Secondary Agent |
+|---|---|---|
+| Frontend (Next.js) | `fe-react-specialist` | `fe-ui-implementer` |
+| Backend (FastAPI) | `be-fastapi-specialist` | `be-api-designer` |
+| Database (PostgreSQL) | `db-schema-designer` | `db-migration-planner` |
+| Worker (Celery) | `be-fastapi-specialist` | — |
+| Security Review | `review-security` | — |
+| Performance Review | `review-performance` | — |
+| Architecture Review | `review-architecture` | — |
+| Unit Tests | `qa-unit-test` | `qa-test-generator` |
+| E2E Tests | `qa-e2e-playwright` | — |
+| Bug Investigation | `util-debug-detective` | `qa-bug-hunter` |
+| Refactoring | `util-refactoring-specialist` | — |
+
+## Resources
+
+- [README.md](README.md) - Project overview and setup
+- [DEV-TRACKING.md](DEV-TRACKING.md) - Development progress and roadmap
+- [SALES-TRACKING.md](SALES-TRACKING.md) - Sales strategy and growth tracking
+- [Backend API Docs](http://localhost:8000/docs) - Swagger UI (when running)

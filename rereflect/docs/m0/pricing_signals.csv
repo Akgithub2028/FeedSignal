@@ -1,0 +1,13 @@
+observed_on,product,plan,displayed_usd_per_month,billing_basis,unit,allowance_or_extra,source_url,evidence_type
+2026-10-06,Canny,Free,0,free,workspace,25 tracked users,https://canny.io/pricing,published_offer
+2026-10-06,Canny,Pro entry,79,annual_effective_monthly,tracked_user_tier,100+ tracked users,https://canny.io/pricing,published_offer
+2026-10-06,Savio,Essential,39,annual_effective_monthly,workspace_plus_paid_users,one paid user included; extra user 23 USD/month,https://www.savio.io/pricing/,published_offer
+2026-10-06,Savio,Professional,79,annual_effective_monthly,workspace_plus_paid_users,one paid user included; extra user 39 USD/month,https://www.savio.io/pricing/,published_offer
+2026-10-06,Savio,Business,249,annual_effective_monthly,workspace_plus_paid_users,one paid user included; extra user 49 USD/month,https://www.savio.io/pricing/,published_offer
+2026-10-06,Featurebase,Growth,29,annual_effective_monthly,paid_seat,additional 0.49 USD per AI resolution,https://www.featurebase.app/pricing,published_offer
+2026-10-06,Featurebase,Professional,59,annual_effective_monthly,paid_seat,additional 0.49 USD per AI resolution; startup promotion eligibility differs,https://www.featurebase.app/pricing,published_offer
+2026-10-06,UserJot,Free,0,free,workspace,unlimited users/posts; two boards,https://userjot.com/pricing,published_offer
+2026-10-06,UserJot,Starter,29,displayed_monthly_no_annual_label,workspace,unlimited users/posts; one integration,https://userjot.com/pricing,published_offer
+2026-10-06,UserJot,Professional,59,displayed_monthly_no_annual_label,workspace,unlimited users/posts; unlimited integrations,https://userjot.com/pricing,published_offer
+2026-10-06,Linear,Customer Requests,,included_plan_dependent,existing_subscription,all current plans; integration availability depends on plan,https://linear.app/docs/customer-requests,substitute_offer
+2026-10-06,PostHog,Surveys free allowance,0,free_monthly_allowance,monthly_responses,1500 survey responses monthly,https://posthog.com/pricing,substitute_offer

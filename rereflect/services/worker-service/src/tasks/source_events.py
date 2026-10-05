@@ -1,0 +1,588 @@
+"""
+Source event processing tasks.
+Handles events from all source types (Slack, webhooks, etc.) using the adapter pattern.
+"""
+
+import logging
+import os
+from datetime import datetime
+from typing import Dict, Any, Optional, List
+
+from celery import shared_task
+
+from cryptography.fernet import InvalidToken
+
+from src.database import get_db_session
+from src.adapters import get_adapter
+
+logger = logging.getLogger(__name__)
+
+
+# Intercom events routed to the webhook enrichment branch (PRD R1) instead of
+# the trigger/dedup/create flow. The `enriched` status logged here is NEW
+# vocabulary: it is never dedup-relevant (the dedup filter below matches only
+# processed/pending) and never blocks a later `created` delivery.
+INTERCOM_WEBHOOK_ENRICH_EVENTS = ("conversation.user.replied", "conversation.rating.added")
+
+
+# ---------------------------------------------------------------------------
+# Local token decryption (mirrors zendesk_sync.py _decrypt)
+# R6: Worker cannot import from backend-api; uses its own Fernet helper.
+# ---------------------------------------------------------------------------
+
+
+def _decrypt(token: str) -> str:
+    """Decrypt a Fernet-encrypted string using LLM_ENCRYPTION_KEY."""
+    from cryptography.fernet import Fernet
+    key = os.environ.get("LLM_ENCRYPTION_KEY")
+    if not key:
+        raise ValueError("LLM_ENCRYPTION_KEY is not set")
+    return Fernet(key.encode()).decrypt(token.encode()).decode()
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=30,
+)
+def process_source_event(
+    self,
+    source_type: str,
+    external_event_id: str,
+    event_type: str,
+    event_data: Dict[str, Any],
+    provider_context: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Process an event from a feedback source.
+
+    This task:
+    1. Finds matching FeedbackSource configurations
+    2. Uses the appropriate adapter to check triggers
+    3. Extracts content using field mapping
+    4. Creates FeedbackItem or PendingFeedback based on auto_import setting
+    5. Logs the event for deduplication and debugging
+
+    Args:
+        source_type: The source type (slack, webhook, discord, etc.)
+        external_event_id: The provider's event ID
+        event_type: Normalized event type (message, reaction, mention, webhook)
+        event_data: Raw event data from the provider
+        provider_context: Provider-specific context (team_id, source_id, etc.)
+
+    Returns:
+        dict with processing results
+
+    Note: Intercom `conversation.user.replied` / `conversation.rating.added`
+    events bypass the trigger check and dedup. They are enriched into the
+    existing per-conversation FeedbackItem, log `enriched` (or `ignored` /
+    `failed`), and dispatch bounded re-analysis strictly after the end-commit
+    (PRD R1/R3/R4).
+    """
+    from src.models import (
+        FeedbackSource, FeedbackSourceEvent, FeedbackItem,
+        PendingFeedback, Integration
+    )
+
+    logger.info(f"Processing {source_type} event: {external_event_id}")
+
+    with get_db_session() as db:
+        try:
+            # Find matching feedback sources
+            sources = _find_matching_sources(db, source_type, provider_context)
+
+            if not sources:
+                logger.info(f"No matching sources for {source_type} event")
+                return {"status": "no_sources", "event_id": external_event_id}
+
+            # Get the adapter for this source type
+            try:
+                adapter = get_adapter(source_type)
+            except ValueError as e:
+                logger.error(f"Unsupported source type: {source_type}")
+                return {"status": "unsupported_source_type", "error": str(e)}
+
+            results = []
+
+            for source in sources:
+                result = _process_event_for_source(
+                    db=db,
+                    source=source,
+                    adapter=adapter,
+                    external_event_id=external_event_id,
+                    event_type=event_type,
+                    event_data=event_data,
+                )
+                results.append(result)
+
+            # Text-changed webhook enrichments, order-preserved and deduped
+            # (one delivery may match several FeedbackSources for the same
+            # org+conversation). The created/pending result dicts have no
+            # `changed` key, so they are never collected here.
+            changed_feedback_ids = list(dict.fromkeys(
+                r["feedback_id"] for r in results
+                if r.get("changed") and r.get("feedback_id")
+            ))
+
+            db.commit()
+
+            # COMMIT BEFORE PUBLISH. analyze_single_feedback loads the item by id
+            # on another connection; publishing before the commit above let it
+            # run against an invisible row. Guarded per item so a broker failure
+            # never retries (and re-ingests) the delivery — the 30s
+            # process_unanalyzed_feedback beat task recovers anything missed.
+            created_feedback_ids = list(dict.fromkeys(
+                r["feedback_id"] for r in results
+                if r.get("status") == "feedback_created" and r.get("feedback_id")
+            ))
+            if created_feedback_ids:
+                from src.tasks.analysis import analyze_single_feedback
+
+                for feedback_id in created_feedback_ids:
+                    try:
+                        analyze_single_feedback.delay(feedback_id)
+                    except Exception as exc:
+                        logger.warning(
+                            "Failed to enqueue analysis for feedback %s (event %s): %s",
+                            feedback_id, external_event_id, exc,
+                        )
+
+            # Invalidate dashboard/analytics cache for affected orgs
+            from src.cache import cache_invalidate
+            org_ids = {s.organization_id for s in sources}
+            for org_id in org_ids:
+                cache_invalidate(f"dashboard:{org_id}:*")
+                cache_invalidate(f"analytics:{org_id}:*")
+
+            # Re-analysis dispatch — strictly AFTER the end-commit + cache
+            # invalidation. reanalyze_feedback commits itself (analysis.py:299),
+            # so calling it before the core commit would re-analyze stale text
+            # (PRD R4; pull precedent intercom_sync.py:388 -> :397-406). Guarded
+            # per item so a seam failure can never break the delivery — the
+            # seam's own task retries.
+            from src.tasks.analysis import reanalyze_feedback
+
+            for feedback_id in changed_feedback_ids:
+                try:
+                    reanalyze_feedback(db, feedback_id)
+                except Exception:
+                    logger.exception(
+                        "Intercom webhook enrichment: re-analysis dispatch failed for "
+                        "feedback %s (event %s)",
+                        feedback_id,
+                        external_event_id,
+                    )
+
+            return {"status": "processed", "results": results}
+
+        except Exception as e:
+            logger.error(f"Error processing {source_type} event {external_event_id}: {e}")
+            db.rollback()
+            raise self.retry(exc=e)
+
+
+def _find_matching_sources(
+    db,
+    source_type: str,
+    provider_context: Dict[str, Any],
+) -> List:
+    """Find FeedbackSource configurations that match the event."""
+    from sqlalchemy import or_
+
+    from src.models import (
+        FeedbackSource,
+        Integration,
+        IntercomIntegration,
+        ZendeskIntegration,
+    )
+
+    query = db.query(FeedbackSource).filter(
+        FeedbackSource.source_type == source_type,
+        FeedbackSource.is_active == True,
+    )
+
+    # For Slack events, match by team_id via the integration. A missing or
+    # empty team_id must never fall through to `return query.all()` below --
+    # that would fan every org's active slack FeedbackSource back to the
+    # caller, a cross-tenant leak.
+    if source_type == "slack":
+        team_id = provider_context.get("team_id")
+        if not team_id:
+            return []
+
+        # Find integrations with this team_id
+        integrations = db.query(Integration).filter(
+            Integration.type == "slack",
+            Integration.is_active == True,
+        ).all()
+
+        # Filter to those with matching team_id in config
+        matching_integration_ids = []
+        for integration in integrations:
+            config = integration.config or {}
+            if config.get("team_id") == team_id:
+                matching_integration_ids.append(integration.id)
+
+        if matching_integration_ids:
+            query = query.filter(
+                FeedbackSource.integration_id.in_(matching_integration_ids)
+            )
+        else:
+            return []
+
+    # For Intercom events, match by workspace_id. Same cross-tenant reasoning as
+    # slack above -- and workspace_id can be `""` (the Intercom OAuth callback
+    # stores it with a "" default), so `not x` is required, not `is None`.
+    #
+    # Intercom has TWO credential paths, deliberately (see
+    # docs/planning/intercom-selfhost-ingestion/prd.md D4):
+    #
+    #   OAuth       -> Integration.config["workspace_id"], source linked by
+    #                  FeedbackSource.integration_id
+    #   token-paste -> IntercomIntegration.workspace_id, source linked by
+    #                  organization_id (its FeedbackSource has integration_id=None,
+    #                  because token-paste is own-auth like zendesk/jira, so it can
+    #                  never be reached through the OAuth filter)
+    #
+    # The two clauses are OR'd. Both are `IN` over id lists already narrowed by
+    # workspace_id, so this widens WHICH rows can match without widening the outer
+    # filter itself -- the fall-through that made this function the site of an
+    # unauthenticated cross-tenant write is untouched, and the empty-return below
+    # still fires when neither path yields a match.
+    elif source_type == "intercom":
+        workspace_id = provider_context.get("workspace_id")
+        if not workspace_id:
+            return []
+
+        integrations = db.query(Integration).filter(
+            Integration.type == "intercom",
+            Integration.is_active == True,
+        ).all()
+
+        matching_integration_ids = []
+        for integration in integrations:
+            config = integration.config or {}
+            if config.get("workspace_id") == workspace_id:
+                matching_integration_ids.append(integration.id)
+
+        token_paste_org_ids = [
+            row.organization_id
+            for row in db.query(IntercomIntegration).filter(
+                IntercomIntegration.workspace_id == workspace_id,
+                IntercomIntegration.is_active == True,
+            ).all()
+        ]
+
+        clauses = []
+        if matching_integration_ids:
+            clauses.append(
+                FeedbackSource.integration_id.in_(matching_integration_ids)
+            )
+        if token_paste_org_ids:
+            clauses.append(
+                FeedbackSource.organization_id.in_(token_paste_org_ids)
+            )
+
+        if not clauses:
+            return []
+
+        query = query.filter(or_(*clauses))
+
+    # For email events, match by source_id directly (webhook handler already
+    # resolved). Same cross-tenant reasoning as slack/intercom above.
+    elif source_type == "email":
+        source_id = provider_context.get("source_id")
+        if not source_id:
+            return []
+        query = query.filter(FeedbackSource.id == source_id)
+
+    # For webhook events, match by source_id directly. Same cross-tenant
+    # reasoning as slack/intercom above.
+    elif source_type == "webhook":
+        source_id = provider_context.get("source_id")
+        if not source_id:
+            return []
+        query = query.filter(FeedbackSource.id == source_id)
+
+    # For Zendesk events, match by subdomain via the dedicated ZendeskIntegration
+    # table (one row per org, BYOK-style — not a row in the generic `integrations`
+    # table, so there's no Integration.config to key off). A zendesk FeedbackSource
+    # is matched to the org whose ZendeskIntegration.subdomain matches, full stop.
+    elif source_type == "zendesk":
+        subdomain = provider_context.get("subdomain")
+        if not subdomain:
+            return []
+
+        integrations = db.query(ZendeskIntegration).filter(
+            ZendeskIntegration.subdomain == subdomain,
+            ZendeskIntegration.is_active == True,
+        ).all()
+
+        matching_org_ids = [i.organization_id for i in integrations]
+        if matching_org_ids:
+            query = query.filter(FeedbackSource.organization_id.in_(matching_org_ids))
+        else:
+            return []
+
+    # Check channel match for Slack (if event has channel info)
+    event_channel = provider_context.get("channel_id")
+    if source_type == "slack" and event_channel:
+        # Filter by sources configured for this channel
+        # (handled in trigger matching, but we could pre-filter here)
+        pass
+
+    return query.all()
+
+
+def _process_event_for_source(
+    db,
+    source,
+    adapter,
+    external_event_id: str,
+    event_type: str,
+    event_data: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Process a single event against a specific source configuration.
+
+    Never publishes analysis itself: a created row is only flushed here, so
+    every caller dispatches analyze_single_feedback for "feedback_created"
+    results strictly AFTER the commit that makes the row visible.
+    """
+    from src.models import FeedbackSourceEvent, FeedbackItem, PendingFeedback, Integration
+
+    source_id = source.id
+    org_id = source.organization_id
+
+    # Check for channel match (for Slack)
+    if source.source_type == "slack":
+        config_channel = (source.provider_config or {}).get("channel_id")
+        event_channel = event_data.get("channel") or event_data.get("item", {}).get("channel")
+        if config_channel and event_channel and config_channel != event_channel:
+            return {"source_id": source_id, "status": "channel_mismatch"}
+
+    # Intercom replied/rating events bypass trigger + dedup: route straight into
+    # the webhook enrichment module. Enrichment is NOT trigger-gated and NEVER
+    # creates items — it merges into the conversation's existing FeedbackItem, or
+    # logs a noop/ignored row (the create path owns item creation).
+    if source.source_type == "intercom" and event_type in INTERCOM_WEBHOOK_ENRICH_EVENTS:
+        # Lazy import — house convention (analysis.py:156, source_events.py:389).
+        # Plain import, never a swallowed-`except` import (import-sweep guard).
+        from src.services.intercom_webhook_enrich import enrich_webhook_item
+
+        result = enrich_webhook_item(db, source, event_type, event_data)
+        outcome = result["status"]
+        conv_id = ((event_data.get("data") or {}).get("item") or {}).get("id")
+
+        if outcome == "enriched":
+            _log_event(
+                db, source_id, org_id, external_event_id, event_type,
+                event_data, "enriched", None,
+                feedback_id=result.get("feedback_id"),
+                message_id=conv_id,
+            )
+        elif outcome.startswith("noop"):
+            _log_event(
+                db, source_id, org_id, external_event_id, event_type,
+                event_data, "ignored", None, message_id=conv_id,
+            )
+        else:  # "error/auth_error" and any unexpected module status
+            event_log = _log_event(
+                db, source_id, org_id, external_event_id, event_type,
+                event_data, "failed", None, message_id=conv_id,
+            )
+            event_log.error_message = outcome
+
+        return {
+            "source_id": source_id,
+            "status": outcome,
+            "changed": result.get("changed", False),
+            "feedback_id": result.get("feedback_id"),
+        }
+
+    # Check triggers
+    triggers = source.triggers or {}
+    trigger_matched = adapter.check_triggers(event_type, event_data, triggers)
+
+    if not trigger_matched:
+        # Log as ignored (optional - could skip logging for ignored events)
+        _log_event(
+            db, source_id, org_id, external_event_id, event_type,
+            event_data, "ignored", None
+        )
+        return {"source_id": source_id, "status": "no_trigger_match"}
+
+    # Get external IDs for deduplication
+    adapter_event_id, message_id = adapter.get_external_ids(event_data)
+
+    # Check for duplicates (same source + same message)
+    existing = db.query(FeedbackSourceEvent).filter(
+        FeedbackSourceEvent.source_id == source_id,
+        FeedbackSourceEvent.external_message_id == message_id,
+        FeedbackSourceEvent.status.in_(["processed", "pending"]),
+    ).first()
+
+    if existing:
+        return {"source_id": source_id, "status": "duplicate"}
+
+    # Extract content
+    field_mapping = source.field_mapping or {}
+    content = adapter.extract_content(event_data, field_mapping)
+
+    # Fetch additional context if needed. Decrypt exactly once, right before
+    # fetch_context (this is the Slack AND Intercom path). A missing key or
+    # corrupt ciphertext is a non-transient config error: log + error outcome,
+    # never retry, never raise.
+    access_token = None
+    if field_mapping.get("include_context") or field_mapping.get("include_author"):
+        if source.integration_id:
+            integration = db.query(Integration).filter(
+                Integration.id == source.integration_id
+            ).first()
+            if integration:
+                try:
+                    access_token = _decrypt(integration.oauth_access_token)
+                except (ValueError, InvalidToken) as exc:
+                    logger.error(
+                        "Failed to decrypt OAuth token for integration %s: %s",
+                        integration.id,
+                        exc,
+                    )
+                    return {"source_id": source_id, "status": "context_fetch_error"}
+
+        context = adapter.fetch_context(event_data, access_token, field_mapping)
+        content["metadata"].update(context)
+
+        # If we got original text for reactions, use it
+        if "original_text" in context:
+            content["text"] = context["original_text"]
+
+    # Validate we have text
+    text = content.get("text", "").strip()
+    if not text or len(text) < 3:
+        _log_event(
+            db, source_id, org_id, external_event_id, event_type,
+            event_data, "ignored", trigger_matched, message_id=message_id
+        )
+        return {"source_id": source_id, "status": "empty_text"}
+
+    # Create FeedbackItem or PendingFeedback
+    if source.auto_import:
+        # Create feedback directly
+        feedback = FeedbackItem(
+            organization_id=org_id,
+            text=text,
+            source=source.source_type,
+            source_id=source_id,
+            source_external_id=message_id,
+            source_metadata=content.get("metadata"),
+            customer_email=content.get("customer_email"),
+        )
+        db.add(feedback)
+        db.flush()  # Get feedback.id
+
+        # Log the event
+        event_log = _log_event(
+            db, source_id, org_id, external_event_id, event_type,
+            event_data, "processed", trigger_matched, feedback_id=feedback.id,
+            message_id=message_id,
+        )
+
+        # Update source stats
+        source.last_event_at = datetime.utcnow()
+        source.events_processed = (source.events_processed or 0) + 1
+
+        return {
+            "source_id": source_id,
+            "status": "feedback_created",
+            "feedback_id": feedback.id,
+            "trigger": trigger_matched,
+        }
+
+    else:
+        # Create pending feedback for manual review
+        event_log = _log_event(
+            db, source_id, org_id, external_event_id, event_type,
+            event_data, "pending", trigger_matched, message_id=message_id
+        )
+
+        pending = PendingFeedback(
+            source_id=source_id,
+            organization_id=org_id,
+            event_id=event_log.id,
+            text=text,
+            source_metadata=content.get("metadata"),
+            trigger_type=trigger_matched,
+        )
+        db.add(pending)
+        db.flush()
+
+        # Update event log with pending ID
+        event_log.pending_feedback_id = pending.id
+
+        # Update source stats
+        source.last_event_at = datetime.utcnow()
+
+        return {
+            "source_id": source_id,
+            "status": "pending_created",
+            "pending_id": pending.id,
+            "trigger": trigger_matched,
+        }
+
+
+def _log_event(
+    db,
+    source_id: int,
+    org_id: int,
+    external_event_id: str,
+    event_type: str,
+    event_data: Dict[str, Any],
+    status: str,
+    trigger_matched: Optional[str],
+    feedback_id: Optional[int] = None,
+    message_id: Optional[str] = None,
+):
+    """Create an event log entry.
+
+    `message_id` should be the value already computed by
+    `adapter.get_external_ids(event_data)` in `_process_event_for_source` —
+    passing it here keeps the *stored* `external_message_id` consistent with
+    the value the dedup query filters on. When it's not supplied (the
+    `no_trigger_match` call site, which fires before `get_external_ids` has
+    run), fall back to the legacy best-effort derivation below. That legacy
+    heuristic is Slack/webhook-shaped (`ts` / `item.ts` / `content_hash`) and
+    is wrong for every other adapter (e.g. Intercom's `data.item.id`,
+    Zendesk's `ticket.id`) — those rows just don't carry a useful
+    `external_message_id`, which is fine since "ignored" rows without a
+    trigger match aren't part of the dedup filter anyway.
+    """
+    from src.models import FeedbackSourceEvent
+
+    if message_id is None:
+        # Legacy best-effort derivation (Slack/webhook-shaped) — only used
+        # for the no_trigger_match call site, which has no adapter-computed
+        # message_id available.
+        message_id = (
+            event_data.get("ts") or
+            event_data.get("item", {}).get("ts") or
+            event_data.get("content_hash")
+        )
+
+    event_log = FeedbackSourceEvent(
+        source_id=source_id,
+        organization_id=org_id,
+        external_event_id=external_event_id,
+        external_message_id=message_id,
+        event_type=event_type,
+        status=status,
+        trigger_matched=trigger_matched,
+        feedback_id=feedback_id,
+        event_data=event_data,
+        received_at=datetime.utcnow(),
+        processed_at=datetime.utcnow() if status in {"processed", "ignored", "enriched", "failed"} else None,
+    )
+
+    db.add(event_log)
+    db.flush()
+
+    return event_log

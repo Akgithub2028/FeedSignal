@@ -1,0 +1,48 @@
+# Celery + Redis
+celery[redis]==5.3.6
+redis==5.0.1
+kombu==5.3.4
+
+# Database
+sqlalchemy==2.0.32
+psycopg2-binary==2.9.9
+
+# Date arithmetic (churn_backfill month-window floor). Already a transitive
+# dep of celery, but declared explicitly since we import it directly.
+python-dateutil==2.9.0.post0
+
+# Analysis engine dependencies (shared)
+vaderSentiment==3.3.2
+nltk==3.9.1
+scikit-learn==1.5.2
+
+# Transformer sentiment provider (opt-in; mandatory dep once any org enables it — M5.1)
+transformers==4.46.3
+torch==2.5.0
+
+# Utilities
+python-dotenv==1.0.1
+pydantic==2.8.2
+pydantic-settings==2.4.0
+
+# HTTP client (for Slack API calls)
+httpx==0.27.0
+
+# OpenAI (LLM-powered categorization)
+openai==1.82.0
+
+# Multi-model LLM providers
+anthropic>=0.40.0
+google-generativeai>=0.8.0
+
+# Encryption for BYOK API key storage
+cryptography>=43.0.0
+
+# Monitoring (optional)
+flower==2.0.1
+
+# Error tracking (Sentry free tier — 5K errors/mo)
+sentry-sdk[celery]==2.22.0   # Sentry SDK with Celery integration
+
+# Testing (matches backend-api pin; required to run tests/ in CI)
+pytest==7.4.3

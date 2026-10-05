@@ -1,0 +1,184 @@
+# =============================================================================
+# Rereflect — Self-Host Entrypoint (production Docker Compose)
+# -----------------------------------------------------------------------------
+# This is the recommended way to self-host Rereflect. It brings up the full
+# stack: PostgreSQL, Redis, the FastAPI backend, the Celery worker, and the
+# Next.js frontend.
+#
+#   cp .env.prod.example .env   # fill in secrets
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Notes:
+#  - All features are unlocked (SELF_HOSTED=true on the backend, set below).
+#  - Runs $0 on the free local VADER pipeline by default (no LLM key needed).
+#  - The `frontend` image BAKES NEXT_PUBLIC_API_URL at BUILD time. Self-hosters
+#    on a real host/domain must set NEXT_PUBLIC_API_URL to their backend's
+#    public URL and REBUILD the frontend:
+#        docker compose -f docker-compose.prod.yml build frontend
+#  - No TLS/proxy is bundled: backend is plain HTTP on :8000, frontend on :3000.
+#    Put a reverse proxy (Caddy/nginx/Traefik) in front for internet exposure.
+#  - landing-web (marketing site) is intentionally NOT part of this stack; it
+#    is hosted separately.
+#  - The opt-in transformer sentiment model (Settings -> AI) is NOT baked into
+#    backend/worker images by default -- it downloads and caches on first use
+#    instead. For air-gapped installs, pre-bake it at build time:
+#        BAKE_SENTIMENT_MODEL=true docker compose -f docker-compose.prod.yml build backend worker
+#    See docs/SELF_HOSTING.md for the offline env flags and RAM/latency notes.
+# =============================================================================
+
+services:
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: rereflect-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rereflect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rereflect_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-rereflect}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rereflect}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ===========================================
+  # Redis (Celery Broker)
+  # ===========================================
+  redis:
+    image: redis:7-alpine
+    container_name: rereflect-redis
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ===========================================
+  # Backend API (FastAPI)
+  # ===========================================
+  backend:
+    build:
+      context: ./services
+      dockerfile: backend-api/Dockerfile
+      args:
+        BAKE_SENTIMENT_MODEL: ${BAKE_SENTIMENT_MODEL:-false}
+    container_name: rereflect-backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rereflect}:${POSTGRES_PASSWORD:-rereflect_secret}@postgres:5432/${POSTGRES_DB:-rereflect}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      LLM_ENCRYPTION_KEY: ${LLM_ENCRYPTION_KEY}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ROOT_PATH: ${ROOT_PATH:-}
+      # Self-host: unlock all features, no paid tiers/limits.
+      SELF_HOSTED: ${SELF_HOSTED:-true}
+      # Default off -> runs on the free local VADER pipeline ($0, no key).
+      ai_analysis_enabled: ${ai_analysis_enabled:-false}
+      # OPTIONAL operator-owned BYOK keys (your own keys; never a Rereflect key).
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+      # OPTIONAL error tracking. Empty (default) -> Sentry is never initialized
+      # and the instance sends nothing anywhere.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+    ports:
+      - "0.0.0.0:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================
+  # Celery Worker (Background Jobs)
+  # ===========================================
+  worker:
+    build:
+      context: ./services
+      dockerfile: worker-service/Dockerfile
+      args:
+        BAKE_SENTIMENT_MODEL: ${BAKE_SENTIMENT_MODEL:-false}
+    container_name: rereflect-worker
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rereflect}:${POSTGRES_PASSWORD:-rereflect_secret}@postgres:5432/${POSTGRES_DB:-rereflect}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      LLM_ENCRYPTION_KEY: ${LLM_ENCRYPTION_KEY}
+      SELF_HOSTED: ${SELF_HOSTED:-true}
+      ai_analysis_enabled: ${ai_analysis_enabled:-false}
+      # OPTIONAL operator-owned BYOK keys (your own keys; never a Rereflect key).
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+      # OPTIONAL error tracking. Empty (default) -> Sentry is never initialized
+      # and the instance sends nothing anywhere.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ===========================================
+  # Frontend (Next.js)
+  # ===========================================
+  frontend:
+    build:
+    # Built from the repo root, NOT from services/frontend-web: frontend-web is a
+    # pnpm workspace member, so its Dockerfile needs pnpm-workspace.yaml,
+    # pnpm-lock.yaml and packages/ui. See the root .dockerignore.
+      context: .
+      dockerfile: services/frontend-web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        # OPTIONAL browser-side error tracking. Empty (default) -> Sentry is never
+        # initialized. NEXT_PUBLIC_* is baked in at build time, so changing this
+        # requires rebuilding the frontend image.
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+        NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+    container_name: rereflect-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      # Server-side (Next.js node/edge runtime) error tracking. Empty -> disabled.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.1}
+    ports:
+      - "0.0.0.0:3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: rereflect-network

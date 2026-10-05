@@ -1,0 +1,887 @@
+'use client';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
+import { ColumnDef, RowSelectionState } from '@tanstack/react-table';
+import Link from 'next/link';
+import {
+  Users,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  UserPlus,
+  AlertTriangle,
+  Upload,
+  Sparkles,
+  Brain,
+  Loader2,
+  UserX,
+  FileUp,
+  Info,
+  Download,
+  Tag,
+  UserCog,
+  PlaySquare,
+  Send,
+  ChevronDown,
+  CheckSquare,
+  Inbox,
+} from 'lucide-react';
+import {
+  customersAPI,
+  CustomerListItem,
+  CustomerListParams,
+  Cohort,
+  CohortFilter,
+} from '@/lib/api/customers';
+import { listChurnSuggestions } from '@/lib/api/churn-suggestions';
+import { ChurnProbabilityBadge } from '@/components/customers/ChurnProbabilityBadge';
+import { SegmentBadge } from '@/components/customers/SegmentBadge';
+import { TagChips } from '@/components/customers/TagChips';
+import { CsOwnerBadge } from '@/components/customers/CsOwnerBadge';
+import { SEGMENT_SLUGS, SEGMENT_LABELS } from '@/lib/constants/segments';
+import { useAuth } from '@/contexts/AuthContext';
+import { BulkMarkChurnedDialog } from '@/components/customers/BulkMarkChurnedDialog';
+import { ChurnCsvImportDialog } from '@/components/customers/ChurnCsvImportDialog';
+import { BulkTagDialog } from '@/components/customers/BulkTagDialog';
+import { BulkAssignOwnerDialog } from '@/components/customers/BulkAssignOwnerDialog';
+import { BulkRunPlaybookDialog } from '@/components/customers/BulkRunPlaybookDialog';
+import { BulkOutreachDialog } from '@/components/customers/BulkOutreachDialog';
+import { OutreachCampaignsCard } from '@/components/customers/OutreachCampaignsCard';
+import { StatCard } from '@/components/StatCard';
+import { RiskDistributionBar } from '@/components/customers/RiskDistributionBar';
+import { HealthScoreCircle } from '@/components/customers/HealthScoreCircle';
+import { DataTable } from '@/components/shared/data-table';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { toast } from 'sonner';
+
+import { getRelativeTime } from '@/lib/utils/relative-time';
+
+function getRiskBadgeStyle(riskLevel: string) {
+  const map: Record<string, { label: string; color: string }> = {
+    healthy: { label: 'Healthy', color: 'var(--chart-5)' },
+    moderate: { label: 'Moderate', color: 'var(--chart-2)' },
+    at_risk: { label: 'At Risk', color: 'var(--chart-1)' },
+    critical: { label: 'Critical', color: 'var(--destructive)' },
+  };
+  return map[riskLevel] ?? { label: riskLevel, color: 'var(--muted-foreground)' };
+}
+
+interface TrendCellProps {
+  trend: CustomerListItem['sentiment_trend'];
+  isBlurred: boolean;
+}
+
+function TrendCell({ trend, isBlurred }: TrendCellProps) {
+  const { direction, change_percent } = trend;
+  const style = isBlurred ? { filter: 'blur(4px)', userSelect: 'none' as const } : {};
+
+  if (direction === 'improving') {
+    return (
+      <span
+        className="flex items-center gap-1 text-sm font-mono font-medium"
+        style={{ color: 'var(--chart-5)', ...style }}
+      >
+        <TrendingUp className="w-3.5 h-3.5" />
+        +{change_percent}%
+      </span>
+    );
+  }
+  if (direction === 'declining') {
+    return (
+      <span
+        className="flex items-center gap-1 text-sm font-mono font-medium"
+        style={{ color: 'var(--destructive)', ...style }}
+      >
+        <TrendingDown className="w-3.5 h-3.5" />
+        {change_percent}%
+      </span>
+    );
+  }
+  return (
+    <span
+      className="flex items-center gap-1 text-sm font-mono text-muted-foreground"
+      style={style}
+    >
+      <Minus className="w-3.5 h-3.5" />0%
+    </span>
+  );
+}
+
+export default function CustomersPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const isAdminOrOwner = user?.role === 'owner' || user?.role === 'admin';
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [riskFilter, setRiskFilter] = useState('');
+  const [segmentFilter, setSegmentFilter] = useState('');
+  const [sortBy, setSortBy] = useState<CustomerListParams['sort_by']>('health_score');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [reanalyzing, setReanalyzing] = useState(false);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [bulkChurnOpen, setBulkChurnOpen] = useState(false);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
+
+  // Cohort mode: an explicit row selection (emails) or "every customer
+  // matching the active filter" (filter — sent as `filter`, never
+  // materialized into an email list). Any manual checkbox interaction
+  // reverts to 'emails' mode (see handleRowSelectionChange below).
+  const [cohortMode, setCohortMode] = useState<'emails' | 'filter'>('emails');
+  const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [assignOwnerDialogOpen, setAssignOwnerDialogOpen] = useState(false);
+  const [runPlaybookDialogOpen, setRunPlaybookDialogOpen] = useState(false);
+  const [outreachDialogOpen, setOutreachDialogOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  // Row-selection keys are customer emails (getRowId={r => r.customer_email}),
+  // so selection state doubles as the selected-emails cohort.
+  const selectedEmails = useMemo(
+    () => Object.keys(rowSelection).filter((key) => rowSelection[key]),
+    [rowSelection]
+  );
+  const clearSelection = useCallback(() => {
+    setRowSelection({});
+    setCohortMode('emails');
+  }, []);
+
+  const handleRowSelectionChange = useCallback((selection: RowSelectionState) => {
+    setCohortMode('emails');
+    setRowSelection(selection);
+  }, []);
+
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const queryParams: CustomerListParams = {
+    page: currentPage,
+    page_size: pageSize,
+    sort_by: sortBy,
+    sort_order: sortOrder,
+    ...(debouncedSearch && { search: debouncedSearch }),
+    ...(riskFilter && { risk_level: riskFilter }),
+    ...(segmentFilter && { segment: segmentFilter }),
+  };
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['customers', queryParams],
+    queryFn: async () => {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        router.push('/login');
+        throw new Error('No token');
+      }
+      return customersAPI.list(queryParams);
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+
+  // CRM churn suggestions StatCard count — same predicate as
+  // ai_readiness.py's pending_suggestions (org + status=='pending', no
+  // other filter) so the two surfaces can never contradict. A 403/error
+  // (e.g. member role, or Pro/Free plan) is treated as 0 — never a broken
+  // card (plan §Phase 4.3).
+  const { data: pendingSuggestionsData } = useQuery({
+    queryKey: ['churn-suggestions-pending-count'],
+    queryFn: () => listChurnSuggestions({ status: 'pending', page_size: 1 }),
+    enabled: isAdminOrOwner,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    retry: false,
+  });
+  const pendingSuggestionsCount = pendingSuggestionsData?.total ?? 0;
+
+  const handleRiskFilterFromBar = useCallback((level: string) => {
+    setRiskFilter(prev => (prev === level ? '' : level));
+    setCurrentPage(1);
+  }, []);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleRiskFilterChange = useCallback((value: string) => {
+    setRiskFilter(value === 'all' ? '' : value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleSegmentFilterChange = useCallback((value: string) => {
+    setSegmentFilter(value === 'all' ? '' : value);
+    setCurrentPage(1);
+  }, []);
+
+  const handlePageSizeChange = useCallback((size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  }, []);
+
+  const handleRowClick = useCallback(
+    (item: CustomerListItem) => {
+      router.push(`/customers/${encodeURIComponent(item.customer_email)}`);
+    },
+    [router]
+  );
+
+  const handleBatchAnalyze = useCallback(async () => {
+    setReanalyzing(true);
+    try {
+      const result = await customersAPI.batchAnalyze();
+      toast.success(`Analysis queued for ${result.customer_count} customers`);
+    } catch {
+      toast.error('Failed to queue batch analysis');
+    } finally {
+      setReanalyzing(false);
+    }
+  }, []);
+
+  const summary = data?.summary;
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / pageSize) || 1;
+
+  // Filter-mode cohort: the same filter vocabulary as GET /api/v1/customers/
+  // (key names identical to the backend CohortFilter — segment, risk_level,
+  // search, include_archived). Never materialized into an email list.
+  const activeCohortFilter: CohortFilter = useMemo(
+    () => ({
+      ...(segmentFilter && { segment: segmentFilter }),
+      ...(riskFilter && { risk_level: riskFilter }),
+      ...(debouncedSearch && { search: debouncedSearch }),
+      include_archived: false,
+    }),
+    [segmentFilter, riskFilter, debouncedSearch]
+  );
+
+  const cohort: Cohort | null = useMemo(() => {
+    if (cohortMode === 'filter') return { filter: activeCohortFilter };
+    if (selectedEmails.length > 0) return { emails: selectedEmails };
+    return null;
+  }, [cohortMode, activeCohortFilter, selectedEmails]);
+
+  const cohortCount = cohortMode === 'filter' ? total : selectedEmails.length;
+
+  // "Select all N matching this filter" — offered as a banner once every
+  // row on the current page is selected and there are more matches than
+  // are currently loaded.
+  const showSelectAllBanner =
+    cohortMode === 'emails' &&
+    items.length > 0 &&
+    selectedEmails.length === items.length &&
+    total > items.length;
+
+  const handleSelectAllMatchingFilter = useCallback(() => {
+    setCohortMode('filter');
+  }, []);
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      await customersAPI.exportCustomers({
+        sort_by: sortBy,
+        sort_order: sortOrder,
+        ...(riskFilter && { risk_level: riskFilter }),
+        ...(segmentFilter && { segment: segmentFilter }),
+        ...(debouncedSearch && { search: debouncedSearch }),
+      });
+      toast.success('Export started — your download should begin shortly.');
+    } catch {
+      toast.error('Failed to export customers. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  }, [sortBy, sortOrder, riskFilter, segmentFilter, debouncedSearch]);
+
+  const atRiskPercent =
+    summary && summary.total_customers > 0
+      ? Math.round(
+          ((summary.risk_distribution.at_risk + summary.risk_distribution.critical) /
+            summary.total_customers) *
+            100
+        )
+      : 0;
+
+  // Column definitions
+  const columns: ColumnDef<CustomerListItem>[] = [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && 'indeterminate')
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: 'customer_email',
+      header: 'Customer',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <div>
+            <p className="font-medium text-foreground text-sm">{row.original.customer_email}</p>
+            {row.original.customer_name && (
+              <p className="text-xs text-muted-foreground mt-0.5">{row.original.customer_name}</p>
+            )}
+          </div>
+          {row.original.has_llm_analysis && (
+            <span
+              className="shrink-0"
+              title="AI analysis available"
+            >
+              <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--chart-2)' }} />
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'health_score',
+      header: 'Health Score',
+      cell: ({ row }) => {
+        const blurred = {};
+        return (
+          <span style={blurred}>
+            <HealthScoreCircle score={row.original.health_score} />
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: 'risk_level',
+      header: 'Churn Probability',
+      cell: ({ row }) => {
+        const blurred = {};
+        const { churn_probability, churn_probability_low, churn_probability_high } = row.original;
+        // Fall back to risk_level color hint when probability is null (Pro/Free)
+        if (churn_probability === null || churn_probability === undefined) {
+          const { label, color } = getRiskBadgeStyle(row.original.risk_level);
+          return (
+            <Badge
+              variant="outline"
+              style={{
+                backgroundColor: `color-mix(in oklch, ${color} 15%, transparent)`,
+                color,
+                borderColor: `color-mix(in oklch, ${color} 30%, transparent)`,
+                ...blurred,
+              }}
+            >
+              {label}
+            </Badge>
+          );
+        }
+        return (
+          <span style={blurred}>
+            <ChurnProbabilityBadge
+              probability={churn_probability}
+              probabilityLow={churn_probability_low ?? undefined}
+              probabilityHigh={churn_probability_high ?? undefined}
+              size="sm"
+            />
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: 'confidence_level',
+      header: 'Confidence',
+      cell: ({ row }) => {
+        const level = row.original.confidence_level;
+        if (level === 'high') return null;
+        const blurred = {};
+        const color = level === 'low' ? 'var(--chart-1)' : 'var(--chart-2)';
+        return (
+          <Badge
+            variant="outline"
+            style={{
+              backgroundColor: `color-mix(in oklch, ${color} 15%, transparent)`,
+              color,
+              borderColor: `color-mix(in oklch, ${color} 30%, transparent)`,
+              ...blurred,
+            }}
+          >
+            {level === 'low' ? 'Low' : 'Medium'}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: 'feedback_count',
+      header: 'Feedbacks',
+      cell: ({ row }) => (
+        <span className="font-mono text-sm text-foreground">{row.original.feedback_count}</span>
+      ),
+    },
+    {
+      accessorKey: 'last_feedback_at',
+      header: 'Last Active (feedback)',
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {getRelativeTime(row.original.last_feedback_at)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'last_active_at',
+      header: 'Last Active (product)',
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {row.original.last_active_at != null
+            ? getRelativeTime(row.original.last_active_at)
+            : '—'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'sentiment_trend',
+      header: 'Trend',
+      cell: ({ row }) => (
+        <TrendCell trend={row.original.sentiment_trend} isBlurred={false} />
+      ),
+    },
+    {
+      accessorKey: 'segment',
+      header: () => (
+        <div className="flex items-center gap-1">
+          Segment
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="w-3 h-3 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="text-xs max-w-xs">
+                Segments are rule-based heuristics computed from usage and feedback signals — not
+                a guarantee.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      ),
+      cell: ({ row }) => <SegmentBadge segment={row.original.segment} size="sm" />,
+    },
+    {
+      accessorKey: 'tags',
+      header: 'Tags',
+      cell: ({ row }) => <TagChips tags={row.original.tags} size="sm" />,
+    },
+    {
+      accessorKey: 'cs_owner',
+      header: 'CS Owner',
+      cell: ({ row }) => <CsOwnerBadge owner={row.original.cs_owner} size="sm" />,
+    },
+  ];
+
+  // Empty state
+  const isEmpty =
+    !isLoading && items.length === 0 && !searchQuery && !riskFilter && !segmentFilter;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen pattern-bg">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-10 w-48 bg-muted rounded" />
+            <div className="grid grid-cols-4 gap-4">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className="h-32 bg-muted rounded-2xl" />
+              ))}
+            </div>
+            <div className="h-16 bg-muted rounded" />
+            <div className="h-96 bg-muted rounded" />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <TooltipProvider>
+    <div className="min-h-screen pattern-bg">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Page Header */}
+        <div className="animate-fade-in">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-secondary rounded-xl">
+                <Users className="w-8 h-8 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold text-foreground">Customers</h1>
+                <p className="text-muted-foreground text-lg">
+                  Customer health scores and risk analysis
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {cohort && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      Bulk Actions ({cohortCount})
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem
+                      onClick={handleExport}
+                      disabled={exporting}
+                      className="flex items-center gap-2"
+                    >
+                      {exporting ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5" />
+                      )}
+                      Export CSV
+                    </DropdownMenuItem>
+                    {isAdminOrOwner && (
+                      <>
+                        <DropdownMenuItem
+                          onClick={() => setTagDialogOpen(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <Tag className="w-3.5 h-3.5" />
+                          Tag
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setAssignOwnerDialogOpen(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <UserCog className="w-3.5 h-3.5" />
+                          Assign owner
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {isAdminOrOwner && (
+                      <DropdownMenuItem
+                        onClick={() => setRunPlaybookDialogOpen(true)}
+                        className="flex items-center gap-2"
+                      >
+                        <PlaySquare className="w-3.5 h-3.5" />
+                        Run playbook
+                      </DropdownMenuItem>
+                    )}
+                    {isAdminOrOwner && (
+                      <DropdownMenuItem
+                        onClick={() => setOutreachDialogOpen(true)}
+                        className="flex items-center gap-2"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        Trigger outreach campaign
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+              {isAdminOrOwner && selectedEmails.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBulkChurnOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <UserX className="w-4 h-4" />
+                  Mark {selectedEmails.length} as churned
+                </Button>
+              )}
+              {isAdminOrOwner && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCsvImportOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <FileUp className="w-4 h-4" />
+                  Import CSV
+                </Button>
+              )}
+              {user?.is_system_admin && (
+                <Button
+                  variant="outline"
+                  onClick={handleBatchAnalyze}
+                  disabled={reanalyzing}
+                  className="flex items-center gap-2"
+                >
+                  {reanalyzing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Brain className="w-4 h-4" />
+                  )}
+                  Re-analyze All
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Stat Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 animate-slide-up stagger-1">
+          <StatCard
+            title="Total Customers"
+            value={summary?.total_customers ?? 0}
+            icon={Users}
+            color="blue"
+          />
+          <StatCard
+            title="Avg Health Score"
+            value={summary?.avg_health_score ?? 0}
+            icon={TrendingUp}
+            color="green"
+          />
+          <StatCard
+            title="At Risk %"
+            value={`${atRiskPercent}%`}
+            icon={AlertTriangle}
+            color="yellow"
+          />
+          <StatCard
+            title="Critical Count"
+            value={summary?.risk_distribution.critical ?? 0}
+            icon={UserPlus}
+            color="red"
+          />
+          {isAdminOrOwner && pendingSuggestionsCount > 0 && (
+            <StatCard
+              title="CRM churn suggestions"
+              value={pendingSuggestionsCount}
+              icon={Inbox}
+              color="yellow"
+              href="/customers/churn-suggestions"
+            />
+          )}
+        </div>
+
+        {/* Risk Distribution Bar */}
+        {summary && summary.total_customers > 0 && (
+          <Card className="p-6 animate-slide-up stagger-2">
+            <RiskDistributionBar
+              distribution={summary.risk_distribution}
+              total={summary.total_customers}
+              onFilterChange={handleRiskFilterFromBar}
+              activeFilter={riskFilter}
+            />
+          </Card>
+        )}
+
+        {/* Filter Bar */}
+        <div className="flex flex-wrap gap-4 items-center animate-slide-up stagger-2">
+          <Select
+            value={riskFilter || 'all'}
+            onValueChange={handleRiskFilterChange}
+          >
+            <SelectTrigger className="h-10 w-[180px]">
+              <SelectValue placeholder="All Risk Levels" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Risk Levels</SelectItem>
+              <SelectItem value="healthy">Healthy</SelectItem>
+              <SelectItem value="moderate">Moderate</SelectItem>
+              <SelectItem value="at_risk">At Risk</SelectItem>
+              <SelectItem value="critical">Critical</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div className="flex items-center gap-1.5">
+            <Select
+              value={segmentFilter || 'all'}
+              onValueChange={handleSegmentFilterChange}
+            >
+              <SelectTrigger className="h-10 w-[180px]">
+                <SelectValue placeholder="All Segments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Segments</SelectItem>
+                {SEGMENT_SLUGS.map(slug => (
+                  <SelectItem key={slug} value={slug}>
+                    {SEGMENT_LABELS[slug]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs max-w-xs">
+                  Segments are rule-based heuristics computed from usage and feedback signals —
+                  not a guarantee.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+
+        {/* Empty state */}
+        {isEmpty ? (
+          <Card className="p-16 flex flex-col items-center justify-center animate-fade-in">
+            <Users className="w-16 h-16 text-muted-foreground opacity-20 mb-4" />
+            <h2 className="text-xl font-semibold text-foreground mb-2">No customer data yet</h2>
+            <p className="text-muted-foreground text-sm mb-6 text-center max-w-md">
+              Import feedback with customer emails to see health scores and risk analysis.
+            </p>
+            <Link href="/feedbacks">
+              <Button className="flex items-center gap-2">
+                <Upload className="w-4 h-4" />
+                Import Feedback
+              </Button>
+            </Link>
+          </Card>
+        ) : (
+          /* DataTable */
+          <Card className="p-6 animate-slide-up stagger-3">
+            {showSelectAllBanner && (
+              <div className="mb-4 flex items-center justify-between rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm">
+                <span className="text-foreground">
+                  All <strong>{items.length}</strong> customers on this page are selected.
+                </span>
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={handleSelectAllMatchingFilter}
+                  className="flex items-center gap-1.5 h-auto p-0"
+                >
+                  <CheckSquare className="w-3.5 h-3.5" />
+                  Select all {total} matching this filter
+                </Button>
+              </div>
+            )}
+            {cohortMode === 'filter' && (
+              <div
+                data-testid="cohort-filter-banner"
+                className="mb-4 flex items-center justify-between rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm"
+              >
+                <span className="text-foreground">
+                  All <strong>{total}</strong> customers matching the current filter are selected.
+                </span>
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={clearSelection}
+                  className="h-auto p-0"
+                >
+                  Clear selection
+                </Button>
+              </div>
+            )}
+            <DataTable
+              columns={columns}
+              data={items}
+              searchQuery={searchQuery}
+              onSearchChange={handleSearchChange}
+              onRowClick={handleRowClick}
+              searchPlaceholder="Search customers by email or name..."
+              emptyIcon={Users}
+              emptyTitle="No customers found"
+              emptyDescription="Try adjusting your search or filters"
+              serverSide
+              totalCount={total}
+              pageCount={totalPages}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={handlePageSizeChange}
+              rowSelection={rowSelection}
+              onRowSelectionChange={handleRowSelectionChange}
+              getRowId={(r) => r.customer_email}
+              onSortingChange={(sorting) => {
+                if (sorting.length > 0) {
+                  const s = sorting[0];
+                  setSortBy(s.id as CustomerListParams['sort_by']);
+                  setSortOrder(s.desc ? 'desc' : 'asc');
+                }
+              }}
+            />
+          </Card>
+        )}
+
+        {isAdminOrOwner && <OutreachCampaignsCard />}
+      </main>
+
+      <BulkMarkChurnedDialog
+        open={bulkChurnOpen}
+        onOpenChange={setBulkChurnOpen}
+        selectedEmails={selectedEmails}
+        onSuccess={clearSelection}
+      />
+
+      <BulkTagDialog
+        open={tagDialogOpen}
+        onOpenChange={setTagDialogOpen}
+        cohort={cohort}
+        cohortCount={cohortCount}
+        onSuccess={clearSelection}
+      />
+
+      <BulkAssignOwnerDialog
+        open={assignOwnerDialogOpen}
+        onOpenChange={setAssignOwnerDialogOpen}
+        cohort={cohort}
+        cohortCount={cohortCount}
+        onSuccess={clearSelection}
+      />
+
+      <BulkRunPlaybookDialog
+        open={runPlaybookDialogOpen}
+        onOpenChange={setRunPlaybookDialogOpen}
+        cohort={cohort}
+        onSuccess={clearSelection}
+      />
+
+      <BulkOutreachDialog
+        open={outreachDialogOpen}
+        onOpenChange={setOutreachDialogOpen}
+        cohort={cohort}
+        cohortCount={cohortCount}
+        onSuccess={clearSelection}
+      />
+
+      <ChurnCsvImportDialog
+        open={csvImportOpen}
+        onOpenChange={setCsvImportOpen}
+      />
+    </div>
+    </TooltipProvider>
+  );
+}

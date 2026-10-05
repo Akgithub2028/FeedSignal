@@ -1,0 +1,1502 @@
+/* ============================================================
+   Rereflect landing — schematic system
+   ------------------------------------------------------------
+   Precision-instrument layout: a visible 12-column grid, hairline
+   rules instead of cards, mono uppercase labels, 2px radii, and
+   one surgical accent. Palette stays coral/amber; only the
+   application changed — no gradient fills, no glow, no glass.
+   ============================================================ */
+
+.landing-dark {
+  /* ---- surfaces ---- */
+  --surface-default: #080708;
+  --surface-raise: #0d0c0d;
+  --surface-secondary: #121011;
+  --surface-accent: oklch(0.75 0.16 34 / 0.1);
+
+  /* ---- content ---- */
+  --content-raise: #f7f4ee;
+  --content-default: #d6d1c9;
+  --content-secondary: #9c968c;
+  --content-tertiary: #6b6660;
+  --content-quaternary: #474341;
+  --content-accent: oklch(0.75 0.16 34);
+  --content-amber: oklch(0.84 0.12 58);
+  --content-red: oklch(0.66 0.19 24);
+
+  /* ---- strokes ---- */
+  --stroke-default: rgb(255 255 255 / 0.13);
+  --stroke-secondary: rgb(255 255 255 / 0.075);
+  --stroke-tertiary: rgb(255 255 255 / 0.045);
+  --stroke-accent: oklch(0.75 0.16 34 / 0.42);
+
+  /* ---- legacy aliases (kept so stray utilities still resolve) ---- */
+  --lp-bg: var(--surface-default);
+  --lp-fg: var(--content-raise);
+  --lp-muted: var(--content-secondary);
+  --lp-coral: var(--content-accent);
+  --lp-amber: var(--content-amber);
+  --lp-red: var(--content-red);
+  --lp-line: var(--stroke-secondary);
+
+  /* ---- grid ---- */
+  --gutter-width: 1.25rem;
+  --container-gap: 1rem;
+  --radius-sharp: 0.125rem;
+
+  /* ---- easing ---- */
+  --ease-out-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
+
+  color-scheme: dark;
+  background: var(--surface-default);
+  color: var(--content-default);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+  font-synthesis-weight: none;
+  min-height: 100vh;
+  overflow-x: clip;
+}
+
+@media (min-width: 640px) {
+  .landing-dark {
+    --gutter-width: 2rem;
+    --container-gap: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-dark {
+    --gutter-width: 2.5rem;
+  }
+}
+
+.landing-dark a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.landing-dark ::selection {
+  background: var(--content-accent);
+  color: #170804;
+}
+
+/* Brand mark renders light on the dark landing */
+.landing-dark .fill-foreground {
+  fill: var(--content-raise);
+}
+
+/* ============================================================
+   1. Type scale
+   ============================================================ */
+
+.lp-mono-10,
+.lp-mono-sm {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-mono-10 {
+  font-size: 0.625rem;
+  line-height: 0.875rem;
+}
+.lp-mono-sm {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* Mono that keeps its case — for values, code, numerals */
+.lp-mono-value {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+/* Display sizes — light weights only. The restraint is the point. */
+.lp-display-1 {
+  font-size: clamp(2.5rem, 6.4vw, 5.25rem);
+  line-height: 1.02;
+  letter-spacing: -0.028em;
+  font-weight: 400;
+  text-wrap: balance;
+}
+
+.lp-display-2 {
+  font-size: clamp(1.9rem, 3.9vw, 3.1rem);
+  line-height: 1.06;
+  letter-spacing: -0.022em;
+  font-weight: 400;
+  text-wrap: balance;
+}
+
+.lp-display-3 {
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+  line-height: 1.15;
+  letter-spacing: -0.016em;
+  font-weight: 400;
+  text-wrap: balance;
+}
+
+.lp-lede {
+  font-size: clamp(1rem, 1.25vw, 1.125rem);
+  line-height: 1.6;
+  letter-spacing: 0.006em;
+  color: var(--content-secondary);
+  max-width: 58ch;
+}
+
+.lp-body {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--content-secondary);
+  max-width: 52ch;
+}
+
+.text-raise {
+  color: var(--content-raise);
+}
+.text-accent {
+  color: var(--content-accent);
+}
+
+/* ============================================================
+   2. Layout primitives
+   ============================================================ */
+
+.lp-band {
+  border-bottom: 1px solid var(--stroke-secondary);
+}
+
+.lp-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--container-gap);
+}
+
+/* Ruled cell row — cells divided by hairlines, not gaps */
+.lp-cells {
+  display: grid;
+  border-top: 1px solid var(--stroke-secondary);
+}
+
+.lp-cell {
+  padding: clamp(1.1rem, 2vw, 1.75rem) var(--gutter-width);
+  border-bottom: 1px solid var(--stroke-secondary);
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .lp-cell {
+    border-bottom: 0;
+    border-right: 1px solid var(--stroke-secondary);
+  }
+  .lp-cell:last-child {
+    border-right: 0;
+  }
+}
+
+.lp-cell:last-child {
+  border-bottom: 0;
+}
+
+/* Section head — mono figure label above a light display heading */
+.lp-section-head {
+  padding: clamp(3rem, 6vw, 5.5rem) var(--gutter-width) clamp(1.75rem, 3vw, 2.75rem);
+}
+
+.lp-fig {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--content-tertiary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lp-fig::before {
+  content: '';
+  width: 1.25rem;
+  height: 1px;
+  background: var(--stroke-default);
+  flex-shrink: 0;
+}
+
+.lp-fig--accent {
+  color: var(--content-accent);
+}
+
+.lp-fig--accent::before {
+  background: var(--stroke-accent);
+}
+
+/* Bare label with no leading rule */
+.lp-label {
+  color: var(--content-tertiary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   3. Controls
+   ============================================================ */
+
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 2.5rem;
+  padding-inline: 1rem;
+  border-radius: var(--radius-sharp);
+  border: 1px solid transparent;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.24s var(--ease-out-quart),
+    border-color 0.24s var(--ease-out-quart),
+    color 0.24s var(--ease-out-quart);
+}
+
+.lp-btn-primary {
+  background: var(--content-accent);
+  border-color: var(--content-accent);
+  color: #170804;
+}
+
+.lp-btn-primary:hover {
+  background: color-mix(in oklch, var(--content-accent) 82%, white);
+  border-color: color-mix(in oklch, var(--content-accent) 82%, white);
+}
+
+.lp-btn-ghost {
+  border-color: var(--stroke-default);
+  color: var(--content-default);
+  background: transparent;
+}
+
+.lp-btn-ghost:hover {
+  border-color: var(--content-raise);
+  color: var(--content-raise);
+  background: rgb(255 255 255 / 0.03);
+}
+
+/* Underline link with an animated rule */
+.lp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--content-accent);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lp-link svg {
+  transition: transform 0.3s var(--ease-out-quart);
+}
+
+.lp-link:hover svg {
+  transform: translateX(3px);
+}
+
+.lp-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--content-raise);
+}
+
+/* ============================================================
+   4. Nav
+   ============================================================ */
+
+.lp-nav {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  z-index: 50;
+  height: 3.5rem;
+  border-bottom: 1px solid var(--stroke-secondary);
+  background: color-mix(in srgb, var(--surface-default) 88%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.lp-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding-inline: var(--gutter-width);
+  max-width: 90rem;
+  margin-inline: auto;
+}
+
+.lp-nav-links {
+  display: none;
+  align-items: stretch;
+  height: 100%;
+}
+
+@media (min-width: 768px) {
+  .lp-nav-links {
+    display: flex;
+  }
+}
+
+.lp-nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: 1.1rem;
+  border-right: 1px solid var(--stroke-secondary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--content-secondary);
+  transition: color 0.2s var(--ease-out-quart);
+}
+
+.lp-nav-links > .lp-nav-link:first-child {
+  border-left: 1px solid var(--stroke-secondary);
+}
+
+.lp-nav-link:hover {
+  color: var(--content-raise);
+}
+
+/* ============================================================
+   5. Hero
+   ============================================================ */
+
+.lp-hero {
+  position: relative;
+  padding-top: 3.5rem;
+  border-bottom: 1px solid var(--stroke-secondary);
+  overflow: hidden;
+}
+
+/* Faint blueprint ruling behind the hero — structure, not decoration */
+.lp-hero-mesh {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--stroke-tertiary) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--stroke-tertiary) 1px, transparent 1px);
+  background-size: 5.5rem 5.5rem;
+  mask-image: radial-gradient(120% 90% at 50% 0%, black 20%, transparent 78%);
+  -webkit-mask-image: radial-gradient(120% 90% at 50% 0%, black 20%, transparent 78%);
+}
+
+.lp-hero-body {
+  position: relative;
+  padding: clamp(3.5rem, 8vw, 7rem) var(--gutter-width) clamp(2.5rem, 5vw, 4rem);
+}
+
+.lp-hero-title {
+  margin-top: 1.75rem;
+  max-width: 17ch;
+  color: var(--content-raise);
+}
+
+.lp-hero-title .lp-accent {
+  color: var(--content-accent);
+}
+
+.lp-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2.25rem;
+}
+
+/* ---- spec strip: four ruled readouts ---- */
+
+.lp-spec {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--stroke-secondary);
+}
+
+@media (min-width: 900px) {
+  .lp-spec {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.lp-spec-cell {
+  padding: 1.25rem var(--gutter-width);
+  border-right: 1px solid var(--stroke-secondary);
+  border-bottom: 1px solid var(--stroke-secondary);
+}
+
+@media (min-width: 900px) {
+  .lp-spec-cell {
+    border-bottom: 0;
+  }
+  .lp-spec-cell:last-child {
+    border-right: 0;
+  }
+}
+
+.lp-spec-cell:nth-child(2n) {
+  border-right: 0;
+}
+
+@media (min-width: 900px) {
+  .lp-spec-cell:nth-child(2n) {
+    border-right: 1px solid var(--stroke-secondary);
+  }
+}
+
+.lp-spec-value {
+  display: block;
+  margin-top: 0.6rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: clamp(1.35rem, 2.4vw, 1.9rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--content-raise);
+}
+
+.lp-spec-note {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--content-tertiary);
+}
+
+/* ============================================================
+   6. Panels — product UI drawn as real UI
+   ============================================================ */
+
+.lp-panel {
+  border: 1px solid var(--stroke-secondary);
+  border-radius: var(--radius-sharp);
+  background: var(--surface-raise);
+  overflow: hidden;
+}
+
+.lp-panel-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: 2.25rem;
+  padding-inline: 0.85rem;
+  border-bottom: 1px solid var(--stroke-secondary);
+  background: var(--surface-secondary);
+  color: var(--content-tertiary);
+}
+
+.lp-panel-bar .lp-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--content-accent);
+  flex-shrink: 0;
+}
+
+.lp-panel-body {
+  padding: 1.1rem 1.1rem 1.25rem;
+}
+
+/* Key/value readout rows */
+.lp-kv {
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) 1fr;
+  gap: 0.15rem 1rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  line-height: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-kv dt {
+  color: var(--content-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lp-kv dd {
+  margin: 0;
+  color: var(--content-default);
+}
+
+.lp-kv dd.is-accent {
+  color: var(--content-accent);
+}
+.lp-kv dd.is-amber {
+  color: var(--content-amber);
+}
+.lp-kv dd.is-red {
+  color: var(--content-red);
+}
+
+/* Quoted feedback inside a panel */
+.lp-quote {
+  border-left: 1px solid var(--stroke-accent);
+  padding-left: 0.9rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--content-default);
+}
+
+/* Status badge — square, hairline, no fill */
+.lp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 1.35rem;
+  padding-inline: 0.45rem;
+  border: 1px solid var(--stroke-default);
+  border-radius: var(--radius-sharp);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--content-secondary);
+  white-space: nowrap;
+}
+
+.lp-badge .lp-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.lp-badge--accent {
+  border-color: var(--stroke-accent);
+  color: var(--content-accent);
+}
+.lp-badge--amber {
+  border-color: oklch(0.84 0.12 58 / 0.4);
+  color: var(--content-amber);
+}
+.lp-badge--red {
+  border-color: oklch(0.66 0.19 24 / 0.45);
+  color: var(--content-red);
+}
+
+/* ============================================================
+   7. Console table — the dashboard showcase
+   ============================================================ */
+
+.lp-table-wrap {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.lp-table {
+  width: 100%;
+  min-width: 46rem;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-table th {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--stroke-secondary);
+  background: var(--surface-secondary);
+  text-align: left;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.625rem;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--content-tertiary);
+  white-space: nowrap;
+}
+
+.lp-table td {
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--stroke-tertiary);
+  font-size: 0.8125rem;
+  color: var(--content-secondary);
+  white-space: nowrap;
+}
+
+.lp-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.lp-table tbody tr {
+  transition: background-color 0.18s var(--ease-out-quart);
+}
+
+.lp-table tbody tr:hover {
+  background: rgb(255 255 255 / 0.02);
+}
+
+.lp-table .lp-td-name {
+  color: var(--content-raise);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+}
+
+.lp-table .lp-td-num {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+/* ============================================================
+   8. Meters & bars — flat fills, no glow
+   ============================================================ */
+
+.lp-meter {
+  position: relative;
+  height: 4px;
+  width: 100%;
+  background: var(--stroke-tertiary);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.lp-meter-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--content-accent);
+  transform-origin: left;
+}
+
+.lp-meter-fill--amber {
+  background: var(--content-amber);
+}
+.lp-meter-fill--red {
+  background: var(--content-red);
+}
+
+/* Vertical column chart */
+.lp-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 1px;
+  height: 11rem;
+  background: var(--stroke-tertiary);
+  border: 1px solid var(--stroke-tertiary);
+}
+
+.lp-column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+  padding: 0.6rem;
+  background: var(--surface-raise);
+}
+
+.lp-column-bar {
+  width: 100%;
+  background: var(--content-accent);
+  transform-origin: bottom;
+}
+
+.lp-column-bar--amber {
+  background: var(--content-amber);
+}
+.lp-column-bar--red {
+  background: var(--content-red);
+}
+
+.lp-column-head {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  right: 0.6rem;
+}
+
+.lp-column-value {
+  display: block;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--content-raise);
+}
+
+.lp-column-label {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--content-tertiary);
+}
+
+/* Ranked list rows */
+.lp-rank-row {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) minmax(4rem, 9rem) 3.25rem;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--stroke-tertiary);
+  font-size: 0.8125rem;
+}
+
+.lp-rank-row:last-child {
+  border-bottom: 0;
+}
+
+.lp-rank-idx,
+.lp-rank-num {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--content-tertiary);
+}
+
+.lp-rank-num {
+  text-align: right;
+  color: var(--content-default);
+}
+
+.lp-rank-name {
+  color: var(--content-default);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Term list — pain points as ruled rows, not chips */
+.lp-terms {
+  display: grid;
+  gap: 0;
+}
+
+.lp-term {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--stroke-tertiary);
+  font-size: 0.8125rem;
+  color: var(--content-default);
+}
+
+.lp-term:last-child {
+  border-bottom: 0;
+}
+
+/* Term with a meter underneath: stack, and stretch the label row full width */
+.lp-term--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.lp-term-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.lp-term-count {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--content-tertiary);
+}
+
+/* ============================================================
+   9. Feature rows
+   ============================================================ */
+
+.lp-feature {
+  display: grid;
+  gap: clamp(1.75rem, 4vw, 3.5rem);
+  align-items: center;
+  padding: clamp(2.75rem, 5.5vw, 4.5rem) var(--gutter-width);
+  border-bottom: 1px solid var(--stroke-secondary);
+}
+
+@media (min-width: 900px) {
+  .lp-feature {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+  .lp-feature--flip > *:first-child {
+    order: 2;
+  }
+}
+
+.lp-feature-title {
+  margin: 1.1rem 0 0.85rem;
+  color: var(--content-raise);
+}
+
+/* ============================================================
+   10. Comparison
+   ============================================================ */
+
+.lp-compare {
+  display: grid;
+  border-top: 1px solid var(--stroke-secondary);
+}
+
+@media (min-width: 800px) {
+  .lp-compare {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.lp-compare-col {
+  padding: clamp(1.75rem, 3.5vw, 2.75rem) var(--gutter-width);
+  border-bottom: 1px solid var(--stroke-secondary);
+}
+
+@media (min-width: 800px) {
+  .lp-compare-col {
+    border-bottom: 0;
+  }
+  .lp-compare-col:first-child {
+    border-right: 1px solid var(--stroke-secondary);
+  }
+}
+
+.lp-compare-title {
+  margin: 0.9rem 0 1.25rem;
+  color: var(--content-raise);
+}
+
+.lp-compare-list {
+  display: grid;
+  gap: 0;
+}
+
+.lp-compare-item {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: 0.5rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--stroke-tertiary);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--content-secondary);
+}
+
+.lp-compare-item::before {
+  content: '—';
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--content-quaternary);
+}
+
+.lp-compare-col--ours .lp-compare-item::before {
+  content: '+';
+  color: var(--content-accent);
+}
+
+/* ============================================================
+   11. Marquee
+   ============================================================ */
+
+.lp-marquee {
+  display: flex;
+  overflow: hidden;
+  border-top: 1px solid var(--stroke-secondary);
+  border-bottom: 1px solid var(--stroke-secondary);
+  mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+}
+
+.lp-marquee-track {
+  display: flex;
+  flex-shrink: 0;
+  animation: lp-marquee 42s linear infinite;
+}
+
+.lp-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  height: 3.25rem;
+  padding-inline: 2rem;
+  border-right: 1px solid var(--stroke-secondary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--content-tertiary);
+  white-space: nowrap;
+}
+
+@keyframes lp-marquee {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-marquee-track {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   12. FAQ
+   ============================================================ */
+
+.lp-faq-list {
+  border-top: 1px solid var(--stroke-secondary);
+}
+
+.lp-faq-item {
+  border-bottom: 1px solid var(--stroke-secondary);
+}
+
+.lp-faq-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  width: 100%;
+  padding: 1.15rem var(--gutter-width);
+  text-align: left;
+  font-size: 0.9375rem;
+  letter-spacing: 0.005em;
+  color: var(--content-default);
+  cursor: pointer;
+  transition: color 0.2s var(--ease-out-quart);
+}
+
+.lp-faq-q:hover {
+  color: var(--content-raise);
+}
+
+.lp-faq-item--open .lp-faq-q {
+  color: var(--content-raise);
+}
+
+.lp-faq-a {
+  padding: 0 var(--gutter-width) 1.35rem;
+  max-width: 70ch;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--content-secondary);
+}
+
+.lp-faq-index {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--content-quaternary);
+  margin-right: 1rem;
+}
+
+/* ============================================================
+   13. CTA
+   ============================================================ */
+
+.lp-cta {
+  position: relative;
+  padding: clamp(3.5rem, 8vw, 6.5rem) var(--gutter-width);
+  border-bottom: 1px solid var(--stroke-secondary);
+  overflow: hidden;
+}
+
+.lp-cta-mesh {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--stroke-tertiary) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--stroke-tertiary) 1px, transparent 1px);
+  background-size: 5.5rem 5.5rem;
+  mask-image: radial-gradient(90% 120% at 50% 100%, black 10%, transparent 72%);
+  -webkit-mask-image: radial-gradient(90% 120% at 50% 100%, black 10%, transparent 72%);
+}
+
+.lp-cta-title {
+  margin-top: 1.5rem;
+  max-width: 20ch;
+  color: var(--content-raise);
+}
+
+/* ============================================================
+   14. Footer
+   ============================================================ */
+
+.lp-footer {
+  border-top: 1px solid var(--stroke-secondary);
+}
+
+.lp-footer-grid {
+  display: grid;
+  gap: 2.5rem;
+  padding: clamp(2.5rem, 5vw, 4rem) var(--gutter-width);
+}
+
+@media (min-width: 800px) {
+  .lp-footer-grid {
+    grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+    gap: var(--container-gap);
+  }
+}
+
+.lp-footer-tag {
+  margin-top: 1rem;
+  max-width: 32ch;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--content-tertiary);
+}
+
+.lp-footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.lp-footer-col h4 {
+  margin-bottom: 0.35rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.625rem;
+  font-weight: 400;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--content-quaternary);
+}
+
+.lp-footer-col a {
+  font-size: 0.8125rem;
+  color: var(--content-secondary);
+  transition: color 0.2s var(--ease-out-quart);
+  width: fit-content;
+}
+
+.lp-footer-col a:hover {
+  color: var(--content-raise);
+}
+
+.lp-footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem var(--gutter-width);
+  border-top: 1px solid var(--stroke-secondary);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--content-quaternary);
+}
+
+/* ============================================================
+   15. Subpages
+   ============================================================ */
+
+.lp-page {
+  padding-top: 3.5rem;
+}
+
+.lp-page-hero {
+  padding: clamp(3rem, 7vw, 5.5rem) var(--gutter-width) clamp(2rem, 4vw, 3rem);
+  border-bottom: 1px solid var(--stroke-secondary);
+}
+
+.lp-page-hero-title {
+  margin-top: 1.5rem;
+  max-width: 18ch;
+  color: var(--content-raise);
+}
+
+.lp-page-hero-sub {
+  margin-top: 1.25rem;
+}
+
+.lp-section-block {
+  border-bottom: 1px solid var(--stroke-secondary);
+}
+
+/* Tile grid — ruled cells sharing borders, no rounded cards */
+.lp-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  border-top: 1px solid var(--stroke-secondary);
+}
+
+@media (min-width: 640px) {
+  .lp-tile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1000px) {
+  .lp-tile-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.lp-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: clamp(1.4rem, 2.4vw, 2rem) var(--gutter-width);
+  border-bottom: 1px solid var(--stroke-secondary);
+  border-right: 1px solid var(--stroke-secondary);
+  transition: background-color 0.24s var(--ease-out-quart);
+}
+
+.lp-tile:hover {
+  background: rgb(255 255 255 / 0.022);
+}
+
+@media (min-width: 640px) {
+  .lp-tile:nth-child(2n) {
+    border-right: 0;
+  }
+}
+
+@media (min-width: 1000px) {
+  .lp-tile:nth-child(2n) {
+    border-right: 1px solid var(--stroke-secondary);
+  }
+  .lp-tile:nth-child(3n) {
+    border-right: 0;
+  }
+}
+
+.lp-tile-icon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--stroke-secondary);
+  border-radius: var(--radius-sharp);
+  background: var(--surface-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.lp-tile-name {
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: -0.008em;
+  color: var(--content-raise);
+}
+
+.lp-tile-tagline {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--content-tertiary);
+  flex: 1;
+}
+
+.lp-tile-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.625rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--content-tertiary);
+  transition: color 0.2s var(--ease-out-quart);
+}
+
+.lp-tile:hover .lp-tile-link {
+  color: var(--content-accent);
+}
+
+.lp-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 1.3rem;
+  padding-inline: 0.4rem;
+  border: 1px solid var(--stroke-secondary);
+  border-radius: var(--radius-sharp);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.5625rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--content-tertiary);
+}
+
+.lp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.625rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--content-quaternary);
+}
+
+.lp-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--content-tertiary);
+  transition: color 0.2s var(--ease-out-quart);
+}
+
+.lp-back-link:hover {
+  color: var(--content-raise);
+}
+
+/* ---- long-form prose ---- */
+
+.lp-prose {
+  max-width: 46rem;
+  padding: clamp(2.5rem, 5vw, 3.5rem) var(--gutter-width) clamp(3rem, 6vw, 4.5rem);
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: var(--content-secondary);
+}
+
+.lp-prose h2 {
+  margin: 2.5rem 0 0.9rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--stroke-secondary);
+  font-size: 1.25rem;
+  font-weight: 400;
+  letter-spacing: -0.014em;
+  color: var(--content-raise);
+}
+
+.lp-prose h2:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.lp-prose h3 {
+  margin: 1.75rem 0 0.6rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--content-raise);
+}
+
+.lp-prose p {
+  margin-bottom: 1rem;
+}
+
+.lp-prose ul,
+.lp-prose ol {
+  margin: 0 0 1.25rem;
+  padding-left: 0;
+  list-style: none;
+}
+
+.lp-prose li {
+  position: relative;
+  padding-left: 1.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.lp-prose li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--content-quaternary);
+}
+
+.lp-prose a {
+  color: var(--content-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--stroke-accent);
+}
+
+.lp-prose strong {
+  color: var(--content-default);
+  font-weight: 500;
+}
+
+.lp-prose code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.85em;
+  padding: 0.1rem 0.3rem;
+  border: 1px solid var(--stroke-secondary);
+  border-radius: var(--radius-sharp);
+  background: var(--surface-secondary);
+  color: var(--content-default);
+}
+
+.lp-prose pre {
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--stroke-secondary);
+  border-radius: var(--radius-sharp);
+  background: var(--surface-raise);
+}
+
+.lp-prose pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.lp-prose blockquote {
+  margin: 0 0 1.25rem;
+  padding-left: 1rem;
+  border-left: 1px solid var(--stroke-accent);
+  color: var(--content-default);
+}
+
+/* ============================================================
+   16. Motion defaults
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-dark *,
+  .landing-dark *::before,
+  .landing-dark *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- setup steps (integration pages) ---- */
+
+.lp-setup-step {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  gap: 1rem;
+  align-items: start;
+  padding: 1.1rem var(--gutter-width);
+  border-bottom: 1px solid var(--stroke-secondary);
+}
+
+.lp-setup-num {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--content-accent);
+  padding-top: 0.15rem;
+}
+
+/* ---- deploy steps (CTA) ---- */
+
+.lp-steps {
+  display: grid;
+  max-width: 56rem;
+  margin-top: 3rem;
+  border-top: 1px solid var(--stroke-secondary);
+}
+
+@media (min-width: 768px) {
+  .lp-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.lp-steps > * {
+  padding: 1.1rem 1.25rem 1.1rem 0;
+  border-bottom: 1px solid var(--stroke-secondary);
+}
+
+@media (min-width: 768px) {
+  .lp-steps > * {
+    border-bottom: 0;
+    border-right: 1px solid var(--stroke-secondary);
+    padding-inline: 1.25rem;
+  }
+  .lp-steps > *:first-child {
+    padding-left: 0;
+  }
+  .lp-steps > *:last-child {
+    border-right: 0;
+  }
+}
+
+/* ---- blog post header ---- */
+
+.lp-post-header {
+  padding: clamp(3rem, 7vw, 5rem) var(--gutter-width) clamp(1.5rem, 3vw, 2.25rem);
+  border-bottom: 1px solid var(--stroke-secondary);
+  max-width: 52rem;
+}
+
+.lp-post-header .lp-page-hero-title {
+  max-width: 24ch;
+  font-size: clamp(2rem, 4.2vw, 3.4rem);
+}
+
+.lp-post-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem;
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--stroke-tertiary);
+}
+
+.lp-post-meta-row .lp-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* ---- prose tables ---- */
+
+.lp-prose table {
+  width: 100%;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--stroke-secondary);
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.lp-prose th {
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--stroke-secondary);
+  background: var(--surface-secondary);
+  text-align: left;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.625rem;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--content-tertiary);
+}
+
+.lp-prose td {
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--stroke-tertiary);
+  vertical-align: top;
+}
+
+.lp-prose tr:last-child td {
+  border-bottom: 0;
+}

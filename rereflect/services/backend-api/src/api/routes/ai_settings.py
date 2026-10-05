@@ -1,0 +1,1196 @@
+"""
+AI settings API endpoints.
+Manage AI analysis configuration, BYOK keys, usage, and budget for the organization.
+"""
+
+import os
+from datetime import datetime, date, timedelta
+from typing import Optional, Literal
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from pydantic import BaseModel, Field
+
+from src.database.session import get_db
+from src.models.organization import Organization
+from src.models.user import User
+from src.models.org_ai_config import OrgAIConfig
+from src.models.org_api_key import OrgApiKey
+from src.models.llm_usage_log import LLMUsageLog
+from src.models.llm_model_price import LLMModelPrice
+from src.models.query_template import QueryTemplate
+from src.models.query_template_mapping import QueryTemplateMapping
+from src.api.dependencies import (
+    get_current_user,
+    get_current_org,
+    require_admin_or_owner,
+    require_owner,
+    require_feature,
+)
+from src.config.plans import plan_includes, PLAN_HIERARCHY
+from src.services.sentiment_resolver import VALID_SENTIMENT_PROVIDERS
+
+router = APIRouter(prefix="/api/v1/settings/ai", tags=["ai-settings"])
+
+VALID_PROVIDERS = {"openai", "anthropic", "google", "ollama", "openai_compatible", "local"}
+
+# Local/offline providers: keyless, require a base_url instead of an API key.
+# "local" (in-process sentence-transformers embeddings, Aspect 2 / Task 2 of
+# local-embedding-quality) is deliberately NOT included here — it is keyless
+# but needs no base_url at all; it is gated instead by
+# _embedding_local_deps_available() below.
+LOCAL_PROVIDERS = {"ollama", "openai_compatible"}
+
+# Per-org corrections classifier mode (M5.2). Defined locally — the resolver
+# in aspect D (src/services/classifier_resolver.py) is NOT a dependency of
+# this settings API; it validates a narrower set ({'shadow', 'auto'}) since
+# 'off' resolves to None there. This is the single validation source for the
+# PATCH endpoint.
+VALID_CLASSIFIER_MODES = {"off", "shadow", "auto"}
+
+# Per-org usage-decline churn-label suggestion mode (usage-decline-churn-labels,
+# M2). 'off' | 'shadow' | 'active' — deliberately NOT VALID_CLASSIFIER_MODES:
+# this column gates writing rows into the churn-suggestion review queue (mirrors
+# AutomationRule.mode), not an auto-applying classifier, so 'active' replaces
+# 'auto' and 'auto' must be rejected. See plan_20260723.md section 2.
+VALID_USAGE_CHURN_LABEL_MODES = {"off", "shadow", "active"}
+
+USAGE_CHURN_SUSTAIN_DAYS_MIN = 1
+USAGE_CHURN_SUSTAIN_DAYS_MAX = 90
+USAGE_CHURN_SUSTAIN_DAYS_DEFAULT = 7
+
+
+def _is_valid_url(value: str) -> bool:
+    """Return True if value is a well-formed http/https URL with a netloc."""
+    from urllib.parse import urlparse
+    parsed = urlparse(value)
+    return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+
+
+# ── Pydantic Schemas ──────────────────────────────────────────────────────────
+
+class ModelConfig(BaseModel):
+    categorization: str
+    analysis: str
+    insights: str
+
+
+class AISettingsResponse(BaseModel):
+    ai_analysis_enabled: bool
+    default_provider: str
+    base_url: Optional[str] = None
+    model_embeddings: Optional[str] = None
+    sentiment_provider: str = "vader"
+    classifier_mode: str = "off"
+    category_classifier_mode: str = "off"
+    urgency_classifier_mode: str = "off"
+    churn_classifier_mode: str = "off"
+    usage_churn_labels_mode: str = "off"
+    usage_churn_label_config: Optional[dict] = None
+    models: ModelConfig
+
+
+class AISettingsUpdate(BaseModel):
+    ai_analysis_enabled: Optional[bool] = None
+    default_provider: Optional[str] = None
+    base_url: Optional[str] = None
+    model_embeddings: Optional[str] = Field(None, max_length=100)
+    sentiment_provider: Optional[str] = None
+    classifier_mode: Optional[str] = None
+    category_classifier_mode: Optional[str] = None
+    urgency_classifier_mode: Optional[str] = None
+    churn_classifier_mode: Optional[str] = None
+    usage_churn_labels_mode: Optional[str] = None
+    usage_churn_label_config: Optional[dict] = None
+    model_categorization: Optional[str] = None
+    model_analysis: Optional[str] = None
+    model_insights: Optional[str] = None
+
+
+class APIKeyResponse(BaseModel):
+    provider: str
+    key_hint: Optional[str]
+    is_valid: bool
+    created_at: datetime
+
+
+class AddAPIKeyRequest(BaseModel):
+    provider: Literal["openai", "anthropic", "google"]
+    api_key: str = Field(..., min_length=1)
+
+
+class ValidateKeyRequest(BaseModel):
+    provider: Literal["openai", "anthropic", "google"]
+    api_key: str = Field(..., min_length=1)
+
+
+class ValidateKeyResponse(BaseModel):
+    valid: bool
+    error_message: Optional[str] = None
+
+
+class TestModelRequest(BaseModel):
+    provider: Literal["openai", "anthropic", "google"]
+    model: str
+
+
+class TestModelResponse(BaseModel):
+    provider: str
+    model: str
+    result: dict
+    tokens: int
+    cost_cents: float
+    latency_ms: int
+
+
+class ModelInfo(BaseModel):
+    id: int
+    provider: str
+    model_id: str
+    display_name: str
+    tier: str
+    min_plan: str
+    supports_json_mode: bool
+    input_price_per_1m_tokens: float
+    output_price_per_1m_tokens: float
+
+
+class ProviderUsage(BaseModel):
+    provider: str
+    tokens: int
+    requests: int
+    cost_cents: float
+
+
+class UsageSummaryResponse(BaseModel):
+    month: str
+    total_tokens: int
+    total_requests: int
+    estimated_cost_cents: float
+    by_provider: list[ProviderUsage]
+    fallback_count: int
+
+
+class DayUsage(BaseModel):
+    date: str
+    tokens: int
+    requests: int
+    cost_cents: float
+
+
+class UsageDailyResponse(BaseModel):
+    days: list[DayUsage]
+
+
+class BudgetResponse(BaseModel):
+    monthly_limit_cents: Optional[int]
+    used_cents: int
+    resets_at: Optional[datetime]
+    is_exceeded: bool
+
+
+class EmbeddingStatusResponse(BaseModel):
+    provider: str
+    model: Optional[str] = None
+    dimension: Optional[int] = None
+    configured: bool
+    system_templates_embedded: int
+
+
+class SentimentStatusResponse(BaseModel):
+    provider: str
+    available: bool
+    model: Optional[str] = None
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _get_or_create_config(org_id: int, db: Session) -> OrgAIConfig:
+    """Get or create OrgAIConfig for an organization."""
+    config = db.query(OrgAIConfig).filter_by(organization_id=org_id).first()
+    if not config:
+        config = OrgAIConfig(
+            organization_id=org_id,
+            default_provider="openai",
+            model_categorization="gpt-4o-mini",
+            model_analysis="gpt-4o-mini",
+            model_insights="gpt-4o-mini",
+        )
+        db.add(config)
+        db.commit()
+        db.refresh(config)
+    return config
+
+
+def _build_settings_response(org: Organization, config: Optional[OrgAIConfig]) -> AISettingsResponse:
+    """Build the AI settings response object.
+
+    Budget machinery has been removed (A6): there is no owner-level spend cap
+    in the self-hosted product. The DB columns remain as dead columns; we
+    simply stop reading them here.
+    """
+    if config:
+        default_provider = config.default_provider
+        model_config = ModelConfig(
+            categorization=config.model_categorization,
+            analysis=config.model_analysis,
+            insights=config.model_insights,
+        )
+    else:
+        default_provider = "openai"
+        model_config = ModelConfig(
+            categorization="gpt-4o-mini",
+            analysis="gpt-4o-mini",
+            insights="gpt-4o-mini",
+        )
+
+    base_url = config.base_url if config and hasattr(config, "base_url") else None
+    model_embeddings = config.model_embeddings if config and hasattr(config, "model_embeddings") else None
+    sentiment_provider = (
+        config.sentiment_provider
+        if config and getattr(config, "sentiment_provider", None)
+        else "vader"
+    )
+    classifier_mode = getattr(config, "classifier_mode", None) or "off" if config else "off"
+    category_classifier_mode = getattr(config, "category_classifier_mode", None) or "off" if config else "off"
+    urgency_classifier_mode = getattr(config, "urgency_classifier_mode", None) or "off" if config else "off"
+    churn_classifier_mode = getattr(config, "churn_classifier_mode", None) or "off" if config else "off"
+    usage_churn_labels_mode = getattr(config, "usage_churn_labels_mode", None) or "off" if config else "off"
+    usage_churn_label_config = getattr(config, "usage_churn_label_config", None) if config else None
+
+    return AISettingsResponse(
+        ai_analysis_enabled=org.ai_analysis_enabled,
+        default_provider=default_provider,
+        base_url=base_url,
+        model_embeddings=model_embeddings,
+        sentiment_provider=sentiment_provider,
+        classifier_mode=classifier_mode,
+        category_classifier_mode=category_classifier_mode,
+        urgency_classifier_mode=urgency_classifier_mode,
+        churn_classifier_mode=churn_classifier_mode,
+        usage_churn_labels_mode=usage_churn_labels_mode,
+        usage_churn_label_config=usage_churn_label_config,
+        models=model_config,
+    )
+
+
+def validate_provider_key(provider: str, api_key: str) -> tuple[bool, Optional[str]]:
+    """
+    Validate an API key by making a minimal test call to the provider.
+    Returns (valid, error_message).
+    """
+    try:
+        if provider == "openai":
+            import openai
+            client = openai.OpenAI(api_key=api_key)
+            client.models.list()
+            return True, None
+        elif provider == "anthropic":
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+            client.models.list()
+            return True, None
+        elif provider == "google":
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            list(genai.list_models())
+            return True, None
+        return False, f"Unknown provider: {provider}"
+    except Exception as e:
+        return False, str(e)
+
+
+def run_model_test(
+    provider: str,
+    model: str,
+    api_key: str,
+) -> dict:
+    """
+    Run a canned sample feedback through a model for testing.
+    Returns result dict with provider, model, result, tokens, cost_cents, latency_ms.
+    """
+    import time
+    import json
+
+    sample_text = (
+        "I've been having terrible issues with your payment system. "
+        "It keeps crashing and I can't process any orders. This is urgent!"
+    )
+    prompt = (
+        "Analyze this customer feedback and return JSON with: "
+        "sentiment_label (positive/neutral/negative), is_urgent (bool), "
+        "pain_point_category (string or null), confidence (0-1).\n\n"
+        f"Feedback: \"{sample_text}\""
+    )
+
+    start = time.time()
+
+    try:
+        if provider == "openai":
+            import openai
+            client = openai.OpenAI(api_key=api_key)
+            resp = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=200,
+                response_format={"type": "json_object"},
+            )
+            content = resp.choices[0].message.content or "{}"
+            tokens = resp.usage.total_tokens if resp.usage else 0
+            prompt_tokens = resp.usage.prompt_tokens if resp.usage else 0
+            completion_tokens = resp.usage.completion_tokens if resp.usage else 0
+
+        elif provider == "anthropic":
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+            resp = client.messages.create(
+                model=model,
+                max_tokens=200,
+                messages=[{"role": "user", "content": prompt + "\n\nReturn ONLY valid JSON."}],
+            )
+            content = resp.content[0].text if resp.content else "{}"
+            prompt_tokens = resp.usage.input_tokens if resp.usage else 0
+            completion_tokens = resp.usage.output_tokens if resp.usage else 0
+            tokens = prompt_tokens + completion_tokens
+
+        elif provider == "google":
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            gen_model = genai.GenerativeModel(model)
+            resp = gen_model.generate_content(prompt)
+            content = resp.text or "{}"
+            tokens = 0
+            prompt_tokens = 0
+            completion_tokens = 0
+            if hasattr(resp, "usage_metadata") and resp.usage_metadata:
+                prompt_tokens = getattr(resp.usage_metadata, "prompt_token_count", 0) or 0
+                completion_tokens = getattr(resp.usage_metadata, "candidates_token_count", 0) or 0
+                tokens = prompt_tokens + completion_tokens
+
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Model test failed: {str(e)}")
+
+    latency_ms = int((time.time() - start) * 1000)
+
+    # Estimate cost from pricing table
+    from src.models.llm_model_price import LLMModelPrice
+    cost_cents = 0.0
+    # Simple estimate: (prompt_tokens * input_price + completion_tokens * output_price) / 1_000_000
+    # We don't have db here, so use a rough calculation
+    cost_cents = round((prompt_tokens * 0.15 + completion_tokens * 0.60) / 1_000_000 * 100, 4)
+
+    try:
+        result = json.loads(content)
+    except json.JSONDecodeError:
+        result = {"raw": content}
+
+    return {
+        "provider": provider,
+        "model": model,
+        "result": result,
+        "tokens": tokens,
+        "cost_cents": cost_cents,
+        "latency_ms": latency_ms,
+    }
+
+
+def _default_embedding_model(provider: str) -> Optional[str]:
+    """Best-effort default embedding model id for a provider when no override
+    is configured (mirrors EmbeddingProviderFactory's per-provider defaults).
+    openai_compatible has no default (caller must supply one); anthropic has
+    no embeddings API at all.
+    """
+    if provider == "openai":
+        from src.services.embeddings.providers.openai import OpenAIEmbeddingProvider
+        return OpenAIEmbeddingProvider.DEFAULT_MODEL
+    if provider == "google":
+        from src.services.embeddings.providers.google import GoogleEmbeddingProvider
+        return GoogleEmbeddingProvider.DEFAULT_MODEL
+    if provider == "ollama":
+        return "nomic-embed-text"
+    if provider == "local":
+        from src.services.embeddings.providers.local import LocalEmbeddingProvider
+        return LocalEmbeddingProvider.DEFAULT_MODEL
+    return None
+
+
+def _embedding_local_deps_available() -> bool:
+    """Cheap, safe check: are sentence-transformers/torch importable, without
+    importing them (find_spec has no import side effects). Mirrors
+    _sentiment_transformer_deps_available() below. Does NOT verify the model
+    actually loads — that's deliberately out of scope here.
+    """
+    import importlib.util
+    return (
+        importlib.util.find_spec("sentence_transformers") is not None
+        and importlib.util.find_spec("torch") is not None
+    )
+
+
+def _sentiment_transformer_deps_available() -> bool:
+    """Cheap, safe check: are torch/transformers importable, without importing
+    them (find_spec has no import side effects). Does NOT verify the model
+    actually loads — that's a much heavier check, deliberately out of scope
+    here (see per-org-resolution/spec.md Open Questions).
+    """
+    import importlib.util
+    return (
+        importlib.util.find_spec("torch") is not None
+        and importlib.util.find_spec("transformers") is not None
+    )
+
+
+_SENTIMENT_TRANSFORMER_MODEL_ID = "cardiffnlp/twitter-roberta-base-sentiment-latest"
+
+
+def _classifier_deps_available() -> bool:
+    """Cheap, safe check: is scikit-learn importable, without importing it
+    (find_spec has no import side effects). The per-org corrections
+    classifier only needs TF-IDF + logistic regression (scikit-learn) — no
+    torch/transformers requirement, unlike the sentiment transformer path.
+    """
+    import importlib.util
+    return importlib.util.find_spec("sklearn") is not None
+
+
+def _plan_level(plan: str) -> int:
+    """Return numeric plan level (higher = better)."""
+    try:
+        return PLAN_HIERARCHY.index(plan)
+    except ValueError:
+        return 0
+
+
+# ── GET /api/v1/settings/ai ───────────────────────────────────────────────────
+
+@router.get("", response_model=AISettingsResponse)
+def get_ai_settings(
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Get AI analysis settings for the organization."""
+    config = db.query(OrgAIConfig).filter_by(organization_id=current_org.id).first()
+    return _build_settings_response(current_org, config)
+
+
+# ── PATCH /api/v1/settings/ai ─────────────────────────────────────────────────
+
+@router.patch(
+    "",
+    response_model=AISettingsResponse,
+    dependencies=[Depends(require_admin_or_owner)],
+)
+def update_ai_settings(
+    data: AISettingsUpdate,
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Update AI analysis settings. Admin+ only."""
+    if data.ai_analysis_enabled is not None:
+        current_org.ai_analysis_enabled = data.ai_analysis_enabled
+
+    config = _get_or_create_config(current_org.id, db)
+
+    if data.default_provider is not None:
+        if data.default_provider not in VALID_PROVIDERS:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid provider. Must be one of: {', '.join(sorted(VALID_PROVIDERS))}",
+            )
+        config.default_provider = data.default_provider
+
+    # ── Local provider validation ─────────────────────────────────────────────
+    # Determine the effective provider (newly set or existing config).
+    effective_provider = (
+        data.default_provider
+        if data.default_provider is not None
+        else config.default_provider
+    )
+    if effective_provider in LOCAL_PROVIDERS:
+        # Determine the effective base_url (explicit field set vs. existing config).
+        if "base_url" in data.model_fields_set:
+            effective_base_url = data.base_url
+        else:
+            effective_base_url = config.base_url if hasattr(config, "base_url") else None
+
+        if not effective_base_url:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"base_url is required when provider is '{effective_provider}'. "
+                    "Provide the full inference server URL (e.g. http://localhost:11434/v1)."
+                ),
+            )
+        if not _is_valid_url(effective_base_url):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="base_url must be a valid http or https URL.",
+            )
+
+    # ── 'local' embedding provider deps validation ────────────────────────────
+    # 'local' is keyless and needs no base_url (excluded from LOCAL_PROVIDERS
+    # above), but it does need sentence-transformers + torch importable.
+    if effective_provider == "local" and not _embedding_local_deps_available():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "Embedding provider 'local' requires sentence-transformers and torch "
+                "to be installed. See docs/SELF_HOSTING.md for the local model setup."
+            ),
+        )
+
+    # Persist base_url if explicitly included in the request (even as null).
+    if "base_url" in data.model_fields_set and hasattr(config, "base_url"):
+        config.base_url = data.base_url
+
+    # Persist model_embeddings if explicitly included in the request (even as null).
+    if "model_embeddings" in data.model_fields_set and hasattr(config, "model_embeddings"):
+        config.model_embeddings = data.model_embeddings
+
+    # ── Sentiment provider validation ─────────────────────────────────────────
+    if "sentiment_provider" in data.model_fields_set:
+        if (
+            data.sentiment_provider is not None
+            and data.sentiment_provider not in VALID_SENTIMENT_PROVIDERS
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Invalid sentiment_provider. Must be one of: "
+                    f"{', '.join(sorted(VALID_SENTIMENT_PROVIDERS))}"
+                ),
+            )
+        if data.sentiment_provider == "transformer" and not _sentiment_transformer_deps_available():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "sentiment_provider 'transformer' requires torch and transformers "
+                    "to be installed. See docs/SELF_HOSTING.md for the local model setup."
+                ),
+            )
+        # Explicit null is allowed and resets to the 'vader' default via the
+        # column's own semantics (NULL -> resolver returns None -> caller uses vader).
+        if hasattr(config, "sentiment_provider"):
+            config.sentiment_provider = data.sentiment_provider
+
+    # ── Classifier mode validation ────────────────────────────────────────────
+    if "classifier_mode" in data.model_fields_set:
+        if (
+            data.classifier_mode is not None
+            and data.classifier_mode not in VALID_CLASSIFIER_MODES
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Invalid classifier_mode. Must be one of: "
+                    f"{', '.join(sorted(VALID_CLASSIFIER_MODES))}"
+                ),
+            )
+        if data.classifier_mode in ("shadow", "auto") and not _classifier_deps_available():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"classifier_mode '{data.classifier_mode}' requires scikit-learn "
+                    "to be installed. See docs/SELF_HOSTING.md for the local model setup."
+                ),
+            )
+        if hasattr(config, "classifier_mode"):
+            config.classifier_mode = data.classifier_mode
+
+    # ── Category classifier mode validation ───────────────────────────────────
+    # Reuses VALID_CLASSIFIER_MODES + _classifier_deps_available (same three
+    # values, same sklearn dependency as the sentiment classifier_mode block
+    # above) — independent column, independent persistence, no shared state.
+    if "category_classifier_mode" in data.model_fields_set:
+        if (
+            data.category_classifier_mode is not None
+            and data.category_classifier_mode not in VALID_CLASSIFIER_MODES
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Invalid category_classifier_mode. Must be one of: "
+                    f"{', '.join(sorted(VALID_CLASSIFIER_MODES))}"
+                ),
+            )
+        if data.category_classifier_mode in ("shadow", "auto") and not _classifier_deps_available():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"category_classifier_mode '{data.category_classifier_mode}' requires "
+                    "scikit-learn to be installed. See docs/SELF_HOSTING.md for the local model setup."
+                ),
+            )
+        if hasattr(config, "category_classifier_mode"):
+            config.category_classifier_mode = data.category_classifier_mode
+
+    # ── Urgency classifier mode validation ────────────────────────────────────
+    # Reuses VALID_CLASSIFIER_MODES + _classifier_deps_available (same three
+    # values, same sklearn dependency as the sentiment classifier_mode block
+    # above) — independent column, independent persistence, no shared state.
+    if "urgency_classifier_mode" in data.model_fields_set:
+        if (
+            data.urgency_classifier_mode is not None
+            and data.urgency_classifier_mode not in VALID_CLASSIFIER_MODES
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Invalid urgency_classifier_mode. Must be one of: "
+                    f"{', '.join(sorted(VALID_CLASSIFIER_MODES))}"
+                ),
+            )
+        if data.urgency_classifier_mode in ("shadow", "auto") and not _classifier_deps_available():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"urgency_classifier_mode '{data.urgency_classifier_mode}' requires "
+                    "scikit-learn to be installed. See docs/SELF_HOSTING.md for the local model setup."
+                ),
+            )
+        if hasattr(config, "urgency_classifier_mode"):
+            config.urgency_classifier_mode = data.urgency_classifier_mode
+
+    # ── Churn classifier mode validation ─────────────────────────────────────
+    # Reuses VALID_CLASSIFIER_MODES + _classifier_deps_available (same three
+    # values, same sklearn dependency as the sentiment classifier_mode block
+    # above) — independent column, independent persistence, no shared state.
+    if "churn_classifier_mode" in data.model_fields_set:
+        if (
+            data.churn_classifier_mode is not None
+            and data.churn_classifier_mode not in VALID_CLASSIFIER_MODES
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Invalid churn_classifier_mode. Must be one of: "
+                    f"{', '.join(sorted(VALID_CLASSIFIER_MODES))}"
+                ),
+            )
+        if data.churn_classifier_mode in ("shadow", "auto") and not _classifier_deps_available():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"churn_classifier_mode '{data.churn_classifier_mode}' requires "
+                    "scikit-learn to be installed. See docs/SELF_HOSTING.md for the local model setup."
+                ),
+            )
+        if hasattr(config, "churn_classifier_mode"):
+            config.churn_classifier_mode = data.churn_classifier_mode
+
+    # ── Usage-decline churn-label mode validation ─────────────────────────────
+    # Uses VALID_USAGE_CHURN_LABEL_MODES (off|shadow|active) — NOT
+    # VALID_CLASSIFIER_MODES and NOT gated by _classifier_deps_available(): this
+    # column has no scikit-learn dependency (see plan_20260723.md section 2).
+    if "usage_churn_labels_mode" in data.model_fields_set:
+        if (
+            data.usage_churn_labels_mode is not None
+            and data.usage_churn_labels_mode not in VALID_USAGE_CHURN_LABEL_MODES
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Invalid usage_churn_labels_mode. Must be one of: "
+                    f"{', '.join(sorted(VALID_USAGE_CHURN_LABEL_MODES))}"
+                ),
+            )
+        if hasattr(config, "usage_churn_labels_mode"):
+            config.usage_churn_labels_mode = data.usage_churn_labels_mode
+
+    # ── Usage-decline churn-label config validation ───────────────────────────
+    # {"sustain_days": int}. sustain_days must be an int (not bool — bool is an
+    # int subclass in Python) within [MIN, MAX]. Unknown keys are rejected so a
+    # typo'd knob fails loudly rather than being silently ignored.
+    if "usage_churn_label_config" in data.model_fields_set:
+        if data.usage_churn_label_config is not None:
+            allowed_keys = {"sustain_days"}
+            unknown_keys = set(data.usage_churn_label_config.keys()) - allowed_keys
+            if unknown_keys:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        f"Unknown key(s) in usage_churn_label_config: "
+                        f"{', '.join(sorted(unknown_keys))}. Allowed: {', '.join(sorted(allowed_keys))}"
+                    ),
+                )
+            if "sustain_days" in data.usage_churn_label_config:
+                sustain_days = data.usage_churn_label_config["sustain_days"]
+                if (
+                    isinstance(sustain_days, bool)
+                    or not isinstance(sustain_days, int)
+                    or not (USAGE_CHURN_SUSTAIN_DAYS_MIN <= sustain_days <= USAGE_CHURN_SUSTAIN_DAYS_MAX)
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        detail=(
+                            f"sustain_days must be an integer between "
+                            f"{USAGE_CHURN_SUSTAIN_DAYS_MIN} and {USAGE_CHURN_SUSTAIN_DAYS_MAX}."
+                        ),
+                    )
+        if hasattr(config, "usage_churn_label_config"):
+            config.usage_churn_label_config = data.usage_churn_label_config
+
+    if data.model_categorization is not None:
+        config.model_categorization = data.model_categorization
+    if data.model_analysis is not None:
+        config.model_analysis = data.model_analysis
+    if data.model_insights is not None:
+        config.model_insights = data.model_insights
+
+    db.commit()
+    db.refresh(current_org)
+    db.refresh(config)
+
+    return _build_settings_response(current_org, config)
+
+
+# ── GET /api/v1/settings/ai/keys ─────────────────────────────────────────────
+
+@router.get("/keys", response_model=list[APIKeyResponse])
+def list_api_keys(
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """List BYOK API keys for the organization (key_hint only, not full key)."""
+    keys = db.query(OrgApiKey).filter_by(organization_id=current_org.id).all()
+    return [
+        APIKeyResponse(
+            provider=k.provider,
+            key_hint=k.key_hint,
+            is_valid=k.is_valid,
+            created_at=k.created_at,
+        )
+        for k in keys
+    ]
+
+
+# ── POST /api/v1/settings/ai/keys ────────────────────────────────────────────
+
+@router.post(
+    "/keys",
+    response_model=APIKeyResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_owner)],
+)
+def add_api_key(
+    data: AddAPIKeyRequest,
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Add or replace a BYOK API key. Owner only.
+
+    No plan gate — in the self-hosted product BYOK is the only way AI works,
+    so it must be available on every plan (A7).
+    """
+    from src.utils.encryption import encrypt_api_key, get_key_hint
+
+    try:
+        encrypted = encrypt_api_key(data.api_key)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Encryption not configured. Contact support.",
+        )
+    hint = get_key_hint(data.api_key)
+
+    # Upsert: check if key for this provider already exists
+    existing = db.query(OrgApiKey).filter_by(
+        organization_id=current_org.id,
+        provider=data.provider,
+    ).first()
+
+    if existing:
+        existing.encrypted_key = encrypted
+        existing.key_hint = hint
+        existing.is_valid = True
+        existing.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(existing)
+        key = existing
+    else:
+        key = OrgApiKey(
+            organization_id=current_org.id,
+            provider=data.provider,
+            encrypted_key=encrypted,
+            key_hint=hint,
+            is_valid=True,
+        )
+        db.add(key)
+        db.commit()
+        db.refresh(key)
+
+    return APIKeyResponse(
+        provider=key.provider,
+        key_hint=key.key_hint,
+        is_valid=key.is_valid,
+        created_at=key.created_at,
+    )
+
+
+# ── DELETE /api/v1/settings/ai/keys/{provider} ───────────────────────────────
+
+@router.delete(
+    "/keys/{provider}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_owner)],
+)
+def delete_api_key(
+    provider: str,
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Remove a BYOK API key for the given provider. Owner only."""
+    if provider not in VALID_PROVIDERS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid provider. Must be one of: {', '.join(VALID_PROVIDERS)}",
+        )
+
+    key = db.query(OrgApiKey).filter_by(
+        organization_id=current_org.id,
+        provider=provider,
+    ).first()
+
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No API key found for provider '{provider}'",
+        )
+
+    db.delete(key)
+    db.commit()
+    return None
+
+
+# ── POST /api/v1/settings/ai/keys/validate ───────────────────────────────────
+
+@router.post("/keys/validate", response_model=ValidateKeyResponse)
+def validate_api_key(
+    data: ValidateKeyRequest,
+    current_org: Organization = Depends(get_current_org),
+):
+    """Validate an API key against the provider. Does not store the key."""
+    valid, error = validate_provider_key(data.provider, data.api_key)
+    return ValidateKeyResponse(valid=valid, error_message=error)
+
+
+# ── POST /api/v1/settings/ai/test-model ──────────────────────────────────────
+
+@router.post("/test-model", response_model=TestModelResponse)
+def test_model(
+    data: TestModelRequest,
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """
+    Run a canned sample feedback through the specified model.
+    Rate limited to 5 calls/minute per org.
+    Plan gating: cannot test premium models on free plan.
+    """
+    # Check model plan gating
+    model_price = db.query(LLMModelPrice).filter_by(
+        provider=data.provider,
+        model_id=data.model,
+        is_available=True,
+    ).first()
+
+    if model_price:
+        org_plan = current_org.plan or "free"
+        if not plan_includes(org_plan, model_price.min_plan):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "model_not_available",
+                    "model": data.model,
+                    "required_plan": model_price.min_plan,
+                    "message": f"This model requires the {model_price.min_plan.title()} plan or higher.",
+                    "upgrade_url": "/settings/billing",
+                },
+            )
+
+    # Get org's API key for this provider (BYOK) or use system key
+    api_key = _get_api_key_for_provider(data.provider, current_org.id, db)
+
+    result = run_model_test(
+        provider=data.provider,
+        model=data.model,
+        api_key=api_key,
+    )
+
+    return TestModelResponse(
+        provider=result["provider"],
+        model=result["model"],
+        result=result["result"],
+        tokens=result["tokens"],
+        cost_cents=result["cost_cents"],
+        latency_ms=result["latency_ms"],
+    )
+
+
+def _get_api_key_for_provider(provider: str, org_id: int, db: Session) -> str:
+    """Return the org's BYOK API key for the given provider.
+
+    There is NO system/env key fallback. If the org has no valid BYOK key for
+    this provider, raises HTTP 503 so the caller can surface a "configure your
+    API key" message to the user.
+    """
+    from src.utils.byok import resolve_org_byok_key
+
+    key = resolve_org_byok_key(provider, org_id, db)
+    if not key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                f"No API key configured for provider '{provider}'. "
+                "Please add your API key in Settings → AI → API Keys."
+            ),
+        )
+    return key
+
+
+# ── GET /api/v1/settings/ai/models ───────────────────────────────────────────
+
+@router.get("/models", response_model=list[ModelInfo])
+def get_available_models(
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Return models available for the org's plan (available + not deprecated)."""
+    org_plan = current_org.plan or "free"
+
+    # Get all available, non-deprecated models
+    all_models = db.query(LLMModelPrice).filter(
+        LLMModelPrice.is_available == True,
+        LLMModelPrice.is_deprecated == False,
+    ).all()
+
+    # Filter by plan level
+    accessible = [
+        m for m in all_models
+        if plan_includes(org_plan, m.min_plan)
+    ]
+
+    return [
+        ModelInfo(
+            id=m.id,
+            provider=m.provider,
+            model_id=m.model_id,
+            display_name=m.display_name,
+            tier=m.tier,
+            min_plan=m.min_plan,
+            supports_json_mode=m.supports_json_mode,
+            input_price_per_1m_tokens=m.input_price_per_1m_tokens,
+            output_price_per_1m_tokens=m.output_price_per_1m_tokens,
+        )
+        for m in accessible
+    ]
+
+
+# ── GET /api/v1/settings/ai/usage ────────────────────────────────────────────
+
+@router.get(
+    "/usage",
+    response_model=UsageSummaryResponse,
+    dependencies=[Depends(require_feature("ai_usage_dashboard"))],
+)
+def get_usage_summary(
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Return monthly usage summary. Pro+ plan required."""
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    logs = db.query(LLMUsageLog).filter(
+        LLMUsageLog.organization_id == current_org.id,
+        LLMUsageLog.created_at >= month_start,
+    ).all()
+
+    total_tokens = sum(l.total_tokens for l in logs)
+    total_requests = len(logs)
+    estimated_cost_cents = sum(l.estimated_cost_cents for l in logs)
+    fallback_count = sum(1 for l in logs if l.was_fallback)
+
+    # By provider
+    provider_map: dict[str, dict] = {}
+    for l in logs:
+        if l.provider not in provider_map:
+            provider_map[l.provider] = {"tokens": 0, "requests": 0, "cost_cents": 0.0}
+        provider_map[l.provider]["tokens"] += l.total_tokens
+        provider_map[l.provider]["requests"] += 1
+        provider_map[l.provider]["cost_cents"] += l.estimated_cost_cents
+
+    by_provider = [
+        ProviderUsage(
+            provider=provider,
+            tokens=stats["tokens"],
+            requests=stats["requests"],
+            cost_cents=stats["cost_cents"],
+        )
+        for provider, stats in provider_map.items()
+    ]
+
+    return UsageSummaryResponse(
+        month=now.strftime("%Y-%m"),
+        total_tokens=total_tokens,
+        total_requests=total_requests,
+        estimated_cost_cents=estimated_cost_cents,
+        by_provider=by_provider,
+        fallback_count=fallback_count,
+    )
+
+
+# ── GET /api/v1/settings/ai/usage/daily ──────────────────────────────────────
+
+@router.get(
+    "/usage/daily",
+    response_model=UsageDailyResponse,
+    dependencies=[Depends(require_feature("ai_usage_dashboard"))],
+)
+def get_usage_daily(
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Return daily usage breakdown for the current month. Pro+ plan required."""
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    logs = db.query(LLMUsageLog).filter(
+        LLMUsageLog.organization_id == current_org.id,
+        LLMUsageLog.created_at >= month_start,
+    ).all()
+
+    # Group by date
+    day_map: dict[str, dict] = {}
+    for l in logs:
+        day_str = l.created_at.strftime("%Y-%m-%d")
+        if day_str not in day_map:
+            day_map[day_str] = {"tokens": 0, "requests": 0, "cost_cents": 0.0}
+        day_map[day_str]["tokens"] += l.total_tokens
+        day_map[day_str]["requests"] += 1
+        day_map[day_str]["cost_cents"] += l.estimated_cost_cents
+
+    days = [
+        DayUsage(
+            date=day,
+            tokens=stats["tokens"],
+            requests=stats["requests"],
+            cost_cents=stats["cost_cents"],
+        )
+        for day, stats in sorted(day_map.items())
+    ]
+
+    return UsageDailyResponse(days=days)
+
+
+# ── GET /api/v1/settings/ai/budget ───────────────────────────────────────────
+
+@router.get("/budget", response_model=BudgetResponse)
+def get_budget(
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Get current AI budget status for the organization.
+
+    A6 note: Budget capping has been removed from the self-hosted product.
+    This endpoint is kept for API compatibility but always returns a
+    no-budget-cap state (monthly_limit_cents=None, is_exceeded=False).
+    The underlying DB columns (monthly_budget_cents etc.) are dead columns
+    pending a future migration; we stop reading them here.
+    """
+    return BudgetResponse(
+        monthly_limit_cents=None,
+        used_cents=0,
+        resets_at=None,
+        is_exceeded=False,
+    )
+
+
+# ── GET /api/v1/settings/ai/embeddings/status ────────────────────────────────
+
+@router.get("/embeddings/status", response_model=EmbeddingStatusResponse)
+def get_embeddings_status(
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Return the org's local-embeddings configuration status (S3).
+
+    Never raises to the caller — an unconfigured org simply gets
+    configured=False so the frontend can show a "set up embeddings" prompt
+    instead of an error.
+    """
+    from src.services.embeddings.resolver import resolve_embedding_provider
+
+    config = db.query(OrgAIConfig).filter_by(organization_id=current_org.id).first()
+    provider = config.default_provider if config else "openai"
+
+    resolved = resolve_embedding_provider(current_org.id, db)
+
+    if resolved is not None:
+        configured = True
+        dimension = resolved.dimension_hint or None
+        model = (
+            config.model_embeddings
+            if config and getattr(config, "model_embeddings", None)
+            else _default_embedding_model(provider)
+        )
+    else:
+        configured = False
+        dimension = None
+        model = None
+
+    system_templates_embedded = (
+        db.query(QueryTemplateMapping)
+        .join(QueryTemplate, QueryTemplateMapping.template_id == QueryTemplate.id)
+        .filter(
+            QueryTemplate.created_by == "system",
+            QueryTemplateMapping.embedding_provider == provider,
+        )
+        .count()
+    )
+
+    return EmbeddingStatusResponse(
+        provider=provider,
+        model=model,
+        dimension=dimension,
+        configured=configured,
+        system_templates_embedded=system_templates_embedded,
+    )
+
+
+# ── GET /api/v1/settings/ai/sentiment/status ─────────────────────────────────
+
+@router.get("/sentiment/status", response_model=SentimentStatusResponse)
+def get_sentiment_status(
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db),
+):
+    """Return the org's sentiment-engine configuration status.
+
+    Never raises to the caller — mirrors GET /embeddings/status. 'available'
+    reflects dependency importability for 'transformer' (not a full model-load
+    check, which is deliberately out of this endpoint's scope).
+    """
+    config = db.query(OrgAIConfig).filter_by(organization_id=current_org.id).first()
+    provider = (
+        config.sentiment_provider
+        if config and getattr(config, "sentiment_provider", None)
+        else "vader"
+    )
+    if provider not in VALID_SENTIMENT_PROVIDERS:
+        provider = "vader"
+
+    if provider == "vader":
+        available = True
+        model = None
+    else:
+        available = _sentiment_transformer_deps_available()
+        model = _SENTIMENT_TRANSFORMER_MODEL_ID
+
+    return SentimentStatusResponse(provider=provider, available=available, model=model)

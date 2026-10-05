@@ -1,0 +1,873 @@
+"""
+Team Management API routes for managing organization members.
+"""
+import os
+from typing import Optional
+from datetime import datetime, timedelta
+import secrets
+
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from sqlalchemy.orm import Session
+from pydantic import BaseModel, EmailStr
+
+from src.database.session import get_db
+from src.models.organization import Organization
+from src.models.user import User
+from src.models.team_invite import TeamInvite
+from src.models.audit_log import AuditLog
+from src.api.dependencies import (
+    get_current_user,
+    get_current_org,
+    require_admin_or_owner,
+    require_owner,
+    check_seat_limit,
+)
+from src.services.audit_service import log_action
+from src.services.user_service import cleanup_and_delete_user
+from src.services.email_service import (
+    send_team_invite_email,
+    send_role_change_email,
+    send_member_removed_email,
+)
+
+
+router = APIRouter()
+
+# Super admin email that can invite owners
+SUPER_ADMIN_EMAIL = os.getenv("SUPER_ADMIN_EMAIL", "support@rereflect.ca")
+
+
+# ============================================================================
+# Schemas
+# ============================================================================
+
+class TeamMember(BaseModel):
+    id: int
+    email: str
+    role: str  # 'owner', 'admin', 'member'
+    last_active_at: Optional[datetime] = None
+    joined_at: Optional[datetime] = None
+    invited_by_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class TeamListResponse(BaseModel):
+    members: list[TeamMember]
+    total: int
+
+
+class RoleUpdateRequest(BaseModel):
+    role: str  # 'admin' or 'member'
+
+
+class InviteRequest(BaseModel):
+    email: EmailStr
+    role: str  # 'owner', 'admin', or 'member' (owner only by super admin)
+
+
+class MessageResponse(BaseModel):
+    message: str
+
+
+class InvitedByInfo(BaseModel):
+    id: int
+    email: str
+
+
+class TeamInviteResponse(BaseModel):
+    id: int
+    email: str
+    role: str
+    status: str
+    created_at: datetime
+    expires_at: datetime
+    invited_by: InvitedByInfo
+
+    class Config:
+        from_attributes = True
+
+
+class TeamInviteListResponse(BaseModel):
+    invites: list[TeamInviteResponse]
+    total: int
+
+
+class TransferOwnershipRequest(BaseModel):
+    user_id: int
+
+
+# ============================================================================
+# Audit Log Schemas
+# ============================================================================
+
+class AuditLogResponse(BaseModel):
+    id: int
+    user_id: int
+    user_email: str
+    action: str
+    target_type: Optional[str] = None
+    target_id: Optional[int] = None
+    details: Optional[dict] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AuditLogsResponse(BaseModel):
+    logs: list[AuditLogResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+# ============================================================================
+# Team Member Endpoints
+# ============================================================================
+
+@router.get("/members", response_model=TeamListResponse)
+def list_team_members(
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db)
+):
+    """
+    List all team members in the organization.
+    All roles can access this endpoint.
+    """
+    members = db.query(User).filter(
+        User.organization_id == current_org.id
+    ).order_by(User.created_at.asc()).all()
+
+    return TeamListResponse(
+        members=[
+            TeamMember(
+                id=m.id,
+                email=m.email,
+                role=m.role,
+                last_active_at=m.last_active_at,
+                joined_at=m.joined_at,
+                invited_by_id=m.invited_by_id,
+            )
+            for m in members
+        ],
+        total=len(members)
+    )
+
+
+# Keep old route for backward compatibility
+@router.get("", response_model=TeamListResponse)
+def list_team_members_legacy(
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db)
+):
+    """Legacy endpoint - List all team members in the organization."""
+    return list_team_members(current_user, current_org, db)
+
+
+@router.patch("/members/{user_id}/role", response_model=TeamMember)
+def update_member_role(
+    user_id: int,
+    data: RoleUpdateRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    _admin_check: bool = Depends(require_admin_or_owner),
+    db: Session = Depends(get_db)
+):
+    """
+    Change a team member's role.
+    - Owner/Admin only
+    - Cannot change owner's role
+    - Cannot demote owner
+    - Admin can only assign 'member' role (not 'admin' or 'owner')
+    """
+    # Validate role
+    if data.role not in ['admin', 'member']:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Role must be 'admin' or 'member'"
+        )
+
+    # Find the target user
+    target_user = db.query(User).filter(
+        User.id == user_id,
+        User.organization_id == current_org.id
+    ).first()
+
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Cannot change owner's role
+    if target_user.role == 'owner':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot change the owner's role. Use transfer ownership instead."
+        )
+
+    # Admin cannot promote to admin (only owner can)
+    if current_user.role == 'admin' and data.role == 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the owner can promote members to admin"
+        )
+
+    # Store old role for audit log
+    old_role = target_user.role
+
+    # Update role
+    target_user.role = data.role
+    db.commit()
+    db.refresh(target_user)
+
+    # Create audit log
+    log_action(
+        db=db,
+        org_id=current_org.id,
+        user_id=current_user.id,
+        user_email=current_user.email,
+        action="role_changed",
+        target_type="user",
+        target_id=target_user.id,
+        details={
+            "email": target_user.email,
+            "old_role": old_role,
+            "new_role": data.role
+        },
+        request=request
+    )
+
+    # Send role change notification email
+    send_role_change_email(
+        to_email=target_user.email,
+        organization_name=current_org.name,
+        old_role=old_role,
+        new_role=data.role,
+        changed_by_email=current_user.email,
+    )
+
+    return TeamMember(
+        id=target_user.id,
+        email=target_user.email,
+        role=target_user.role,
+        last_active_at=target_user.last_active_at,
+        joined_at=target_user.joined_at,
+        invited_by_id=target_user.invited_by_id,
+    )
+
+
+# Legacy route for backward compatibility
+@router.patch("/{user_id}/role", response_model=TeamMember)
+def update_member_role_legacy(
+    user_id: int,
+    data: RoleUpdateRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    _admin_check: bool = Depends(require_admin_or_owner),
+    db: Session = Depends(get_db)
+):
+    """Legacy endpoint - Change a team member's role."""
+    return update_member_role(user_id, data, request, current_user, current_org, _admin_check, db)
+
+
+@router.delete("/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_member(
+    user_id: int,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    _admin_check: bool = Depends(require_admin_or_owner),
+    db: Session = Depends(get_db)
+):
+    """
+    Remove a team member.
+    - Owner/Admin only
+    - Cannot remove owner
+    - Cannot remove self (owner must transfer ownership first)
+    """
+    # Find the target user
+    target_user = db.query(User).filter(
+        User.id == user_id,
+        User.organization_id == current_org.id
+    ).first()
+
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Cannot remove owner
+    if target_user.role == 'owner':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot remove the owner. Transfer ownership first."
+        )
+
+    # Cannot remove self
+    if target_user.id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot remove yourself from the team"
+        )
+
+    # Admin cannot remove other admins
+    if current_user.role == 'admin' and target_user.role == 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admins cannot remove other admins. Only the owner can."
+        )
+
+    # Store info for audit log before deletion
+    removed_user_id = target_user.id
+    removed_user_email = target_user.email
+    removed_user_role = target_user.role
+
+    cleanup_and_delete_user(db, target_user)
+    db.commit()
+
+    # Create audit log
+    log_action(
+        db=db,
+        org_id=current_org.id,
+        user_id=current_user.id,
+        user_email=current_user.email,
+        action="user_removed",
+        target_type="user",
+        target_id=removed_user_id,
+        details={
+            "email": removed_user_email,
+            "role": removed_user_role
+        },
+        request=request
+    )
+
+    # Send removal notification email
+    send_member_removed_email(
+        to_email=removed_user_email,
+        organization_name=current_org.name,
+        removed_by_email=current_user.email,
+    )
+
+    return None
+
+
+# Legacy route for backward compatibility
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_member_legacy(
+    user_id: int,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    _admin_check: bool = Depends(require_admin_or_owner),
+    db: Session = Depends(get_db)
+):
+    """Legacy endpoint - Remove a team member."""
+    return remove_member(user_id, request, current_user, current_org, _admin_check, db)
+
+
+@router.post("/transfer-ownership", response_model=TeamMember)
+def transfer_ownership(
+    data: TransferOwnershipRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    _owner_check: bool = Depends(require_owner),
+    db: Session = Depends(get_db)
+):
+    """
+    Transfer ownership to another member.
+    - Owner only
+    - Target must be in same org
+    - Old owner becomes admin
+    """
+    user_id = data.user_id
+
+    # Cannot transfer to self
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot transfer ownership to yourself"
+        )
+
+    # Find the target user
+    target_user = db.query(User).filter(
+        User.id == user_id,
+        User.organization_id == current_org.id
+    ).first()
+
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Store info for audit log
+    old_owner_id = current_user.id
+    old_owner_email = current_user.email
+
+    # Transfer ownership
+    current_user.role = 'admin'  # Old owner becomes admin
+    target_user.role = 'owner'  # New owner
+
+    db.commit()
+    db.refresh(target_user)
+
+    # Create audit log
+    log_action(
+        db=db,
+        org_id=current_org.id,
+        user_id=old_owner_id,
+        user_email=old_owner_email,
+        action="ownership_transferred",
+        target_type="user",
+        target_id=target_user.id,
+        details={
+            "from_user_id": old_owner_id,
+            "from_user_email": old_owner_email,
+            "to_user_id": target_user.id,
+            "to_user_email": target_user.email
+        },
+        request=request
+    )
+
+    return TeamMember(
+        id=target_user.id,
+        email=target_user.email,
+        role=target_user.role,
+        last_active_at=target_user.last_active_at,
+        joined_at=target_user.joined_at,
+        invited_by_id=target_user.invited_by_id,
+    )
+
+
+# Legacy route for backward compatibility
+@router.post("/{user_id}/transfer-ownership", response_model=TeamMember)
+def transfer_ownership_legacy(
+    user_id: int,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    _owner_check: bool = Depends(require_owner),
+    db: Session = Depends(get_db)
+):
+    """Legacy endpoint - Transfer ownership to another member."""
+    return transfer_ownership(
+        TransferOwnershipRequest(user_id=user_id),
+        request,
+        current_user,
+        current_org,
+        _owner_check,
+        db
+    )
+
+
+# ============================================================================
+# Invite Management Endpoints
+# ============================================================================
+
+
+def _invite_to_response(invite: TeamInvite) -> TeamInviteResponse:
+    """Helper to convert TeamInvite to response schema."""
+    return TeamInviteResponse(
+        id=invite.id,
+        email=invite.email,
+        role=invite.role,
+        status=invite.status,
+        created_at=invite.created_at,
+        expires_at=invite.expires_at,
+        invited_by=InvitedByInfo(
+            id=invite.invited_by.id,
+            email=invite.invited_by.email
+        )
+    )
+
+
+@router.post("/invites", response_model=TeamInviteResponse, status_code=status.HTTP_201_CREATED)
+def create_invite(
+    data: InviteRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    _admin_check: bool = Depends(require_admin_or_owner),
+    _seat_check: bool = Depends(check_seat_limit),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new team invite.
+    - Owner/Admin only
+    - Validates email doesn't exist
+    - Admin cannot invite as 'owner' or 'admin'
+    - Only super admin (support@rereflect.ca) can invite owners
+    - Creates a TeamInvite with pending status
+    """
+    is_super_admin = current_user.email == SUPER_ADMIN_EMAIL
+
+    # Validate role
+    valid_roles = ['admin', 'member']
+    if is_super_admin:
+        valid_roles.append('owner')  # Super admin can invite owners
+
+    if data.role not in valid_roles:
+        if data.role == 'owner' and not is_super_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the super admin can invite members as owner"
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Role must be one of: {', '.join(valid_roles)}"
+        )
+
+    # Admin cannot invite as admin (only owner can)
+    if current_user.role == 'admin' and data.role == 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the owner can invite members as admin"
+        )
+
+    # Check if email already exists as a user
+    existing_user = db.query(User).filter(User.email == data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A user with this email already exists"
+        )
+
+    # Check for existing pending invite
+    existing_invite = db.query(TeamInvite).filter(
+        TeamInvite.organization_id == current_org.id,
+        TeamInvite.email == data.email,
+        TeamInvite.status == "pending"
+    ).first()
+    if existing_invite:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An invite for this email is already pending"
+        )
+
+    # Create invite
+    now = datetime.utcnow()
+    invite = TeamInvite(
+        organization_id=current_org.id,
+        email=data.email,
+        role=data.role,
+        token=secrets.token_urlsafe(32),
+        invited_by_id=current_user.id,
+        status="pending",
+        created_at=now,
+        expires_at=now + timedelta(days=7)
+    )
+    db.add(invite)
+    db.commit()
+    db.refresh(invite)
+
+    # Create audit log
+    log_action(
+        db=db,
+        org_id=current_org.id,
+        user_id=current_user.id,
+        user_email=current_user.email,
+        action="user_invited",
+        target_type="invite",
+        target_id=invite.id,
+        details={
+            "email": data.email,
+            "role": data.role
+        },
+        request=request
+    )
+
+    # Send invite email
+    send_team_invite_email(
+        to_email=data.email,
+        invite_token=invite.token,
+        organization_name=current_org.name,
+        inviter_email=current_user.email,
+        role=data.role,
+    )
+
+    return _invite_to_response(invite)
+
+
+# Legacy route for backward compatibility (creates user directly)
+@router.post("/invite", response_model=TeamMember, status_code=status.HTTP_201_CREATED)
+def invite_member_legacy(
+    data: InviteRequest,
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    _admin_check: bool = Depends(require_admin_or_owner),
+    _seat_check: bool = Depends(check_seat_limit),
+    db: Session = Depends(get_db)
+):
+    """
+    Legacy endpoint - Invite a new team member (creates user directly).
+    """
+    from src.api.auth import hash_password
+
+    is_super_admin = current_user.email == SUPER_ADMIN_EMAIL
+
+    # Validate role
+    valid_roles = ['admin', 'member']
+    if is_super_admin:
+        valid_roles.append('owner')  # Super admin can invite owners
+
+    if data.role not in valid_roles:
+        if data.role == 'owner' and not is_super_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the super admin can invite members as owner"
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Role must be one of: {', '.join(valid_roles)}"
+        )
+
+    # Admin cannot invite as admin (only owner can)
+    if current_user.role == 'admin' and data.role == 'admin':
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the owner can invite members as admin"
+        )
+
+    # Check if email already exists
+    existing_user = db.query(User).filter(User.email == data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A user with this email already exists"
+        )
+
+    # Create user with a temporary random password
+    temp_password = secrets.token_urlsafe(16)
+    now = datetime.utcnow()
+
+    new_user = User(
+        email=data.email,
+        password_hash=hash_password(temp_password),
+        organization_id=current_org.id,
+        role=data.role,
+        invited_by_id=current_user.id,
+        joined_at=now,
+        created_at=now,
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return TeamMember(
+        id=new_user.id,
+        email=new_user.email,
+        role=new_user.role,
+        last_active_at=new_user.last_active_at,
+        joined_at=new_user.joined_at,
+        invited_by_id=new_user.invited_by_id,
+    )
+
+
+@router.get("/invites", response_model=TeamInviteListResponse)
+def list_invites(
+    include_expired: bool = Query(False, description="Include expired invites"),
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    db: Session = Depends(get_db)
+):
+    """
+    List pending invites for the organization.
+    - All authenticated users can view invites
+    - By default only returns pending status invites
+    - Use include_expired=true to also include expired invites
+    """
+    query = db.query(TeamInvite).filter(
+        TeamInvite.organization_id == current_org.id
+    )
+
+    if include_expired:
+        # Include pending (even if expired by date)
+        query = query.filter(TeamInvite.status == "pending")
+    else:
+        # Only pending and not expired by date
+        query = query.filter(
+            TeamInvite.status == "pending",
+            TeamInvite.expires_at > datetime.utcnow()
+        )
+
+    invites = query.order_by(TeamInvite.created_at.desc()).all()
+
+    return TeamInviteListResponse(
+        invites=[_invite_to_response(inv) for inv in invites],
+        total=len(invites)
+    )
+
+
+@router.post("/invites/{invite_id}/resend", response_model=TeamInviteResponse)
+def resend_invite(
+    invite_id: int,
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    _admin_check: bool = Depends(require_admin_or_owner),
+    db: Session = Depends(get_db)
+):
+    """
+    Resend an invite - generates new token and resets expiry.
+    - Owner/Admin only
+    - Only pending or expired invites can be resent
+    - Accepted or canceled invites cannot be resent
+    """
+    invite = db.query(TeamInvite).filter(
+        TeamInvite.id == invite_id,
+        TeamInvite.organization_id == current_org.id
+    ).first()
+
+    if not invite:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invite not found"
+        )
+
+    if invite.status == "accepted":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot resend an already accepted invite"
+        )
+
+    if invite.status == "canceled":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot resend a canceled invite"
+        )
+
+    # Generate new token and reset expiry
+    now = datetime.utcnow()
+    invite.token = secrets.token_urlsafe(32)
+    invite.expires_at = now + timedelta(days=7)
+    invite.status = "pending"  # In case it was expired
+
+    db.commit()
+    db.refresh(invite)
+
+    # Resend invite email
+    send_team_invite_email(
+        to_email=invite.email,
+        invite_token=invite.token,
+        organization_name=current_org.name,
+        inviter_email=current_user.email,
+        role=invite.role,
+    )
+
+    return _invite_to_response(invite)
+
+
+@router.delete("/invites/{invite_id}", response_model=TeamInviteResponse)
+def cancel_invite(
+    invite_id: int,
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    _admin_check: bool = Depends(require_admin_or_owner),
+    db: Session = Depends(get_db)
+):
+    """
+    Cancel an invite - sets status to 'canceled'.
+    - Owner/Admin only
+    - Cannot cancel already accepted invites
+    """
+    invite = db.query(TeamInvite).filter(
+        TeamInvite.id == invite_id,
+        TeamInvite.organization_id == current_org.id
+    ).first()
+
+    if not invite:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invite not found"
+        )
+
+    if invite.status == "accepted":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot cancel an already accepted invite"
+        )
+
+    # Set status to canceled
+    invite.status = "canceled"
+    db.commit()
+    db.refresh(invite)
+
+    return _invite_to_response(invite)
+
+
+# ============================================================================
+# Audit Log Endpoints
+# ============================================================================
+
+
+@router.get("/audit-logs", response_model=AuditLogsResponse)
+def get_audit_logs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    action: Optional[str] = Query(None, description="Filter by action type"),
+    current_user: User = Depends(get_current_user),
+    current_org: Organization = Depends(get_current_org),
+    _admin_check: bool = Depends(require_admin_or_owner),
+    db: Session = Depends(get_db)
+):
+    """
+    Get audit logs for the organization.
+    - Admin/Owner only
+    - Business or Enterprise plan required
+    - Returns logs sorted by created_at descending (most recent first)
+    """
+    # Check Business+ plan
+    if current_org.plan not in ["business", "enterprise"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Audit logs require Business or Enterprise plan. Please upgrade to access this feature."
+        )
+
+    # Build query
+    query = db.query(AuditLog).filter(
+        AuditLog.organization_id == current_org.id
+    )
+
+    # Filter by action if provided
+    if action:
+        query = query.filter(AuditLog.action == action)
+
+    # Get total count
+    total = query.count()
+
+    # Apply pagination and sorting
+    logs = query.order_by(AuditLog.created_at.desc()).offset(
+        (page - 1) * page_size
+    ).limit(page_size).all()
+
+    return AuditLogsResponse(
+        logs=[
+            AuditLogResponse(
+                id=log.id,
+                user_id=log.user_id,
+                user_email=log.user_email,
+                action=log.action,
+                target_type=log.target_type,
+                target_id=log.target_id,
+                details=log.details,
+                ip_address=log.ip_address,
+                user_agent=log.user_agent,
+                created_at=log.created_at
+            )
+            for log in logs
+        ],
+        total=total,
+        page=page,
+        page_size=page_size
+    )

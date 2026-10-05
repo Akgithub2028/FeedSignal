@@ -1,0 +1,774 @@
+"""Tests for Intercom integration endpoints."""
+import os
+import pytest
+import hmac
+import hashlib
+import json
+import pathlib
+from unittest.mock import patch, MagicMock
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from src.models.integration import Integration
+from src.models.organization import Organization
+from src.models.user import User
+from src.api.auth import hash_password, create_access_token
+from src.utils.encryption import decrypt_api_key
+
+TEST_FERNET_KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+
+
+# ============================================================================
+# Fixtures
+# ============================================================================
+
+@pytest.fixture
+def free_organization(db: Session) -> Organization:
+    """Create a test organization on the Free plan."""
+    org = Organization(name="Free Company", plan="free")
+    db.add(org)
+    db.commit()
+    db.refresh(org)
+    return org
+
+
+@pytest.fixture
+def free_user(db: Session, free_organization: Organization) -> User:
+    """Create a user on a Free plan org."""
+    user = User(
+        email="free@example.com",
+        password_hash=hash_password("password123"),
+        organization_id=free_organization.id,
+        role="admin",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture
+def free_auth_headers(free_user: User) -> dict:
+    """Auth headers for a Free plan user."""
+    token = create_access_token({
+        "user_id": free_user.id,
+        "organization_id": free_user.organization_id,
+        "role": free_user.role,
+    })
+    return {"Authorization": f"Bearer {token}"}
+
+
+# ============================================================================
+# Plan Gating Tests
+# ============================================================================
+
+class TestIntercomPlanGating:
+    """Test intercom_integration feature gating."""
+
+    def test_intercom_feature_available_on_pro_plan(self):
+        """Pro plan should have intercom_integration feature."""
+        from src.config.plans import has_feature
+        assert has_feature("pro", "intercom_integration") is True
+
+    def test_intercom_feature_available_on_business_plan(self):
+        """Business plan should have intercom_integration feature."""
+        from src.config.plans import has_feature
+        assert has_feature("business", "intercom_integration") is True
+
+    def test_intercom_feature_available_on_enterprise_plan(self):
+        """Enterprise plan should have intercom_integration feature."""
+        from src.config.plans import has_feature
+        assert has_feature("enterprise", "intercom_integration") is True
+
+    def test_intercom_feature_not_available_on_free_plan(self):
+        """Free plan should NOT have intercom_integration feature."""
+        from src.config.plans import has_feature
+        assert has_feature("free", "intercom_integration") is False
+
+    def test_intercom_feature_minimum_plan_is_pro(self):
+        """intercom_integration should map to Pro as minimum plan."""
+        from src.config.plans import get_plan_for_feature
+        assert get_plan_for_feature("intercom_integration") == "pro"
+
+
+# ============================================================================
+# OAuth Connect Tests
+# ============================================================================
+
+class TestIntercomOAuthConnect:
+    """Tests for GET /api/v1/integrations/intercom/oauth/connect"""
+
+    @patch("src.api.routes.integrations.INTERCOM_CLIENT_ID", "test-client-id")
+    def test_oauth_connect_returns_auth_url(
+        self,
+        client: TestClient,
+        auth_headers: dict,
+    ):
+        """Should return Intercom OAuth URL with correct parameters."""
+        response = client.get(
+            "/api/v1/integrations/intercom/oauth/connect?name=My+Intercom",
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "auth_url" in data
+        assert "state" in data
+        assert "app.intercom.com/oauth" in data["auth_url"]
+        assert "client_id=test-client-id" in data["auth_url"]
+
+    def test_oauth_connect_requires_auth(self, client: TestClient):
+        """Should reject unauthenticated requests."""
+        response = client.get(
+            "/api/v1/integrations/intercom/oauth/connect?name=Test",
+        )
+        assert response.status_code == 403
+
+    def test_oauth_connect_requires_pro_plan(
+        self,
+        client: TestClient,
+        free_auth_headers: dict,
+    ):
+        """Should reject Free plan users (feature gated)."""
+        response = client.get(
+            "/api/v1/integrations/intercom/oauth/connect?name=Test",
+            headers=free_auth_headers,
+        )
+        assert response.status_code == 403
+        data = response.json()
+        assert data["detail"]["error"] == "feature_not_available"
+
+
+# ============================================================================
+# OAuth Callback Tests
+# ============================================================================
+
+class TestIntercomOAuthCallback:
+    """Tests for GET /api/v1/integrations/intercom/oauth/callback"""
+
+    @patch("src.api.routes.integrations.INTERCOM_CLIENT_ID", "test-client-id")
+    @patch("src.api.routes.integrations.INTERCOM_CLIENT_SECRET", "test-client-secret")
+    def test_callback_exchanges_code_for_token(
+        self,
+        client: TestClient,
+        db: Session,
+        test_organization: Organization,
+    ):
+        """Should exchange code for token, fetch workspace info, and create integration."""
+        from src.services.oauth_state import sign_oauth_state
+
+        # Stateless signed state (mirrors what /oauth/connect issues)
+        test_state = sign_oauth_state(test_organization.id, "My Intercom")
+
+        # Mock the httpx.Client calls
+        mock_token_response = MagicMock()
+        mock_token_response.json.return_value = {"token": "xyztoken123"}
+        mock_token_response.raise_for_status = MagicMock()
+
+        mock_me_response = MagicMock()
+        mock_me_response.json.return_value = {
+            "id": "admin_123",
+            "app": {"name": "Test Workspace", "id_code": "ws_abc"},
+        }
+        mock_me_response.raise_for_status = MagicMock()
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.__enter__ = MagicMock(return_value=mock_client_instance)
+        mock_client_instance.__exit__ = MagicMock(return_value=False)
+        # First call: token exchange, second call: /me
+        mock_client_instance.post.return_value = mock_token_response
+        mock_client_instance.get.return_value = mock_me_response
+
+        with patch("src.api.routes.integrations.httpx.Client", return_value=mock_client_instance):
+            with patch.dict(os.environ, {"LLM_ENCRYPTION_KEY": TEST_FERNET_KEY}):
+                response = client.get(
+                    f"/api/v1/integrations/intercom/oauth/callback?code=authcode123&state={test_state}",
+                    follow_redirects=False,
+                )
+
+        # Should redirect to frontend with success
+        assert response.status_code == 307
+        assert "oauth_success=true" in response.headers["location"]
+
+        # Verify integration was created in DB
+        integration = db.query(Integration).filter(
+            Integration.type == "intercom",
+            Integration.organization_id == test_organization.id,
+        ).first()
+        assert integration is not None
+        assert integration.name == "My Intercom"
+        with patch.dict(os.environ, {"LLM_ENCRYPTION_KEY": TEST_FERNET_KEY}):
+            stored_token = integration.oauth_access_token
+            assert stored_token != "xyztoken123"
+            assert decrypt_api_key(stored_token) == "xyztoken123"
+        assert integration.config["workspace_name"] == "Test Workspace"
+        assert integration.config["admin_id"] == "admin_123"
+
+    @patch("src.api.routes.integrations.INTERCOM_CLIENT_ID", "test-client-id")
+    @patch("src.api.routes.integrations.INTERCOM_CLIENT_SECRET", "test-client-secret")
+    @patch.dict(os.environ, {"LLM_ENCRYPTION_KEY": ""})
+    def test_callback_missing_key_returns_422(
+        self,
+        client: TestClient,
+        db: Session,
+        test_organization: Organization,
+    ):
+        """Should reject with 422 (never silently store plaintext) when LLM_ENCRYPTION_KEY is unset."""
+        from src.services.oauth_state import sign_oauth_state
+
+        test_state = sign_oauth_state(test_organization.id, "My Intercom")
+
+        mock_token_response = MagicMock()
+        mock_token_response.json.return_value = {"token": "xyztoken123"}
+        mock_token_response.raise_for_status = MagicMock()
+
+        mock_me_response = MagicMock()
+        mock_me_response.json.return_value = {
+            "id": "admin_123",
+            "app": {"name": "Test Workspace", "id_code": "ws_abc"},
+        }
+        mock_me_response.raise_for_status = MagicMock()
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.__enter__ = MagicMock(return_value=mock_client_instance)
+        mock_client_instance.__exit__ = MagicMock(return_value=False)
+        mock_client_instance.post.return_value = mock_token_response
+        mock_client_instance.get.return_value = mock_me_response
+
+        with patch("src.api.routes.integrations.httpx.Client", return_value=mock_client_instance):
+            response = client.get(
+                f"/api/v1/integrations/intercom/oauth/callback?code=authcode123&state={test_state}",
+                follow_redirects=False,
+            )
+
+        assert response.status_code == 422
+        assert "LLM_ENCRYPTION_KEY" in response.json()["detail"]
+
+    def test_callback_rejects_invalid_state(self, client: TestClient):
+        """Should redirect with error when state is invalid."""
+        response = client.get(
+            "/api/v1/integrations/intercom/oauth/callback?code=somecode&state=bad-state",
+            follow_redirects=False,
+        )
+        assert response.status_code == 307
+        assert "oauth_error=invalid_state" in response.headers["location"]
+
+    def test_callback_handles_error_param(self, client: TestClient):
+        """Should redirect with error when Intercom returns an error."""
+        response = client.get(
+            "/api/v1/integrations/intercom/oauth/callback?error=access_denied",
+            follow_redirects=False,
+        )
+        assert response.status_code == 307
+        assert "oauth_error=access_denied" in response.headers["location"]
+
+    def test_callback_handles_missing_params(self, client: TestClient):
+        """Should redirect with error when code or state is missing."""
+        response = client.get(
+            "/api/v1/integrations/intercom/oauth/callback",
+            follow_redirects=False,
+        )
+        assert response.status_code == 307
+        assert "oauth_error=missing_params" in response.headers["location"]
+
+
+# ============================================================================
+# Webhook Receiver Tests
+# ============================================================================
+
+def _make_intercom_signature(body: bytes, secret: str) -> str:
+    """Helper to compute Intercom HMAC-SHA1 signature."""
+    digest = hmac.new(secret.encode(), body, hashlib.sha1).hexdigest()
+    return f"sha1={digest}"
+
+
+# ============================================================================
+# verify_intercom_signature -- pure-function fail-closed tests
+# ============================================================================
+
+class TestVerifyIntercomSignatureFailsClosed:
+    """Mirrors test_zendesk_webhook.py's TestVerifyZendeskSignature fail-closed
+    coverage (_verify_zendesk_signature is the correct reference: an
+    empty/None secret must return False, not skip verification)."""
+
+    def test_empty_secret_returns_false_fail_closed(self):
+        from src.api.routes.source_webhooks import verify_intercom_signature
+
+        body = b'{"topic": "conversation.user.created"}'
+        signature = _make_intercom_signature(body, "some-secret")
+
+        assert verify_intercom_signature(body, signature, "") is False
+
+    def test_none_secret_returns_false_fail_closed(self):
+        from src.api.routes.source_webhooks import verify_intercom_signature
+
+        body = b'{"topic": "conversation.user.created"}'
+        signature = "sha1=irrelevant"
+
+        assert verify_intercom_signature(body, signature, None) is False
+
+
+class TestIntercomWebhook:
+    """Tests for POST /api/v1/webhooks/intercom/events"""
+
+    @patch("src.api.routes.source_webhooks.INTERCOM_CLIENT_SECRET", "webhook-secret")
+    @patch("src.api.routes.source_webhooks.queue_source_event", return_value="task-123")
+    def test_webhook_verifies_signature(
+        self,
+        mock_queue: MagicMock,
+        client: TestClient,
+    ):
+        """Should accept valid HMAC-SHA1 signature."""
+        payload = {
+            "topic": "conversation.user.created",
+            "app_id": "abc123",
+            "data": {
+                "item": {
+                    "type": "conversation",
+                    "id": "conv_001",
+                    "conversation_message": {"body": "Help me!"},
+                }
+            },
+        }
+        body = json.dumps(payload).encode()
+        sig = _make_intercom_signature(body, "webhook-secret")
+
+        response = client.post(
+            "/api/v1/webhooks/intercom/events",
+            content=body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Hub-Signature": sig,
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "queued"
+        mock_queue.assert_called_once()
+
+    @patch("src.api.routes.source_webhooks.INTERCOM_CLIENT_SECRET", "")
+    @patch("src.api.routes.source_webhooks.queue_source_event")
+    def test_webhook_rejects_when_client_secret_not_set(
+        self, mock_queue: MagicMock, client: TestClient,
+    ):
+        """Fail closed: with INTERCOM_CLIENT_SECRET unset (the default,
+        undocumented-elsewhere state of every install), an unsigned payload
+        must be rejected, not silently accepted."""
+        payload = {
+            "topic": "conversation.user.created",
+            "app_id": "abc123",
+            "data": {"item": {"id": "conv_001"}},
+        }
+        body = json.dumps(payload).encode()
+
+        response = client.post(
+            "/api/v1/webhooks/intercom/events",
+            content=body,
+            headers={"Content-Type": "application/json", "X-Hub-Signature": "sha1=whatever"},
+        )
+        assert response.status_code == 401
+        mock_queue.assert_not_called()
+
+    @patch("src.api.routes.source_webhooks.INTERCOM_CLIENT_SECRET", "webhook-secret")
+    @patch("src.api.routes.source_webhooks.queue_source_event")
+    def test_webhook_rejects_tampered_body(self, mock_queue: MagicMock, client: TestClient):
+        """Signature computed over payload A must not validate payload B."""
+        payload_a = {
+            "topic": "conversation.user.created",
+            "app_id": "abc123",
+            "data": {"item": {"id": "conv_001"}},
+        }
+        payload_b = {
+            "topic": "conversation.user.created",
+            "app_id": "abc123",
+            "data": {"item": {"id": "conv_002"}},
+        }
+        body_a = json.dumps(payload_a).encode()
+        body_b = json.dumps(payload_b).encode()
+        sig_for_a = _make_intercom_signature(body_a, "webhook-secret")
+
+        response = client.post(
+            "/api/v1/webhooks/intercom/events",
+            content=body_b,
+            headers={"Content-Type": "application/json", "X-Hub-Signature": sig_for_a},
+        )
+        assert response.status_code == 401
+        mock_queue.assert_not_called()
+
+    @patch("src.api.routes.source_webhooks.INTERCOM_CLIENT_SECRET", "webhook-secret")
+    @patch("src.api.routes.source_webhooks.queue_source_event")
+    def test_non_ascii_signature_returns_401_not_500(self, mock_queue: MagicMock, client: TestClient):
+        """hmac.compare_digest raises TypeError on a non-ASCII str argument --
+        must surface as a 401, not an unhandled 500."""
+        payload = {
+            "topic": "conversation.user.created",
+            "app_id": "abc123",
+            "data": {"item": {"id": "conv_001"}},
+        }
+        body = json.dumps(payload).encode()
+
+        response = client.post(
+            "/api/v1/webhooks/intercom/events",
+            content=body,
+            headers={
+                "Content-Type": "application/json",
+                # httpx encodes str header values as ASCII; send raw latin-1
+                # bytes (as a real client could) so the server actually
+                # receives a non-ASCII str after Starlette's header decode.
+                "X-Hub-Signature": "sha1=ééé".encode("latin-1"),
+            },
+        )
+        assert response.status_code == 401
+        mock_queue.assert_not_called()
+
+    @patch("src.api.routes.source_webhooks.INTERCOM_CLIENT_SECRET", "webhook-secret")
+    def test_webhook_rejects_invalid_signature(self, client: TestClient):
+        """Should reject requests with invalid signature."""
+        payload = {
+            "topic": "conversation.user.created",
+            "app_id": "abc123",
+            "data": {"item": {"id": "conv_001"}},
+        }
+        body = json.dumps(payload).encode()
+
+        response = client.post(
+            "/api/v1/webhooks/intercom/events",
+            content=body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Hub-Signature": "sha1=badsignature",
+            },
+        )
+        assert response.status_code == 401
+
+    @patch("src.api.routes.source_webhooks.INTERCOM_CLIENT_SECRET", "webhook-secret")
+    @patch("src.api.routes.source_webhooks.queue_source_event", return_value="task-456")
+    def test_webhook_processes_conversation_created(
+        self,
+        mock_queue: MagicMock,
+        client: TestClient,
+    ):
+        """Should queue conversation.user.created events, with the payload's
+        app_id flowing through as provider_context.workspace_id.
+
+        This test previously asserted `workspace_id: None` against a payload
+        that deliberately omitted `app_id` -- pinning the cross-tenant
+        vulnerability (missing app_id -> None -> matches every org's source
+        in worker-service's _find_matching_sources) as the expected
+        contract. Rewritten, not extended: the payload now includes app_id
+        and the assertion follows it through.
+
+        Rewritten a second time, for the same reason: it also asserted
+        `event_data=payload["data"]`, pinning the envelope-strip defect that
+        meant Intercom produced no feedback item in any release up to 1.0.0.
+        IntercomAdapter reads `topic` and `data.item` off the FULL envelope
+        (worker-service/src/adapters/intercom.py), so the route must queue
+        the whole payload. See
+        docs/planning/intercom-selfhost-ingestion/envelope-seam-fix/."""
+        payload = {
+            "topic": "conversation.user.created",
+            "app_id": "abc123",
+            "data": {
+                "item": {
+                    "type": "conversation",
+                    "id": "conv_100",
+                    "conversation_message": {"body": "I need help with billing."},
+                }
+            },
+        }
+        body = json.dumps(payload).encode()
+        sig = _make_intercom_signature(body, "webhook-secret")
+
+        response = client.post(
+            "/api/v1/webhooks/intercom/events",
+            content=body,
+            headers={"Content-Type": "application/json", "X-Hub-Signature": sig},
+        )
+        assert response.status_code == 200
+        mock_queue.assert_called_once_with(
+            source_type="intercom",
+            external_event_id="conv_100",
+            event_type="conversation.user.created",
+            event_data=payload,
+            provider_context={"conversation_id": "conv_100", "workspace_id": "abc123"},
+        )
+
+    @patch("src.api.routes.source_webhooks.INTERCOM_CLIENT_SECRET", "webhook-secret")
+    @patch("src.api.routes.source_webhooks.queue_source_event", return_value="task-789")
+    def test_webhook_processes_conversation_replied(
+        self,
+        mock_queue: MagicMock,
+        client: TestClient,
+    ):
+        """Pins the full queue kwargs for conversation.user.replied against the
+        golden fixture: the route must queue the FULL envelope, the
+        conversation id (item.id) as external_event_id, and app_id as
+        provider_context.workspace_id. Values are derived from the fixture, so
+        a mismatched fixture fails the test."""
+        envelope = load_golden_reply_envelope()
+        body = json.dumps(envelope).encode()
+        sig = _make_intercom_signature(body, "webhook-secret")
+
+        response = client.post(
+            "/api/v1/webhooks/intercom/events",
+            content=body,
+            headers={"Content-Type": "application/json", "X-Hub-Signature": sig},
+        )
+        assert response.status_code == 200
+        mock_queue.assert_called_once_with(
+            source_type="intercom",
+            external_event_id=envelope["data"]["item"]["id"],
+            event_type="conversation.user.replied",
+            event_data=envelope,
+            provider_context={
+                "conversation_id": envelope["data"]["item"]["id"],
+                "workspace_id": envelope["app_id"],
+            },
+        )
+
+    @patch("src.api.routes.source_webhooks.INTERCOM_CLIENT_SECRET", "webhook-secret")
+    @patch("src.api.routes.source_webhooks.queue_source_event", return_value="task-rating")
+    def test_webhook_processes_rating_added(
+        self,
+        mock_queue: MagicMock,
+        client: TestClient,
+    ):
+        """Pins the full queue kwargs for conversation.rating.added against the
+        golden fixture: the route must queue the FULL envelope, the
+        conversation id (item.id) as external_event_id, and app_id as
+        provider_context.workspace_id. Values are derived from the fixture, so
+        a mismatched fixture fails the test."""
+        envelope = load_golden_rating_envelope()
+        body = json.dumps(envelope).encode()
+        sig = _make_intercom_signature(body, "webhook-secret")
+
+        response = client.post(
+            "/api/v1/webhooks/intercom/events",
+            content=body,
+            headers={"Content-Type": "application/json", "X-Hub-Signature": sig},
+        )
+        assert response.status_code == 200
+        mock_queue.assert_called_once_with(
+            source_type="intercom",
+            external_event_id=envelope["data"]["item"]["id"],
+            event_type="conversation.rating.added",
+            event_data=envelope,
+            provider_context={
+                "conversation_id": envelope["data"]["item"]["id"],
+                "workspace_id": envelope["app_id"],
+            },
+        )
+
+    @patch("src.api.routes.source_webhooks.INTERCOM_CLIENT_SECRET", "webhook-secret")
+    def test_webhook_ignores_unsupported_topic(self, client: TestClient):
+        """Should ignore topics we don't handle."""
+        payload = {
+            "topic": "user.unsubscribed",
+            "app_id": "abc123",
+            "data": {"item": {"id": "user_999"}},
+        }
+        body = json.dumps(payload).encode()
+        sig = _make_intercom_signature(body, "webhook-secret")
+
+        response = client.post(
+            "/api/v1/webhooks/intercom/events",
+            content=body,
+            headers={"Content-Type": "application/json", "X-Hub-Signature": sig},
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "ignored"
+
+
+# ============================================================================
+# Cross-service envelope contract
+# ============================================================================
+
+
+GOLDEN_ENVELOPE_PATH = (
+    # tests/ -> backend-api/ -> services/
+    pathlib.Path(__file__).resolve().parents[2]
+    / "worker-service"
+    / "tests"
+    / "fixtures"
+    / "intercom_webhook_envelope.json"
+)
+
+
+def load_golden_envelope() -> dict:
+    """Load the Intercom envelope contract shared with the worker suite.
+
+    Deliberately raises rather than skipping when the file is absent. A skip
+    would turn the one test guarding this seam into a silent no-op -- which is
+    the exact failure mode that let the envelope defect ship in every release.
+    """
+    if not GOLDEN_ENVELOPE_PATH.exists():
+        raise AssertionError(
+            f"Golden Intercom envelope fixture missing at {GOLDEN_ENVELOPE_PATH}. "
+            "It is a shared contract also read by "
+            "services/worker-service/tests/test_intercom_envelope_seam.py -- "
+            "restore it rather than skipping this test."
+        )
+    return json.loads(GOLDEN_ENVELOPE_PATH.read_text())
+
+
+GOLDEN_REPLY_ENVELOPE_PATH = (
+    # tests/ -> backend-api/ -> services/
+    pathlib.Path(__file__).resolve().parents[2]
+    / "worker-service"
+    / "tests"
+    / "fixtures"
+    / "intercom_webhook_reply_envelope.json"
+)
+
+GOLDEN_RATING_ENVELOPE_PATH = (
+    # tests/ -> backend-api/ -> services/
+    pathlib.Path(__file__).resolve().parents[2]
+    / "worker-service"
+    / "tests"
+    / "fixtures"
+    / "intercom_webhook_rating_envelope.json"
+)
+
+
+def load_golden_reply_envelope() -> dict:
+    """Load the Intercom reply envelope contract shared with the worker suite.
+
+    Deliberately raises rather than skipping when the file is absent. A skip
+    would turn the one test guarding this seam into a silent no-op -- which is
+    the exact failure mode that let the envelope defect ship in every release.
+    """
+    if not GOLDEN_REPLY_ENVELOPE_PATH.exists():
+        raise AssertionError(
+            f"Golden Intercom reply envelope fixture missing at {GOLDEN_REPLY_ENVELOPE_PATH}. "
+            "It is a shared contract also read by "
+            "services/worker-service/tests/test_intercom_envelope_seam.py -- "
+            "restore it rather than skipping this test."
+        )
+    return json.loads(GOLDEN_REPLY_ENVELOPE_PATH.read_text())
+
+
+def load_golden_rating_envelope() -> dict:
+    """Load the Intercom rating envelope contract shared with the worker suite.
+
+    Deliberately raises rather than skipping when the file is absent. A skip
+    would turn the one test guarding this seam into a silent no-op -- which is
+    the exact failure mode that let the envelope defect ship in every release.
+    """
+    if not GOLDEN_RATING_ENVELOPE_PATH.exists():
+        raise AssertionError(
+            f"Golden Intercom rating envelope fixture missing at {GOLDEN_RATING_ENVELOPE_PATH}. "
+            "It is a shared contract also read by "
+            "services/worker-service/tests/test_intercom_envelope_seam.py -- "
+            "restore it rather than skipping this test."
+        )
+    return json.loads(GOLDEN_RATING_ENVELOPE_PATH.read_text())
+
+
+class TestIntercomEnvelopeContract:
+    """Pins the shape the route hands to the queue.
+
+    IntercomAdapter (worker-service) reads `topic` and `data.item` off the FULL
+    envelope. The route used to queue only `payload["data"]`, so the adapter saw
+    topic="" and item={}, extracted empty text, and no FeedbackItem was ever
+    created -- in any release up to 1.0.0.
+
+    Both halves of the seam assert against the same fixture on disk:
+    worker-service proves "this envelope produces a feedback item", and this
+    test proves "this envelope is what we send". Neither service can import the
+    other, which is why the defect survived two green suites.
+
+    See docs/planning/intercom-selfhost-ingestion/envelope-seam-fix/.
+    """
+
+    @patch("src.api.routes.source_webhooks.INTERCOM_CLIENT_SECRET", "webhook-secret")
+    @patch("src.api.routes.source_webhooks.queue_source_event", return_value="task-contract")
+    def test_route_queues_the_full_envelope(
+        self,
+        mock_queue: MagicMock,
+        client: TestClient,
+    ):
+        envelope = load_golden_envelope()
+        body = json.dumps(envelope).encode()
+        sig = _make_intercom_signature(body, "webhook-secret")
+
+        response = client.post(
+            "/api/v1/webhooks/intercom/events",
+            content=body,
+            headers={"Content-Type": "application/json", "X-Hub-Signature": sig},
+        )
+
+        assert response.status_code == 200
+        queued = mock_queue.call_args.kwargs["event_data"]
+        assert queued == envelope, (
+            "The route must queue the whole envelope. Queuing only the inner "
+            "`data` object leaves IntercomAdapter with topic='' and item={}, "
+            "which extracts empty text and creates no feedback item."
+        )
+        assert queued["topic"] == "conversation.user.created"
+        assert queued["data"]["item"]["id"] == "conv_golden_100"
+
+    @patch("src.api.routes.source_webhooks.INTERCOM_CLIENT_SECRET", "webhook-secret")
+    @patch("src.api.routes.source_webhooks.queue_source_event", return_value="task-contract-reply")
+    def test_route_queues_the_full_reply_envelope(
+        self,
+        mock_queue: MagicMock,
+        client: TestClient,
+    ):
+        """The replied envelope on disk is what the route hands to the queue.
+
+        Same contract as test_route_queues_the_full_envelope, for the reply
+        envelope: worker-service's seams parse `conversation_parts`
+        (conversation.user.replied), and this test proves the route forwards
+        the whole envelope -- not just payload["data"].
+        """
+        envelope = load_golden_reply_envelope()
+        body = json.dumps(envelope).encode()
+        sig = _make_intercom_signature(body, "webhook-secret")
+
+        response = client.post(
+            "/api/v1/webhooks/intercom/events",
+            content=body,
+            headers={"Content-Type": "application/json", "X-Hub-Signature": sig},
+        )
+
+        assert response.status_code == 200
+        queued = mock_queue.call_args.kwargs["event_data"]
+        assert queued == envelope, (
+            "The route must queue the whole reply envelope. Queuing only the "
+            "inner `data` object leaves the enrichment seams without the "
+            "conversation-wrapped shape they parse."
+        )
+        assert queued["topic"] == "conversation.user.replied"
+        assert queued["data"]["item"]["id"] == "conv_golden_200"
+
+    @patch("src.api.routes.source_webhooks.INTERCOM_CLIENT_SECRET", "webhook-secret")
+    @patch("src.api.routes.source_webhooks.queue_source_event", return_value="task-contract-rating")
+    def test_route_queues_the_full_rating_envelope(
+        self,
+        mock_queue: MagicMock,
+        client: TestClient,
+    ):
+        """The rating envelope on disk is what the route hands to the queue.
+
+        Same contract as test_route_queues_the_full_envelope, for the rating
+        envelope: worker-service's seams read `conversation_rating`
+        (conversation.rating.added), and this test proves the route forwards
+        the whole envelope -- not just payload["data"].
+        """
+        envelope = load_golden_rating_envelope()
+        body = json.dumps(envelope).encode()
+        sig = _make_intercom_signature(body, "webhook-secret")
+
+        response = client.post(
+            "/api/v1/webhooks/intercom/events",
+            content=body,
+            headers={"Content-Type": "application/json", "X-Hub-Signature": sig},
+        )
+
+        assert response.status_code == 200
+        queued = mock_queue.call_args.kwargs["event_data"]
+        assert queued == envelope, (
+            "The route must queue the whole rating envelope. Queuing only the "
+            "inner `data` object leaves the enrichment seams without the "
+            "conversation-wrapped shape they parse."
+        )
+        assert queued["topic"] == "conversation.rating.added"
+        assert queued["data"]["item"]["id"] == "conv_golden_300"

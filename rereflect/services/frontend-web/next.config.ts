@@ -3,19 +3,24 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
-  // Enable standalone output for Docker deployments
-  output: "standalone",
-  // Required for monorepo: tells Next.js to trace dependencies from the workspace root
-  outputFileTracingRoot: path.join(import.meta.dirname, "../../"),
+  // Vercel builds its own functions; standalone output is for Docker.
+  output: process.env.VERCEL === "1" ? undefined : "standalone",
+  // Vercel resolves relativeAppDir against the Git root, which contains rereflect/.
+  // Docker's build context contains the inner workspace instead.
+  outputFileTracingRoot: path.join(import.meta.dirname, process.env.VERCEL === "1" ? "../../../" : "../../"),
 };
 
-export default withSentryConfig(nextConfig, {
+const uploadsConfigured = Boolean(process.env.SENTRY_ORG && process.env.SENTRY_PROJECT && process.env.SENTRY_AUTH_TOKEN);
+const telemetryConfigured = Boolean(process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN || uploadsConfigured);
+
+export default telemetryConfigured ? withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 
-  org: "rereflect",
+  org: process.env.SENTRY_ORG,
 
-  project: "frontend-web",
+  project: process.env.SENTRY_PROJECT,
+  sourcemaps: { disable: !uploadsConfigured },
 
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
@@ -45,4 +50,4 @@ export default withSentryConfig(nextConfig, {
       removeDebugLogging: true,
     },
   },
-});
+}) : nextConfig;

@@ -543,12 +543,41 @@ def asana_webhook_enable(
     webhook_url_token = secrets.token_urlsafe(32)
     target_url = f"{BACKEND_URL}/api/v1/webhooks/asana/inbound/{webhook_url_token}"
 
+    previous = (integration.webhook_gid, integration.webhook_url_token, integration.webhook_secret)
+    if previous[0] is None and previous[1] is not None:
+        raise HTTPException(status_code=409, detail="Asana webhook registration is already in progress.")
+    # Asana sends its verification request BEFORE create_webhook returns.
+    # Make the new URL visible to that independent request first.
+    claimed = db.query(AsanaIntegration).filter(
+        AsanaIntegration.id == integration.id,
+        AsanaIntegration.is_active.is_(True),
+        AsanaIntegration.webhook_gid == previous[0],
+        AsanaIntegration.webhook_url_token == previous[1],
+        AsanaIntegration.webhook_secret == previous[2],
+    ).update({AsanaIntegration.webhook_url_token:webhook_url_token,
+              AsanaIntegration.webhook_secret:None, AsanaIntegration.webhook_gid:None},
+             synchronize_session=False)
+    db.commit()
+    if claimed != 1:
+        raise HTTPException(status_code=409, detail="Asana configuration changed. Retry setup.")
+
+    def restore_previous_webhook():
+        db.query(AsanaIntegration).filter(
+            AsanaIntegration.id == integration.id,
+            AsanaIntegration.webhook_url_token == webhook_url_token,
+            AsanaIntegration.is_active.is_(True),
+        ).update({AsanaIntegration.webhook_gid:previous[0],
+                  AsanaIntegration.webhook_url_token:previous[1],
+                  AsanaIntegration.webhook_secret:previous[2]}, synchronize_session=False)
+        db.commit()
+
     asana_client = AsanaClient(plain_token)
     try:
         created = asana_client.create_webhook(
             resource_gid=payload.resource_gid, target_url=target_url
         )
     except AsanaAuthError as exc:
+        restore_previous_webhook()
         integration.last_sync_status = "error"
         integration.last_error = str(exc)
         db.commit()
@@ -557,20 +586,29 @@ def asana_webhook_enable(
             detail="Asana token is invalid or lacks required permissions. Reconnect Asana.",
         ) from exc
     except AsanaTransientError as exc:
+        restore_previous_webhook()
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Asana API returned a transient error: {exc}",
+            detail="Asana webhook registration failed. Check the selected project and callback availability, then retry.",
         ) from exc
+    except AsanaNotFoundError as exc:
+        restore_previous_webhook()
+        raise HTTPException(status_code=404, detail="The selected Asana project was not found.") from exc
     finally:
         _close_client(asana_client)
 
-    integration.webhook_gid = created.get("gid")
-    integration.webhook_url_token = webhook_url_token
-    # A re-enable always requires a fresh handshake against the newly
-    # created webhook -- any previously-captured secret is stale.
-    integration.webhook_secret = None
-    integration.updated_at = datetime.utcnow()
+    # Write only if this registration still owns the callback; never overwrite
+    # the independently captured secret or a disable/reconnect operation.
+    completed = db.query(AsanaIntegration).filter(
+        AsanaIntegration.id == integration.id,
+        AsanaIntegration.webhook_url_token == webhook_url_token,
+        AsanaIntegration.is_active.is_(True),
+    ).update({AsanaIntegration.webhook_gid:created.get("gid"),
+              AsanaIntegration.updated_at:datetime.utcnow()}, synchronize_session=False)
     db.commit()
+    if completed != 1:
+        raise HTTPException(status_code=409, detail="Asana configuration changed during registration. Retry setup.")
+    db.refresh(integration)
 
     logger.info(
         "Asana webhook enabled for org %s (webhook_gid=%s)",

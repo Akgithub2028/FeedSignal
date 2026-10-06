@@ -513,7 +513,7 @@ def _handle_send_email(
 
     org = db.query(Organization).filter_by(id=org_id).first()
     product_name = (
-        org.product_name_display if org and org.product_name_display else "Rereflect"
+        org.product_name_display if org and org.product_name_display else "FeedSignal"
     )
     customer_name = health.customer_name or customer_email.split("@")[0]
 

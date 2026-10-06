@@ -220,7 +220,7 @@ def build_health_alert_blocks(
     is_recovery: bool = False,
 ) -> List[Dict]:
     """Build Slack Block Kit blocks for a health drop or recovery alert."""
-    app_url = os.getenv("APP_URL", "https://app.rereflect.com")
+    app_url = os.getenv("APP_URL", "http://localhost:3000")
     encoded_email = quote(customer_email, safe="")
     customer_url = f"{app_url}/customers/{encoded_email}"
 
@@ -313,7 +313,7 @@ def build_discord_health_alert_embeds(
     version's actions/button block, so the customer URL goes in the embed's
     "url" field instead (makes the embed title a clickable link).
     """
-    app_url = os.getenv("APP_URL", "https://app.rereflect.com")
+    app_url = os.getenv("APP_URL", "http://localhost:3000")
     encoded_email = quote(customer_email, safe="")
     customer_url = f"{app_url}/customers/{encoded_email}"
 
@@ -846,7 +846,7 @@ def _dispatch_discord_alert(
 
         full_link = f"{app_url}{link}" if link else app_url
 
-        content = f"Rereflect: {title}"
+        content = f"FeedSignal: {title}"
         embeds = [
             {
                 "title": title,

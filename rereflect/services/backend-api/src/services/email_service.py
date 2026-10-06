@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@rereflect.ca")
-FROM_NAME = os.getenv("FROM_NAME", "Rereflect")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "").strip()
+FROM_NAME = os.getenv("FROM_NAME", "FeedSignal")
 APP_URL = os.getenv("APP_URL", "http://localhost:3000")
 
 # Template IDs from Resend
@@ -35,7 +35,7 @@ _template_cache: Dict[str, Tuple[str, str]] = {}
 
 def _is_email_enabled() -> bool:
     """Check if email sending is enabled."""
-    return bool(RESEND_API_KEY)
+    return bool(RESEND_API_KEY and FROM_EMAIL)
 
 
 def _get_template(template_id: str) -> Optional[Tuple[str, str]]:
@@ -363,13 +363,13 @@ def send_member_removed_email(
 
 # Alert email subject lines per alert type
 ALERT_SUBJECTS = {
-    "urgent_feedback": "[Rereflect] Urgent feedback detected",
-    "sentiment_spike": "[Rereflect] Sentiment spike alert",
-    "churn_risk": "[Rereflect] Churn risk detected",
-    "volume_spike": "[Rereflect] Feedback volume spike",
+    "urgent_feedback": "[FeedSignal] Urgent feedback detected",
+    "sentiment_spike": "[FeedSignal] Sentiment spike alert",
+    "churn_risk": "[FeedSignal] Churn risk detected",
+    "volume_spike": "[FeedSignal] Feedback volume spike",
 }
 
-ALERT_FROM_EMAIL = "Rereflect Alerts <alerts@rereflect.ca>"
+ALERT_FROM_EMAIL = os.getenv("ALERT_FROM_EMAIL") or f"{FROM_NAME} Alerts <{FROM_EMAIL}>"
 
 
 def send_alert_email(
@@ -403,7 +403,7 @@ def send_alert_email(
         "UNSUBSCRIBE_URL": unsubscribe_url,
     })
 
-    subject = ALERT_SUBJECTS.get(alert_type, f"[Rereflect] {alert_type.replace('_', ' ').title()}")
+    subject = ALERT_SUBJECTS.get(alert_type, f"[FeedSignal] {alert_type.replace('_', ' ').title()}")
 
     return _send_email_with_from(
         to=to_email,
@@ -420,9 +420,9 @@ def send_deletion_request_email(to_email: str) -> bool:
     The email reminds the user they can cancel within 30 days.
     """
     cancel_url = f"{APP_URL}/settings/preferences"
-    subject = "[Rereflect] Your account deletion has been scheduled"
+    subject = "[FeedSignal] Your account deletion has been scheduled"
     html = f"""
-    <p>Your Rereflect account has been scheduled for deletion in <strong>30 days</strong>.</p>
+    <p>Your FeedSignal account has been scheduled for deletion in <strong>30 days</strong>.</p>
     <p>If you change your mind, you can cancel the deletion by logging in at:
     <a href="{cancel_url}">{cancel_url}</a></p>
     <p>After 30 days, all your data will be permanently deleted and cannot be recovered.</p>

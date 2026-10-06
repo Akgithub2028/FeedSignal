@@ -21,9 +21,6 @@ def seed_admin_user():
     IMPORTANT: This only seeds when there are NO users in the database.
     It will NOT modify existing users or promote anyone to owner.
     """
-    admin_email = os.getenv("ADMIN_EMAIL", "support@rereflect.ca")
-    admin_password = os.getenv("ADMIN_PASSWORD", "QeOtLqfzR8Su$")
-
     db: Session = SessionLocal()
     try:
         # Check if ANY users exist - if so, skip seeding entirely
@@ -31,6 +28,16 @@ def seed_admin_user():
         if user_count > 0:
             logger.info(f"Database already has {user_count} users, skipping seed")
             return
+
+        # Bootstrap must use operator-supplied credentials, never a published
+        # account/password. Existing installations do not need these settings.
+        admin_email = (os.getenv("ADMIN_EMAIL") or "").strip()
+        admin_password = os.getenv("ADMIN_PASSWORD") or ""
+        if not admin_email or not admin_password.strip():
+            raise RuntimeError(
+                "Set ADMIN_EMAIL and ADMIN_PASSWORD explicitly before "
+                "bootstrapping an empty database."
+            )
 
         # Create default organization
         org = db.query(Organization).filter(Organization.name == "Admin Organization").first()
@@ -40,8 +47,7 @@ def seed_admin_user():
                 plan="enterprise"
             )
             db.add(org)
-            db.commit()
-            db.refresh(org)
+            db.flush()
             logger.info(f"Created organization: {org.name} (id={org.id})")
 
         # Create owner user (first user in org is always owner)

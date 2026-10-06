@@ -663,7 +663,7 @@ async def _handle_query(
                 {
                     "role": "system",
                     "content": (
-                        "You are an AI assistant for the Rereflect customer feedback platform.\n"
+                        "You are an AI assistant for the FeedSignal customer feedback platform.\n"
                         "You just ran a database query for the user. Here are the results:\n\n"
                         f"Columns: {', '.join(sql_columns)}\n"
                         f"Data ({len(sql_rows)} rows):\n{formatted_rows}\n"
@@ -686,7 +686,7 @@ async def _handle_query(
             if safety_failed:
                 # Honest weak-model UX: tell the user the model couldn't produce safe SQL
                 system_content = (
-                    "You are an AI assistant for the Rereflect customer feedback platform.\n"
+                    "You are an AI assistant for the FeedSignal customer feedback platform.\n"
                     f"Context about the organization's data:\n{context}\n\n"
                     "I couldn't turn that question into a safe, valid SQL query with the "
                     "current model. This can happen with smaller or less capable local models.\n"
@@ -697,7 +697,7 @@ async def _handle_query(
             else:
                 # Generic fallback: SQL returned empty or generation failed for other reasons
                 system_content = (
-                    "You are an AI assistant for the Rereflect customer feedback platform.\n"
+                    "You are an AI assistant for the FeedSignal customer feedback platform.\n"
                     f"Here is context about the organization's data:\n{context}\n\n"
                     "The user asked a data question but the query returned no results.\n"
                     "Help them understand what data is available and suggest alternative questions."
@@ -713,7 +713,7 @@ async def _handle_query(
                 {
                     "role": "system",
                     "content": (
-                        "You are a helpful AI assistant for Rereflect, a customer feedback "
+                        "You are a helpful AI assistant for FeedSignal, a customer feedback "
                         "analysis platform.\n"
                         f"Here is context about the organization:\n{context}\n\n"
                         "Help users with questions about the platform, their data, and "

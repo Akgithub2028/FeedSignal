@@ -251,8 +251,8 @@ def test_execute_send_customer_email_product_name_falls_back(mock_task, db):
         )
 
     row = db.query(AutomationEmailDelivery).one()
-    assert "Rereflect" in row.subject
-    assert "Rereflect" in row.body
+    assert "FeedSignal" in row.subject
+    assert "FeedSignal" in row.body
 
 
 @patch("src.services.automation_email_delivery.send_automation_email")

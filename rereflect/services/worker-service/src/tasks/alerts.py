@@ -493,7 +493,7 @@ def send_slack_alert(
 
         # Build Slack message using template
         blocks = build_slack_blocks_from_template(feedback_items, template, alert_type)
-        fallback_text = f"Rereflect: {len(feedback_items)} {alert_type} feedback alert(s)"
+        fallback_text = f"FeedSignal: {len(feedback_items)} {alert_type} feedback alert(s)"
 
         # Send to Slack via webhook or OAuth
         try:

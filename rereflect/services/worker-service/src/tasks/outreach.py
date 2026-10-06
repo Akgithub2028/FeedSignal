@@ -116,7 +116,7 @@ def _process_recipient(
         .filter_by(id=campaign.organization_id)
         .first()
     )
-    product_name = (org.product_name_display if org else None) or "Rereflect"
+    product_name = (org.product_name_display if org else None) or "FeedSignal"
 
     result = outreach_sender.send_outreach_email(
         db,
@@ -233,7 +233,7 @@ def _process_automation_delivery(db, delivery_id: int) -> dict:
         }
 
     org = db.query(Organization).filter_by(id=delivery.organization_id).first()
-    product_name = (org.product_name_display if org else None) or "Rereflect"
+    product_name = (org.product_name_display if org else None) or "FeedSignal"
 
     result = outreach_sender.send_outreach_email(
         db,

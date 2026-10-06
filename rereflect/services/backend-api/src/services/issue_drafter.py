@@ -54,7 +54,7 @@ class IssueDraftError(Exception):
 def _build_messages(feedback: FeedbackItem, org: Organization, target: str, tone: str) -> list:
     """Build the chat messages, hardening against prompt injection (E1) and
     capping input size (E2)."""
-    product_name = (org.product_name_display if org else None) or "Rereflect"
+    product_name = (org.product_name_display if org else None) or "FeedSignal"
 
     brand_voice_section = ""
     if org and org.brand_voice:

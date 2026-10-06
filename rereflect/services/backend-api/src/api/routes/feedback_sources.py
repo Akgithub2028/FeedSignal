@@ -4,6 +4,7 @@ Supports Slack, Discord, Webhooks, and other integrations.
 """
 
 import logging
+import os
 import secrets
 import uuid
 from typing import List, Optional
@@ -437,9 +438,11 @@ def create_feedback_source(
         provider_config["secret_token"] = webhook_secret
 
     if data.source_type == "email":
-        # Generate unique inbound address: feedback-{8char_hash}@rereflect.ca
+        inbound_domain = os.getenv("INBOUND_EMAIL_DOMAIN", "").strip().lower()
+        if not inbound_domain:
+            raise HTTPException(status_code=503, detail="Configure INBOUND_EMAIL_DOMAIN and receiving DNS before creating email sources")
         address_hash = uuid.uuid4().hex[:8]
-        provider_config["inbound_address"] = f"feedback-{address_hash}@rereflect.ca"
+        provider_config["inbound_address"] = f"feedback-{address_hash}@{inbound_domain}"
 
     # Create the source
     source = FeedbackSource(

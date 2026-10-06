@@ -282,7 +282,7 @@ async def lifespan(app: FastAPI):
 root_path = os.getenv("ROOT_PATH", "")
 
 app = FastAPI(
-    title="Rereflect API",
+    title="FeedSignal API",
     version="1.0.0",
     description="Multi-tenant SaaS API for customer feedback analysis",
     lifespan=lifespan,
@@ -444,7 +444,7 @@ app.include_router(public_api_router.router)
 @app.get("/")
 async def root():
     return {
-        "message": "Rereflect API",
+        "message": "FeedSignal API",
         "version": "1.0.0",
         "status": "running"
     }

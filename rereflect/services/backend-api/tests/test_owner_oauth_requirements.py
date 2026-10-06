@@ -11,7 +11,7 @@ def test_slack_grant_covers_public_and_private_channel_ingestion(monkeypatch):
     result = integrations.slack_oauth_connect(name='Owner Slack', current_org=Organization(id=1))
     params = parse_qs(urlparse(result.auth_url).query)
     assert set(params['scope'][0].split(',')) == {
-        'chat:write', 'channels:read', 'groups:read', 'channels:history', 'groups:history'
+        'chat:write', 'channels:read', 'groups:read', 'channels:history', 'groups:history', 'incoming-webhook'
     }
     assert params['redirect_uri'] == ['https://api.example.com/slack/callback']
     assert params['state'] == [result.state]

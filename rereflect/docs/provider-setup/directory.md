@@ -2,7 +2,7 @@
 
 FeedSignal owner app-registration material. No actual secret belongs here.
 
-- [slack-manifest.json](slack-manifest.json): FeedSignal bot, five posting/history grants, owner API callback, signed event URL and message subscriptions. Reload verified these settings on 6 October 2026.
+- [slack-manifest.json](slack-manifest.json): FeedSignal bot, six posting/history/channel-selection grants, owner API callback, signed event URL and message subscriptions. Reload verified these settings on 6 October 2026.
 
 Owner workspace: https://feedsignal.slack.com, team `T0C7136FUE8`. Active FeedSignal app: `A0C6U45DBEZ`. The earlier `A0C7RSCJ7NU` is an unused Demo App; its irreversible PKCE/token-rotation settings are incompatible with the baseline, so leave it untouched. The new app disables both, as the baseline does not implement Slack refresh/PKCE.
 

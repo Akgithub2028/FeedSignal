@@ -368,7 +368,7 @@ DISCORD_EMBED_COLOR = 14698287
 
 
 def send_discord_message(
-    webhook_url: str, embeds: list, content: str = "Rereflect Alert"
+    webhook_url: str, embeds: list, content: str = "FeedSignal Alert"
 ) -> dict:
     """Send a message to a Discord webhook.
 
@@ -397,7 +397,7 @@ def send_discord_message(
 
 
 # Teams MessageCard accent — Microsoft's "Communication" brand colour, kept as
-# the card's themeColor so Teams renders alerts with Rereflect's accent.
+# the card's themeColor so Teams renders alerts with FeedSignal's accent.
 TEAMS_THEME_COLOR = "6264A7"
 
 
@@ -434,7 +434,7 @@ def send_teams_message(webhook_url, title, text, summary=None) -> dict:
         return {"success": False, "error": str(e)}
 
 
-def send_slack_message(webhook_url: str, blocks: list, text: str = "Rereflect Alert") -> dict:
+def send_slack_message(webhook_url: str, blocks: list, text: str = "FeedSignal Alert") -> dict:
     """Send a message to Slack via webhook."""
     try:
         with httpx.Client(timeout=10) as client:
@@ -647,7 +647,7 @@ def test_discord_integration(
         )
 
     embeds = [{
-        "title": "Rereflect test message",
+        "title": "FeedSignal test message",
         "description": (
             f"Your Discord integration **{integration.name}** is working correctly.\n\n"
             "Alerts for urgent feedback, sentiment spikes, churn risk and volume "
@@ -659,7 +659,7 @@ def test_discord_integration(
     result = send_discord_message(
         webhook_url=webhook_url,
         embeds=embeds,
-        content="Rereflect test message",
+        content="FeedSignal test message",
     )
 
     if result.get("success"):
@@ -710,13 +710,13 @@ def test_teams_integration(
 
     result = send_teams_message(
         webhook_url=webhook_url,
-        title="Rereflect test message",
+        title="FeedSignal test message",
         text=(
             f"Your Teams integration {integration.name} is working correctly.\n\n"
             "Alerts for urgent feedback, sentiment spikes, churn risk and volume "
             "spikes will arrive here."
         ),
-        summary="Rereflect test message",
+        summary="FeedSignal test message",
     )
 
     if result.get("success"):
@@ -864,7 +864,7 @@ def test_slack_integration(
             "type": "header",
             "text": {
                 "type": "plain_text",
-                "text": "✅ Rereflect Test Message",
+                "text": "✅ FeedSignal Test Message",
                 "emoji": True
             }
         },
@@ -911,7 +911,7 @@ def test_slack_integration(
                 detail="Integration has no channel configured. Please reconnect to Slack."
             )
 
-        result = send_slack_message_oauth(access_token, channel_id, blocks, "Rereflect Test Message")
+        result = send_slack_message_oauth(access_token, channel_id, blocks, "FeedSignal Test Message")
     else:
         # Webhook integration
         webhook_url = config.get('webhook_url')
@@ -922,7 +922,7 @@ def test_slack_integration(
                 detail="Integration has no webhook URL configured"
             )
 
-        result = send_slack_message(webhook_url, blocks, "Rereflect Test Message")
+        result = send_slack_message(webhook_url, blocks, "FeedSignal Test Message")
 
     if result["success"]:
         # Update last_used_at
@@ -1021,8 +1021,8 @@ def slack_oauth_connect(
     state = sign_oauth_state(current_org.id, name)
 
     # Build OAuth authorization URL
-    # Posting/listing plus history access used by polling and message events.
-    scopes = "chat:write,channels:read,groups:read,channels:history,groups:history"
+    # Incoming webhook permission supplies the user-selected alert channel.
+    scopes = "chat:write,channels:read,groups:read,channels:history,groups:history,incoming-webhook"
 
     params = {
         "client_id": SLACK_CLIENT_ID,
@@ -1114,25 +1114,30 @@ def slack_oauth_callback(
                        "Set LLM_ENCRYPTION_KEY in your environment and reconnect.",
             ) from exc
 
-        # Create integration with OAuth token
-        integration = Integration(
-            organization_id=organization_id,
-            type="slack",
-            name=integration_name,
-            config={
+        # Reauthorizing this named workspace must retain its source links and
+        # alert settings. Other tenants, workspaces and destinations stay intact.
+        integration = db.query(Integration).filter(
+            Integration.organization_id == organization_id,
+            Integration.type == "slack",
+            Integration.name == integration_name,
+            Integration.config["team_id"].as_string() == team_id,
+        ).first()
+        if integration is None:
+            integration = Integration(organization_id=organization_id,
+                type="slack", name=integration_name, triggers=["urgent"])
+            db.add(integration)
+        integration.config = {
+            **(integration.config or {}),
                 "integration_type": "oauth",
                 "team_id": team_id,
                 "team_name": team_name,
                 "bot_user_id": bot_user_id,
                 "channel_id": incoming_webhook.get("channel_id"),
                 "channel_name": incoming_webhook.get("channel"),
-            },
-            oauth_access_token=stored_token,
-            triggers=["urgent"],
-            is_active=True,
-        )
+        }
+        integration.oauth_access_token = stored_token
+        integration.is_active = True
 
-        db.add(integration)
         db.commit()
         db.refresh(integration)
 
@@ -1157,7 +1162,7 @@ def slack_oauth_callback(
         )
 
 
-def send_slack_message_oauth(access_token: str, channel_id: str, blocks: list, text: str = "Rereflect Alert") -> dict:
+def send_slack_message_oauth(access_token: str, channel_id: str, blocks: list, text: str = "FeedSignal Alert") -> dict:
     """Send a message to Slack via OAuth token (Bot API)."""
     try:
         with httpx.Client(timeout=10) as client:

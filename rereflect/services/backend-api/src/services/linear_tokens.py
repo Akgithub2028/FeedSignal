@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timedelta
 
 import httpx
+from cryptography.fernet import InvalidToken
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
@@ -59,7 +60,7 @@ async def get_linear_access_token(db: Session, integration_id: int) -> str:
     if current(integration):
         try:
             return decrypt_api_key(integration.access_token)
-        except ValueError:
+        except (ValueError, InvalidToken):
             raise LinearTokenError('Reconnect Linear: stored credentials cannot be read.') from None
     try:
         # A synchronous blocking lock would freeze this event loop while the
@@ -110,7 +111,7 @@ async def get_linear_access_token(db: Session, integration_id: int) -> str:
     except httpx.RequestError:
         db.rollback()
         raise LinearTokenError('Linear token renewal is temporarily unavailable; retry shortly.', 503) from None
-    except ValueError:
+    except (ValueError, InvalidToken):
         db.rollback()
         raise LinearTokenError('Reconnect Linear: stored credentials or token response are invalid.') from None
     except SQLAlchemyError:

@@ -21,7 +21,8 @@
         "channels:read",
         "groups:read",
         "channels:history",
-        "groups:history"
+        "groups:history",
+        "incoming-webhook"
       ]
     }
   },
@@ -35,6 +36,9 @@
     },
     "org_deploy_enabled": false,
     "socket_mode_enabled": false,
-    "token_rotation_enabled": false
+    "token_rotation_enabled": false,
+    "incoming_webhooks": {
+      "incoming_webhooks_enabled": true
+    }
   }
 }

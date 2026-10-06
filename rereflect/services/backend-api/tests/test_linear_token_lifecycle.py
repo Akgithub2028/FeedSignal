@@ -197,3 +197,14 @@ def test_linear_team_route_returns_reconnect_error_for_legacy_connection(databas
         asyncio.run(get_linear_teams(current_org=Organization(id=1), db=database))
     assert failure.value.status_code == 409
     assert 'Reconnect Linear' in failure.value.detail
+
+
+def test_corrupt_access_token_returns_safe_reconnect_error(database):
+    from src.services.linear_tokens import get_linear_access_token, LinearTokenError
+    row = connected(database)
+    row.access_token = 'corrupt-ciphertext'
+    database.commit()
+    with pytest.raises(LinearTokenError) as failure:
+        asyncio.run(get_linear_access_token(database, row.id))
+    assert failure.value.status_code == 409
+    assert str(failure.value) == 'Reconnect Linear: stored credentials cannot be read.'

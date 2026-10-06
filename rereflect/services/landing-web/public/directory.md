@@ -28,3 +28,5 @@ Inputs are composition props, public content/assets, and workspace consumers; ou
 Use the service's current package.json scripts, pnpm workspace installation, relevant Vitest checks, and a production build for UI/config changes. Do not infer tool availability or build success from package metadata.
 
 This summary was generated from tracked filenames, source declarations/module documentation, and document headings/prose, then sampled for navigation quality. It is not a full semantic audit or a runtime verification. Read actual files before editing. Missing owner settings and validation evidence remain in [UNANSWERED_SECRETS.md](<../../../UNANSWERED_SECRETS.md>).
+
+Owner verification (2026-10-07): Google Search Console accepted the metadata tag in app/layout.tsx. Keep it deployed. The alternative googlefd61a101a9efc1e5.html file was uploaded but returned404 through the current Vercel export adapter; it is not verification evidence.

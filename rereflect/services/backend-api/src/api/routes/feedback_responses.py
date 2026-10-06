@@ -314,9 +314,19 @@ async def _dispatch_send(
         return await response_sender.send_via_intercom(response_text, feedback, org, access_token)
 
     if channel == "linear":
-        access_token = _get_integration_token(org.id, "linear", db)
-        if not access_token:
+        from src.models.linear_integration import LinearIntegration
+        from src.services.linear_tokens import get_linear_access_token, LinearTokenError
+
+        integration = db.query(LinearIntegration).filter(
+            LinearIntegration.organization_id == org.id,
+            LinearIntegration.is_active.is_(True),
+        ).first()
+        if integration is None:
             return {"success": False, "error": "Linear integration not connected"}
+        try:
+            access_token = await get_linear_access_token(db, integration.id)
+        except LinearTokenError as exc:
+            return {"success": False, "error": str(exc)}
         return await response_sender.send_via_linear(response_text, feedback, org, access_token)
 
     if channel == "email":
@@ -331,23 +341,8 @@ async def _dispatch_send(
 def _get_integration_token(org_id: int, provider: str, db: Session) -> Optional[str]:
     """
     Retrieve the active access token for an integration provider.
-    Supports: slack, intercom, linear.
+    Supports: slack, intercom. Linear uses the renewable-token service.
     """
-    if provider == "linear":
-        try:
-            from src.models.linear_integration import LinearIntegration
-            integration = (
-                db.query(LinearIntegration)
-                .filter(
-                    LinearIntegration.organization_id == org_id,
-                    LinearIntegration.is_active.is_(True),
-                )
-                .first()
-            )
-            return integration.access_token if integration else None
-        except Exception:
-            return None
-
     # For Slack and Intercom, use the generic Integration model
     try:
         from src.models.integration import Integration

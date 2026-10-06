@@ -1021,8 +1021,8 @@ def slack_oauth_connect(
     state = sign_oauth_state(current_org.id, name)
 
     # Build OAuth authorization URL
-    # Scopes: chat:write allows posting messages, channels:read allows listing channels
-    scopes = "chat:write,channels:read,groups:read"
+    # Posting/listing plus history access used by polling and message events.
+    scopes = "chat:write,channels:read,groups:read,channels:history,groups:history"
 
     params = {
         "client_id": SLACK_CLIENT_ID,

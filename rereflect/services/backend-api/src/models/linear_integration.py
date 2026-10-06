@@ -11,6 +11,8 @@ class LinearIntegration(Base):
     id = Column(Integer, primary_key=True, index=True)
     organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     access_token = Column(Text, nullable=False)  # Fernet-encrypted OAuth token
+    refresh_token = Column(Text, nullable=True)  # Fernet-encrypted rotating token
+    token_expires_at = Column(DateTime, nullable=True)  # UTC; legacy rows reconnect
     linear_org_id = Column(String(255), nullable=False)
     linear_org_name = Column(String(255), nullable=False)
     connected_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)

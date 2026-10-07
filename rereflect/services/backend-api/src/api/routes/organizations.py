@@ -51,13 +51,13 @@ def update_my_organization(
     current_org: Organization = Depends(get_current_org),
     db: Session = Depends(get_db)
 ):
-    """Update current organization (admin only)."""
+    """Update current organization (owner or admin only)."""
 
-    # Check if user is admin
-    if current_user.role != "admin":
+    # Owners inherit admin settings permissions. Tenant comes from get_current_org.
+    if current_user.role not in ("owner", "admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only organization admins can update organization settings"
+            detail="Only organization owners or admins can update organization settings"
         )
 
     # Update fields

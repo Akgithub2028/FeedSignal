@@ -4,7 +4,7 @@ Updated 7 October 2026. The owner requests a **$0, fully working development dep
 
 ## Completed and observed
 
-- [x] Owner branding, bootstrap security, Google/Slack/Linear/Jira/Asana/HubSpot configuration and both Vercel Git links on `feedsignal/owner-launch`.
+- [x] Owner settings role regression fixed (owner/admin permitted; member/viewer rejected); owner branding, bootstrap security, Google/Slack/Linear/Jira/Asana/HubSpot configuration and both Vercel Git links on `feedsignal/owner-launch`.
 - [x] Salesforce/Intercom/Zendesk removed from active API, frontend and scheduled dispatch; historical migrations preserved.
 - [x] tawk signed webhook, encrypted configuration/UI, tenant routing, durable receipt and replay deduplication. Real provider ticket delivery produced feedback **7**; provider Inbox transcript correlated with feedback **6**. Public visitor widget remains blocked separately.
 - [x] Free Render worker preview **srv-db37cjqjnfac738urbbg** deployed with one supervised Celery worker and one Beat. Actual Slack feedback **8/9**, tawk feedback and HubSpot **221-contact sync** processed successfully. Health is process liveness, not broker readiness.
@@ -32,6 +32,6 @@ Updated 7 October 2026. The owner requests a **$0, fully working development dep
 - [ ] Domain/DNS for customer-wide Resend sending and inbound receiving. Current `onboarding@resend.dev` sends only to the owner.
 - [ ] Always-on worker/Beat and commercially eligible hosting before customer launch. The owner keeps the current free topology; this preview is not an always-on production deployment.
 
-Verification this run: **73 worker preview/retirement/schedule tests**, **37 Jira worker/client tests**, **38 backend Jira client tests**, and **6 wake-hook tests** passed. Backend client/hook checks used `--noconftest`; full backend collection remains blocked locally by missing `onelogin`/SAML dependencies. Existing SQLAlchemy/datetime warnings remain. Earlier dashboard **1,818**, landing **27**, focused API **41** and both builds passed. Do not add overlapping test counts.
+Verification this run: **73 worker preview/retirement/schedule tests**, **37 Jira worker/client tests**, **38 backend Jira client tests**, **6 wake-hook tests**, and **4 owner-settings authorization tests** passed. Backend client/hook checks used `--noconftest`; full backend collection remains blocked locally by missing `onelogin`/SAML dependencies. Existing SQLAlchemy/datetime warnings remain. Earlier dashboard **1,818**, landing **27**, focused API **41** and both builds passed. Do not add overlapping test counts.
 
 Resources and setup: [ownership status](OWNERSHIP_DEPLOYMENT_STATUS.md), [launch plan](BASELINE_LAUNCH_PLAN.md), [credential ledger](../UNANSWERED_SECRETS.md). Provider constraints: [Render free services](https://render.com/docs/free), [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing), [Jira supported search](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/).

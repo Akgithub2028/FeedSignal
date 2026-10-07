@@ -48,5 +48,6 @@ def wake_worker_preview(**_kwargs):
                 return
             _last_wake = now
             threading.Thread(target=_ping_worker, args=(url,), daemon=True).start()
+            logger.info('Worker preview wake requested after task publish')
     except (ValueError, RuntimeError):
         logger.warning('Worker preview wake could not start; job remains queued')

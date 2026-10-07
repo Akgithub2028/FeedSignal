@@ -1,0 +1,42 @@
+# Development preview: sleeps on idle, consumes shared free instance hours.
+# This is not an always-on worker or durable scheduler.
+services:
+  - type: web
+    name: feedsignal-worker-preview
+    runtime: docker
+    plan: free
+    region: singapore
+    repo: https://github.com/Akgithub2028/FeedSignal
+    branch: feedsignal/owner-launch
+    dockerfilePath: rereflect/services/worker-service/Dockerfile
+    dockerContext: rereflect/services
+    dockerCommand: python -m src.preview_service
+    autoDeployTrigger: "off"
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        value: "6379"
+      - key: REDIS_PASSWORD
+        sync: false
+      - key: LLM_ENCRYPTION_KEY
+        sync: false
+      - key: APP_URL
+        value: https://feedsignal-xi.vercel.app
+      - key: FROM_EMAIL
+        value: onboarding@resend.dev
+      - key: FROM_NAME
+        value: FeedSignal
+      - key: RESEND_API_KEY
+        sync: false
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+      - key: MKL_NUM_THREADS
+        value: "1"
+      - key: TOKENIZERS_PARALLELISM
+        value: "false"

@@ -446,3 +446,19 @@ SLACK_RATE_LIMIT=1  # Max 1 message/second
 **Status**: In Development (Month 2)
 **Version**: 0.1.0
 **Maintained**: Yes
+# Free Render development preview
+
+`python -m src.preview_service` runs one Celery solo worker and one Beat process,
+with a public `/health` endpoint for Render web-service hosting. Use
+`../../render.worker-preview.yaml` as the configuration reference and share the
+API's database, Redis, encryption and email settings privately. The health
+response checks child-process liveness; it does not prove broker connectivity
+or successful jobs. Verify an actual ingested feedback item after deployment.
+
+This preview sleeps after inactivity and consumes the workspace's shared free
+instance hours. Open `/health` when beginning a controlled test and verify the
+worker is ready before ingesting. Jobs and schedules pause while asleep. Keep
+VADER/default lightweight analysis on the 512 MB instance; transformer/local
+LLM models require measured memory headroom. Beat's local schedule file is
+ephemeral, and free Redis can lose queued tasks on restart. This mode is for
+development, not continuous production processing.

@@ -83,7 +83,7 @@ annotated list):
 > unset, and `.env.example` shipped the variable commented out. That default
 > string is published in this repository, so on any install that never set the
 > variable, **every authentication token could be forged by anyone** — the same
-> applied to OIDC and Salesforce OAuth state values, which are signed with the
+> applied to OIDC OAuth state values, which are signed with the
 > same key.
 >
 > The application now refuses to start without it, rather than starting up
@@ -100,9 +100,9 @@ annotated list):
 
 > ### ⚠️ Integration credential encryption & the upgrade requirement
 >
-> Slack and Intercom OAuth tokens and Linear webhook secrets are now encrypted at rest
-> with Fernet, exactly like every other integration credential (BYOK keys, Zendesk, Jira,
-> Asana, HubSpot, Salesforce). **Upgrading installs must have `LLM_ENCRYPTION_KEY` set
+> Slack OAuth tokens and Linear webhook secrets are now encrypted at rest
+> with Fernet, exactly like every other integration credential (BYOK keys, Jira,
+> Asana, HubSpot, tawk.to). **Upgrading installs must have `LLM_ENCRYPTION_KEY` set
 > before running migrations**: `alembic upgrade head` now **fails closed** with a
 > `RuntimeError` when the key is unset, rather than silently leaving credentials
 > in plaintext:
@@ -141,7 +141,7 @@ The only outbound calls a FeedSignal instance ever makes are ones you configure 
 |---|---|
 | Your LLM provider (OpenAI / Anthropic / Google) | Only if you add a BYOK key **and** set `ai_analysis_enabled=true`. Omit the key and nothing is contacted. |
 | Your local model endpoint (Ollama, etc.) | Only if you point Settings → AI at one. Stays on your network. |
-| Integrations (Slack, Discord, Teams, Jira, Zendesk, Asana, Intercom, Linear, HubSpot, Salesforce) | Only for integrations you explicitly connect and authorize. |
+| Integrations (Slack, Discord, Teams, Jira, Asana, Linear, HubSpot, tawk.to) | Only for integrations you explicitly connect and authorize. |
 | Your Sentry project | Only if you set `SENTRY_DSN` — see below. |
 
 ### Optional error tracking (Sentry), off by default
@@ -933,7 +933,7 @@ you're already over the line before arming it.
 ### Usage-decline churn-label suggestions
 
 Building on the trend signal above, FeedSignal can turn a **sustained** usage decline into a
-**suggestion** in the same operator-reviewed queue that CRM-sourced (HubSpot/Salesforce) lost
+**suggestion** in the same operator-reviewed queue that CRM-sourced (HubSpot) lost
 renewals already use (**Customers → Churn suggestions**). This is aimed at the self-hoster who
 has product telemetry but no CRM connected — otherwise the only way to record a churned
 customer is typing it into the "Mark as churned" dialog one at a time.
@@ -1356,7 +1356,7 @@ HubSpot, writeback will silently pause — the inbound CRM sync remains unaffect
 
 Churn prediction learns from **churn labels** — records of customers who actually
 left. Until now you produced those by hand (Customer 360 → **Mark as churned**) or by
-CSV import. If you've connected HubSpot or Salesforce, your CRM already knows which
+CSV import. If you've connected HubSpot, your CRM already knows which
 renewals were lost, and this feature reads them for you.
 
 It produces **suggestions, not labels.** A suggestion is a proposal that sits in a
@@ -1377,11 +1377,9 @@ Two more things this feature does **not** do, stated plainly:
 
 ### 1. Connect a CRM
 
-Follow [Connecting HubSpot CRM enrichment](#connecting-hubspot-crm-enrichment) or
-[Connecting Salesforce CRM enrichment](#connecting-salesforce-crm-enrichment) first.
+Follow [Connecting HubSpot CRM enrichment](#connecting-hubspot-crm-enrichment) first.
 HubSpot is the supported CRM connector in this owner baseline.
-No extra scope is needed — the `crm.objects.deals.read` scope (HubSpot) and the `api`
-scope (Salesforce) you already granted are sufficient.
+The configured HubSpot key requires `crm.objects.deals.read`.
 
 ### 2. Enable and choose your renewal set
 
@@ -1392,8 +1390,6 @@ find the **CRM Churn-Label Suggestions** card.
 2. Choose your renewal set:
    - **HubSpot** — pick your **Renewal pipelines**. The picker lists the deal pipelines
      live from your portal.
-   - **Salesforce** — pick your **Renewal opportunity types**, listed live from your
-     `Opportunity.Type` picklist.
 3. Save.
 
 **The picker locks while the feature is enabled.** To re-point it at a different
@@ -1402,7 +1398,7 @@ pipeline or type, toggle the feature off, change the selection, and toggle it ba
 run.) The toggle itself is never locked — you can always turn it off.
 
 Once enabled, the harvest runs inside the **existing daily CRM sync** — 03:15 UTC for
-HubSpot, 03:45 UTC for Salesforce. **No new schedule, no new worker.**
+HubSpot, once a worker and scheduler are deployed.
 
 ### 3. Default-deny: nothing happens until you pick
 

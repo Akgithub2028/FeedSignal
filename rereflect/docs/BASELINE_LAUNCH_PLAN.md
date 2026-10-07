@@ -61,7 +61,7 @@ Files: backend API router registration and generic integration validation; worke
 - [x] Preserve applied migrations and historical record provenance; a fresh DB contains no inherited provider records. Do not revoke another creator's account credentials.
 - [x] Run router, schedule integrity and settings tests, then frontend build. Audit indirect calls before deleting implementation modules.
 
-Deliverable: no active retired-provider authorization, polling or writeback path. Focused checks pass locally; verify the published revision before marking live retirement complete.
+Deliverable: no active retired-provider authorization, polling or writeback path. Focused checks pass; `7b41bb7` is LIVE on Render and READY on dashboard. Live retired routes absent/create rejected; authenticated retired settings page returns 404.
 
 ## Task 4: tawk.to free ingestion
 
@@ -83,11 +83,11 @@ Original full deliverable remains gated on the two checks above. Durable ingesti
 
 ## Task 5: Remaining connectors and complete launch
 
-- [ ] Register owner Google/Slack/Linear apps using actual HTTPS origins; connect Jira/Asana/HubSpot and selected notification destinations using owner settings.
-- [ ] Verify Slack message scopes and Linear webhook privilege; adapt Jira scoped-token URLs and Microsoft Teams Workflows where necessary.
+- [x] Register owner Google/Slack/Linear apps using actual HTTPS origins; connect Jira/Asana/HubSpot and selected notification destinations using owner settings.
+- [x] Verify Slack message scopes and Linear webhook privilege; adapt Jira scoped-token URLs and Microsoft Teams Workflows where necessary.
 - [ ] Configure Resend only after supported sender/domain verification; inbound email waits for DNS-controlled receiving setup.
 - [ ] Verify controlled ingestion and issue creation/retry behavior in owner workspaces. Do not send unsolicited messages to customer workspaces.
 - [ ] Run tenant-isolation tests, migration upgrade, backup/restore, worker/Beat and end-to-end analysis checks; restart services and verify persisted data/retry recovery.
 - [ ] Capture observed deployment URLs and results in the ledger. Deploy reviewed artifacts only after a viable budget/topology and authenticated access exist.
 
-**Status (7 October 2026):** both owner Vercel frontends READY. Owner API runtime/security/email revision `9a76919` LIVE with reviewed OAuth/Asana fixes. Google public audience published (homepage ownership verified; branding recheck awaits 24-hour propagation); Slack posting and Linear/Jira/Asana signed tracker round trips PASS. HubSpot connection and required reads PASS. Eight owner Resend templates published/settings installed; isolated baseline welcome function delivered to owner. tawk.to signed ingestion/configuration and controlled fixture pass; actual provider delivery, retired-provider removal is locally implemented/tested and awaits publication; worker/AI and durable hosting remain OPEN. See [current evidence](OWNERSHIP_DEPLOYMENT_STATUS.md).
+**Status (7 October 2026):** both owner Vercel frontends READY. Owner API runtime/security/email revision `9a76919` LIVE with reviewed OAuth/Asana fixes. Google public audience published (homepage ownership verified; branding recheck awaits 24-hour propagation); Slack posting and Linear/Jira/Asana signed tracker round trips PASS. HubSpot connection and required reads PASS. Eight owner Resend templates published/settings installed; isolated baseline welcome function delivered to owner. tawk.to signed ingestion/configuration and controlled fixture pass; actual provider delivery, retired-provider removal deployed/verified as `7b41bb7`; worker/AI and durable hosting remain OPEN. See [current evidence](OWNERSHIP_DEPLOYMENT_STATUS.md).

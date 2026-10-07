@@ -20,7 +20,7 @@ Read **[ownership and deployment status](docs/OWNERSHIP_DEPLOYMENT_STATUS.md)** 
 | Database / queue | Owner Render PostgreSQL 16 and Key Value | Provisioned; private connection details |
 | Celery / Beat | Not deployed | Required for ingestion, analysis and scheduled work |
 
-The current hosting budget is $0. Free Render PostgreSQL has an expiry, free Key Value is volatile, and the existing continuous worker has no free Render tier. Resolve full hosting before calling this a durable production SaaS. No full application stack is being started on the owner's computer.
+The current hosting budget is $0. Free Render PostgreSQL has an expiry, free Key Value is volatile, and the existing continuous worker has no free Render tier. Resolve full hosting before calling this a durable production SaaS. No full application stack is being started on the owner's computer. See the continuously maintained [pending launch checklist](docs/PENDING_LAUNCH.md).
 
 ## Baseline capabilities
 
@@ -30,7 +30,7 @@ The inherited code includes feedback import and classification, sentiment/pain-p
 - Slack, Linear, Jira, Asana and HubSpot implementations are retained for owner setup. Google owner login uses FeedSignal's own OAuth client; public audience is In production; branding ownership verification remains pending. Workspace signup alone does not create an application integration.
 - Resend uses the owner's key, with a restricted test sender for now. Eight owner email templates are published/configured and one baseline welcome email delivered to the owner. General customer sending and inbound email still need a verified owned domain.
 - tawk.to imports completed-chat visitor messages and new customer tickets through a signed, tenant-scoped webhook. Owner configuration and controlled live ingestion/replay checks passed; actual provider-originated delivery remains unverified because its public chat is currently blocked. Configure it under **Settings → Integrations → tawk.to**; see [setup](docs/SELF_HOSTING.md#connecting-tawkto).
-- The requested **Salesforce/Intercom/Zendesk retirement** remains pending; their inherited code is still present.
+- **Salesforce, Intercom and Zendesk are retired** from active API/UI, notification/writeback and scheduled processing. Historical models/migrations remain; use tawk.to and HubSpot.
 - Multi-tenant authorization and external-event handling require release verification before customer use.
 
 Local wordmarks, metadata, contact links and active frontend product copy use FeedSignal and the owner GitHub identity. Some inherited abstract artwork, screenshots and legacy blog slugs remain; they are historical/prototype material, not verified FeedSignal customer evidence. Package/schema names and wire headers are retained where compatibility requires them.

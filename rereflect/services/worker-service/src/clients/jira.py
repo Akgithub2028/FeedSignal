@@ -52,10 +52,10 @@ class JiraClient:
     """Thin httpx wrapper for the Jira Cloud REST API v3 (Basic auth) — search_issues only."""
 
     API_PATH = "/rest/api/3"
-    _SEARCH_PATH = "/search"
+    # Jira Cloud removed the legacy /search endpoint. Enhanced search uses
+    # opaque continuation tokens instead of startAt/total pagination.
+    _SEARCH_PATH = "/search/jql"
 
-    # Jira Cloud JQL search caps results per page; page through with
-    # startAt/maxResults until every issue has been collected.
     _SEARCH_PAGE_SIZE = 100
 
     # Cap the number of issue keys embedded in a single JQL `issue in (...)`
@@ -155,17 +155,15 @@ class JiraClient:
         """Run one JQL `issue in (...)` search (<=50 keys), paging until done."""
         jql = f"issue in ({', '.join(keys)})"
         results: Dict[str, Dict[str, Any]] = {}
-        start_at = 0
+        next_page_token = None
 
         while True:
+            params = {"jql": jql, "fields": "status", "maxResults": self._SEARCH_PAGE_SIZE}
+            if next_page_token:
+                params["nextPageToken"] = next_page_token
             resp = self._get(
                 self._SEARCH_PATH,
-                params={
-                    "jql": jql,
-                    "fields": "status",
-                    "maxResults": self._SEARCH_PAGE_SIZE,
-                    "startAt": start_at,
-                },
+                params=params,
             )
             data = resp.json()
             issues = data.get("issues") or []
@@ -176,9 +174,11 @@ class JiraClient:
                 category = (status.get("statusCategory") or {}).get("key")
                 results[key] = {"name": status.get("name"), "category": category}
 
-            start_at += len(issues)
-            total = data.get("total", start_at)
-            if not issues or start_at >= total:
+            token = data.get("nextPageToken")
+            if data.get("isLast") or not token:
                 break
+            if token == next_page_token:
+                raise JiraError("Jira search repeated its continuation token")
+            next_page_token = token
 
         return results

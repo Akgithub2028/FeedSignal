@@ -57,8 +57,8 @@ def _search_resp(issues: list[dict], total: int | None = None, start_at: int = 0
         200,
         {
             "issues": issues,
-            "total": total if total is not None else len(issues) + start_at,
-            "startAt": start_at,
+            "isLast": total is None or len(issues) + start_at >= total,
+            "nextPageToken": "page-two" if total is not None and len(issues) + start_at < total else None,
         },
     )
 
@@ -139,11 +139,11 @@ class TestSearchIssuesParsing:
 
 
 class TestSearchIssuesPaging:
-    def test_pages_through_startat_until_all_issues_collected(self):
+    def test_pages_through_next_page_token_until_all_issues_collected(self):
         # A single batch (<=50 keys) whose server response is split across
         # two pages (simulating the server returning fewer issues than the
         # requested maxResults on the first page) — search_issues must keep
-        # paging via startAt until `total` issues have been collected.
+        # paging via nextPageToken until the last page.
         keys = [f"ENG-{i}" for i in range(1, 51)]  # 50 keys, one batch
         page1 = _search_resp(
             [_issue(k) for k in keys[:30]], total=50, start_at=0
@@ -160,6 +160,10 @@ class TestSearchIssuesPaging:
             result = client.search_issues(keys)
 
         assert instance.get.call_count == 2
+        assert instance.get.call_args_list[0].args[0] == "/search/jql"
+        assert "startAt" not in instance.get.call_args_list[0].kwargs["params"]
+        assert "nextPageToken" not in instance.get.call_args_list[0].kwargs["params"]
+        assert instance.get.call_args_list[1].kwargs["params"]["nextPageToken"] == "page-two"
         assert len(result) == 50
         assert "ENG-1" in result
         assert "ENG-50" in result

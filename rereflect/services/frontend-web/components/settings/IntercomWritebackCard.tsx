@@ -133,7 +133,7 @@ export function IntercomWritebackCard({ status, onStatusChange }: IntercomWriteb
       <CardHeader>
         <CardTitle>Resolve Write-Back</CardTitle>
         <CardDescription>
-          When you mark Intercom-sourced feedback as resolved, Rereflect adds a
+          When you mark Intercom-sourced feedback as resolved, FeedSignal adds a
           note to the linked conversation and closes it. Off by default —
           nothing is written until you enable it.
         </CardDescription>

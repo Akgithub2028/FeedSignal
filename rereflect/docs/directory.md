@@ -13,9 +13,9 @@ This directory has 8 immediate baseline/preparation files, 4 child directories, 
 - [IMPLEMENTATION_PLAN.md](<IMPLEMENTATION_PLAN.md>) — FeedSignal: implementation plan toward $1,000 MRR: FeedSignal uses the known support/admin email and GitHub identity above. Domains are undecided (`UNANSWERED_MARKETING_ORIGIN`, `UNANSWERED_APP_ORIGIN`,…
 - [OWNERSHIP_AND_INTEGRATION_AUDIT.md](<OWNERSHIP_AND_INTEGRATION_AUDIT.md>) — Deployment, ownership, and integration migration audit: Audit date: 2026-10-05. Local checkout inspected: `93359c4a2bf20310f98e42d570de50a1586812d8`. Original repository: haqaliz/rereflect.
 - [ARCHITECTURE.md](<ARCHITECTURE.md>) — Architecture: A Next.js frontend talks to a FastAPI backend over REST. Long-running analysis is offloaded to a Celery worker (Redis broker), which uses the analysis engine — VADER /
-- [SELF_HOSTING.md](<SELF_HOSTING.md>) — Self-Hosting Rereflect: Rereflect is open source (MIT) and designed to run entirely on your own infrastructure. **All features are unlocked** on a self-hosted instance — there are
-- [API.md](<API.md>) — API Reference: Rereflect exposes a REST API under `/api/v1`. When the backend is running, the full interactive OpenAPI/Swagger docs are at **http://localhost:8000/docs** — this page is a
-- [DEVELOPMENT.md](<DEVELOPMENT.md>) — Development: How to run Rereflect from source for local development. For containerized deployment instead, see SELF_HOSTING.md.
+- [SELF_HOSTING.md](<SELF_HOSTING.md>) — Self-Hosting FeedSignal: FeedSignal is open source (MIT) and designed to run entirely on your own infrastructure. **All features are unlocked** on a self-hosted instance — there are
+- [API.md](<API.md>) — API Reference: FeedSignal exposes a REST API under `/api/v1`. When the backend is running, the full interactive OpenAPI/Swagger docs are at **http://localhost:8000/docs** — this page is a
+- [DEVELOPMENT.md](<DEVELOPMENT.md>) — Development: How to run FeedSignal from source for local development. For containerized deployment instead, see SELF_HOSTING.md.
 - [DIRECTORY_FILE_INDEX.md](<DIRECTORY_FILE_INDEX.md>) — FeedSignal complete directory file inventory: Baseline `93359c4a2bf20310f98e42d570de50a1586812d8` plus M0 preparation files; updated 2026-10-06. Generated `directory.md` files are indexed separately. This preserves…
 
 ## Files, children, and contracts
@@ -35,3 +35,11 @@ Read callers, environment requirements, and side effects before execution. Keep 
 Check relative links, complete guide coverage, placeholder consistency, and git diff --check. For CI/deployment changes, read service build and environment contracts before attempting execution.
 
 This summary was generated from tracked filenames, source declarations/module documentation, and document headings/prose, then sampled for navigation quality. It is not a full semantic audit or a runtime verification. Read actual files before editing. Missing owner settings and validation evidence remain in [UNANSWERED_SECRETS.md](<../UNANSWERED_SECRETS.md>).
+
+## Owner launch update — 6 October
+
+[Cloud setup](LAUNCH_SETUP.md) records confirmed repository/project roots, CLI authentication and unresolved $0 worker/database constraints. Service-level Vercel settings are prepared; runtime ownership and provider replacement remain pending. No full local startup.
+
+## Owner launch update — 6 October
+
+[OWNERSHIP_DEPLOYMENT_STATUS.md](OWNERSHIP_DEPLOYMENT_STATUS.md) is the current verified resource/completion record; [LAUNCH_SETUP.md](LAUNCH_SETUP.md) contains exact origins/settings and [BASELINE_LAUNCH_PLAN.md](BASELINE_LAUNCH_PLAN.md) orders the remaining work. Historical audits do not describe current cloud state. [Provider setup guide](provider-setup/directory.md) explains target manifests versus applied configuration.

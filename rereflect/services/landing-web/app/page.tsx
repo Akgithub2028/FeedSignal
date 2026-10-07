@@ -10,15 +10,15 @@ import CTA from '@/components/landing/CTA';
 import Footer from '@/components/landing/Footer';
 
 export const metadata: Metadata = {
-  title: 'Rereflect - Open-Source Customer Feedback Analysis',
+  title: 'FeedSignal - Open-Source Customer Feedback Analysis',
   description:
     'Self-hosted, MIT-licensed AI feedback analysis. Sentiment, pain points, feature requests, churn prediction, and integrations — fully unlocked, no vendor lock-in. Bring your own LLM key or run free on VADER.',
   openGraph: {
-    title: 'Rereflect - Open-Source Customer Feedback Analysis',
+    title: 'FeedSignal - Open-Source Customer Feedback Analysis',
     description:
-      'Self-host Rereflect on your own infrastructure. Every feature unlocked, MIT licensed, no tiers, no seats, no vendor lock-in.',
-    url: 'https://rereflect.ca',
-    siteName: 'Rereflect',
+      'Self-host FeedSignal on your own infrastructure. Every feature unlocked, MIT licensed, no tiers, no seats, no vendor lock-in.',
+    url: 'https://feed-signal-ochre.vercel.app',
+    siteName: 'FeedSignal',
     type: 'website',
   },
 };

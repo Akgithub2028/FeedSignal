@@ -24,8 +24,11 @@ const ubuntuMono = Ubuntu_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rereflect - Customer Feedback Analyzer",
-  description: "Analyze and understand customer feedback with AI using Rereflect",
+  applicationName: "FeedSignal",
+  creator: "Akgithub2028",
+  authors: [{ name: "Akgithub2028", url: "https://github.com/Akgithub2028" }],
+  title: "FeedSignal - Customer Feedback Analyzer",
+  description: "Analyze and understand customer feedback with AI using FeedSignal",
 };
 
 // Inline script to prevent flash of unstyled content (FOUC)

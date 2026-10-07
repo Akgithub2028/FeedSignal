@@ -16,13 +16,13 @@ const ROWS: Array<{
   churn: string;
   churnTone: Tone;
 }> = [
-  { id: 'fb_9f21c4', customer: 'Acme Inc.', source: 'intercom', sentiment: '−0.82', tone: 'red', topic: 'billing', churn: '92%', churnTone: 'red' },
-  { id: 'fb_9f21c1', customer: 'Northwind', source: 'zendesk', sentiment: '−0.41', tone: 'amber', topic: 'onboarding', churn: '48%', churnTone: 'amber' },
+  { id: 'fb_9f21c4', customer: 'Acme Inc.', source: 'tawk', sentiment: '−0.82', tone: 'red', topic: 'billing', churn: '92%', churnTone: 'red' },
+  { id: 'fb_9f21c1', customer: 'Northwind', source: 'tawk', sentiment: '−0.41', tone: 'amber', topic: 'onboarding', churn: '48%', churnTone: 'amber' },
   { id: 'fb_9f21be', customer: 'Globex', source: 'slack', sentiment: '+0.66', tone: 'accent', topic: 'reporting', churn: '07%', churnTone: 'muted' },
   { id: 'fb_9f21bb', customer: 'Initech', source: 'email', sentiment: '−0.12', tone: 'amber', topic: 'performance', churn: '31%', churnTone: 'muted' },
   { id: 'fb_9f21b7', customer: 'Umbrella', source: 'csv', sentiment: '+0.88', tone: 'accent', topic: 'support', churn: '04%', churnTone: 'muted' },
   { id: 'fb_9f21b2', customer: 'Soylent', source: 'webhook', sentiment: '−0.74', tone: 'red', topic: 'billing', churn: '77%', churnTone: 'red' },
-  { id: 'fb_9f21ae', customer: 'Hooli', source: 'intercom', sentiment: '+0.23', tone: 'accent', topic: 'integrations', churn: '12%', churnTone: 'muted' },
+  { id: 'fb_9f21ae', customer: 'Hooli', source: 'tawk', sentiment: '+0.23', tone: 'accent', topic: 'integrations', churn: '12%', churnTone: 'muted' },
 ];
 
 const TONE_CLASS: Record<Tone, string> = {
@@ -54,7 +54,7 @@ export default function Console() {
     <section ref={sectionRef} className="lp-band">
       <div className="lp-section-head">
         <span data-reveal className="lp-fig">
-          Fig. 06 — Rereflect console
+          Fig. 06 — FeedSignal console
         </span>
         <h2 data-reveal className="lp-display-2 mt-6 max-w-[22ch] text-raise">
           Everything the model concluded, in one table you can argue with.

@@ -35,3 +35,11 @@ Inputs are page props, URL state, authenticated API responses, and public build 
 Use the service's current package.json scripts, pnpm workspace installation, relevant Vitest checks, and a production build for UI/config changes. Do not infer tool availability or build success from package metadata.
 
 This summary was generated from tracked filenames, source declarations/module documentation, and document headings/prose, then sampled for navigation quality. It is not a full semantic audit or a runtime verification. Read actual files before editing. Missing owner settings and validation evidence remain in [UNANSWERED_SECRETS.md](<../../UNANSWERED_SECRETS.md>).
+
+## Owner launch update — 6 October
+
+[Cloud setup](../../docs/LAUNCH_SETUP.md) records confirmed repository/project roots, CLI authentication and unresolved $0 worker/database constraints. Service-level Vercel settings are prepared; runtime ownership and provider replacement remain pending. No full local startup.
+
+## Current owner preparation
+
+Local product copy/metadata/contact links use FeedSignal and Akgithub2028. Vercel feedsignal project and public API/app/marketing variables exist, but no deployment. Build uses Webpack. Page helpers now live in components/customers/ChurnSuggestionEvidenceCell.tsx, components/settings/ApiKeyScopes.tsx and lib/ssoErrorMessage.ts. See [current ownership status](../../docs/OWNERSHIP_DEPLOYMENT_STATUS.md) before reporting live readiness.

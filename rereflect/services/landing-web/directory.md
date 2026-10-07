@@ -33,3 +33,11 @@ Inputs are composition props, public content/assets, and workspace consumers; ou
 Use the service's current package.json scripts, pnpm workspace installation, relevant Vitest checks, and a production build for UI/config changes. Do not infer tool availability or build success from package metadata.
 
 This summary was generated from tracked filenames, source declarations/module documentation, and document headings/prose, then sampled for navigation quality. It is not a full semantic audit or a runtime verification. Read actual files before editing. Missing owner settings and validation evidence remain in [UNANSWERED_SECRETS.md](<../../UNANSWERED_SECRETS.md>).
+
+## Owner launch update — 6 October
+
+[Cloud setup](../../docs/LAUNCH_SETUP.md) records confirmed repository/project roots, CLI authentication and unresolved $0 worker/database constraints. Service-level Vercel settings are prepared; runtime ownership and provider replacement remain pending. No full local startup.
+
+## Current owner preparation
+
+Local wordmarks/metadata/footer/blog copy use FeedSignal, Akgithub2028 and the support Gmail contact. Maintained links target the owner repository/origins. Integration examples are labeled illustrative. The live Vercel landing still uses the older upstream deployment; publishing remains pending. Inherited artwork and legacy blog slugs are explicitly retained. See [current ownership status](../../docs/OWNERSHIP_DEPLOYMENT_STATUS.md).

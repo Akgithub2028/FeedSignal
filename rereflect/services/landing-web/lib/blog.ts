@@ -30,46 +30,46 @@ export interface BlogPost {
 const posts: BlogPost[] = [
   {
     slug: 'run-rereflect-offline-local-llm-ollama',
-    title: 'Running Rereflect Fully Offline With a Local LLM',
-    excerpt: 'Rereflect is BYOK — bring your own key — but you do not even need a key. Point it at a local model running on your own hardware (Ollama or any OpenAI-compatible endpoint), and your customer feedback never leaves your infrastructure. This guide walks through how it works, what it costs ($0), and the free VADER fallback when no model is configured.',
+    title: 'Running FeedSignal Fully Offline With a Local LLM',
+    excerpt: 'FeedSignal is BYOK — bring your own key — but you do not even need a key. Point it at a local model running on your own hardware (Ollama or any OpenAI-compatible endpoint), and your customer feedback never leaves your infrastructure. This guide walks through how it works, what it costs ($0), and the free VADER fallback when no model is configured.',
     date: '2026-06-25',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Self-Hosting', 'AI', 'Privacy'],
-    seoTitle: 'Run Rereflect Fully Offline With a Local LLM (Ollama) | Rereflect',
-    seoDescription: 'Run Rereflect feedback analysis entirely offline with a local LLM via Ollama or any OpenAI-compatible endpoint. No API key, no data leaving your infra, $0 cost, plus a free VADER fallback.',
+    seoTitle: 'Run FeedSignal Fully Offline With a Local LLM (Ollama) | FeedSignal',
+    seoDescription: 'Run FeedSignal feedback analysis entirely offline with a local LLM via Ollama or any OpenAI-compatible endpoint. No API key, no data leaving your infra, $0 cost, plus a free VADER fallback.',
     sections: [
       {
         heading: 'Why offline analysis matters',
         content: [
           'Customer feedback is some of the most sensitive text a company holds. It contains names, account details, candid frustrations, and sometimes data customers assumed was private. The default mode for most AI feedback tools is to ship that text to a third-party API for processing — which means your customers\' words leave your control the moment they are analyzed.',
           'For a lot of teams, that is a non-starter. Maybe you operate under a data residency requirement. Maybe your security team will not approve sending customer data to an external model provider. Maybe you simply do not want a copy of every support complaint sitting in someone else\'s logs.',
-          'Rereflect is self-hosted and open source, and it is built so that you never have to make that trade-off. You can run the entire analysis pipeline against a model on your own hardware. Nothing about a piece of feedback — the raw text, the inferred sentiment, the extracted pain points — ever crosses your network boundary.',
+          'FeedSignal is self-hosted and open source, and it is built so that you never have to make that trade-off. You can run the entire analysis pipeline against a model on your own hardware. Nothing about a piece of feedback — the raw text, the inferred sentiment, the extracted pain points — ever crosses your network boundary.',
         ],
       },
       {
         heading: 'BYOK, including bringing your own model',
         content: [
-          'Rereflect follows a bring-your-own-key (BYOK) philosophy. There is no Rereflect-managed AI service in the middle, no per-seat AI markup, and no usage metering on our side. You connect Rereflect to whatever model you want to use, and you pay that provider directly (or, in the local case, pay nobody).',
-          'BYOK usually means pasting in an OpenAI or Anthropic key. But the same mechanism that lets you point Rereflect at a hosted provider also lets you point it at a model running on localhost. From Rereflect\'s perspective, a local model exposed over an OpenAI-compatible HTTP endpoint looks exactly like a remote one — it just happens to live on your own machine.',
+          'FeedSignal follows a bring-your-own-key (BYOK) philosophy. There is no FeedSignal-managed AI service in the middle, no per-seat AI markup, and no usage metering on our side. You connect FeedSignal to whatever model you want to use, and you pay that provider directly (or, in the local case, pay nobody).',
+          'BYOK usually means pasting in an OpenAI or Anthropic key. But the same mechanism that lets you point FeedSignal at a hosted provider also lets you point it at a model running on localhost. From FeedSignal\'s perspective, a local model exposed over an OpenAI-compatible HTTP endpoint looks exactly like a remote one — it just happens to live on your own machine.',
           'That gives you three deployment shapes, all using the same configuration surface:',
         ],
         listItems: [
-          'Hosted API with your own key — point Rereflect at OpenAI, Anthropic, or Google using a key you own. Best accuracy, you pay the provider per token.',
+          'Hosted API with your own key — point FeedSignal at OpenAI, Anthropic, or Google using a key you own. Best accuracy, you pay the provider per token.',
           'Local LLM, no key — run a model with Ollama or any OpenAI-compatible server on your infra. Keyless, private, $0 in API costs.',
           'No model at all — skip LLM configuration entirely and fall back to the built-in VADER analyzer, which runs locally with zero dependencies.',
         ],
       },
       {
-        heading: 'Pointing Rereflect at a local model',
+        heading: 'Pointing FeedSignal at a local model',
         content: [
-          'The most common offline setup uses Ollama, which runs open-weight models locally and exposes an OpenAI-compatible API. Once Ollama is running and you have pulled a model, you configure Rereflect to talk to it through the same base-URL and model-name settings you would use for any OpenAI-compatible provider.',
-          'The shape of the configuration is simple: tell Rereflect the base URL of your local endpoint and the model name to request. Because the endpoint is OpenAI-compatible, no API key is required — you can leave the key blank or set a throwaway placeholder, since the local server does not authenticate.',
+          'The most common offline setup uses Ollama, which runs open-weight models locally and exposes an OpenAI-compatible API. Once Ollama is running and you have pulled a model, you configure FeedSignal to talk to it through the same base-URL and model-name settings you would use for any OpenAI-compatible provider.',
+          'The shape of the configuration is simple: tell FeedSignal the base URL of your local endpoint and the model name to request. Because the endpoint is OpenAI-compatible, no API key is required — you can leave the key blank or set a throwaway placeholder, since the local server does not authenticate.',
         ],
         listItems: [
           'Run a local server — start Ollama (or another OpenAI-compatible runtime such as llama.cpp\'s server, LM Studio, or vLLM) and load a model that suits your hardware.',
-          'Set the base URL — point Rereflect\'s LLM base URL at your local endpoint (for Ollama, that is its local OpenAI-compatible address).',
+          'Set the base URL — point FeedSignal\'s LLM base URL at your local endpoint (for Ollama, that is its local OpenAI-compatible address).',
           'Set the model name — specify the model you pulled, so requests ask for the right weights.',
           'Leave the key empty — local endpoints do not require authentication, so no API key is needed.',
         ],
@@ -81,8 +81,8 @@ const posts: BlogPost[] = [
       {
         heading: 'The free VADER fallback',
         content: [
-          'Not every team wants to run a model at all. Maybe you do not have a GPU handy, or you just want to see Rereflect working on your data before you commit to any AI setup. For that, Rereflect ships with a built-in fallback: VADER.',
-          'VADER (Valence Aware Dictionary and sEntiment Reasoner) is a lexicon and rule-based sentiment analyzer. It runs entirely in-process with no model weights, no GPU, and no network calls. When no LLM is configured, Rereflect automatically uses VADER for sentiment analysis so the product still works out of the box.',
+          'Not every team wants to run a model at all. Maybe you do not have a GPU handy, or you just want to see FeedSignal working on your data before you commit to any AI setup. For that, FeedSignal ships with a built-in fallback: VADER.',
+          'VADER (Valence Aware Dictionary and sEntiment Reasoner) is a lexicon and rule-based sentiment analyzer. It runs entirely in-process with no model weights, no GPU, and no network calls. When no LLM is configured, FeedSignal automatically uses VADER for sentiment analysis so the product still works out of the box.',
           'It is important to be honest about what the fallback does and does not give you. VADER is a sentiment engine, not a general-purpose language model:',
         ],
         listItems: [
@@ -91,13 +91,13 @@ const posts: BlogPost[] = [
           'When it is enough — early-stage teams, smaller volumes, or anyone who wants an immediate, dependency-free sense of sentiment trends before wiring up a model.',
         ],
         content2: [
-          'The practical path most self-hosters take: start with the VADER fallback to confirm Rereflect is ingesting and scoring your feedback, then point it at a local LLM once you want the deeper categorization. Both modes keep your data on your own infrastructure.',
+          'The practical path most self-hosters take: start with the VADER fallback to confirm FeedSignal is ingesting and scoring your feedback, then point it at a local LLM once you want the deeper categorization. Both modes keep your data on your own infrastructure.',
         ],
       },
       {
         heading: 'What this costs: nothing',
         content: [
-          'The offline setup has a genuinely simple cost story. There is no Rereflect subscription — the software is open source and self-hosted. There is no AI bill — a local model runs on hardware you already own, and the VADER fallback has no marginal cost at all. There is no per-seat pricing and no usage metering.',
+          'The offline setup has a genuinely simple cost story. There is no FeedSignal subscription — the software is open source and self-hosted. There is no AI bill — a local model runs on hardware you already own, and the VADER fallback has no marginal cost at all. There is no per-seat pricing and no usage metering.',
           'Your only real cost is the compute you choose to provision. If you run a local model on an existing server or a developer workstation, the incremental cost of analyzing feedback is effectively electricity. If you decide later that you want higher accuracy on hard cases, you can switch a single configuration value to a hosted provider with your own key — and you pay that provider directly, with no markup in between.',
           'This is the core promise of the self-hosted, BYOK model: you own the data, you own the infrastructure, and you decide exactly how much (if anything) to spend on intelligence.',
         ],
@@ -105,8 +105,8 @@ const posts: BlogPost[] = [
       {
         heading: 'Getting started',
         content: [
-          'If privacy or cost has kept you away from AI-powered feedback analysis, the offline path removes both objections. You can stand up Rereflect, point it at a local model — or just let the VADER fallback handle sentiment — and start seeing categorized, scored feedback without a single byte leaving your network.',
-          'Rereflect is open source under the MIT license. Clone it, run it on your own infrastructure, and configure the analyzer to match your privacy and budget requirements. Whether that means a local Ollama model, your own OpenAI key, or no model at all, the choice stays entirely yours.',
+          'If privacy or cost has kept you away from AI-powered feedback analysis, the offline path removes both objections. You can stand up FeedSignal, point it at a local model — or just let the VADER fallback handle sentiment — and start seeing categorized, scored feedback without a single byte leaving your network.',
+          'FeedSignal is open source under the MIT license. Clone it, run it on your own infrastructure, and configure the analyzer to match your privacy and budget requirements. Whether that means a local Ollama model, your own OpenAI key, or no model at all, the choice stays entirely yours.',
         ],
       },
     ],
@@ -114,27 +114,27 @@ const posts: BlogPost[] = [
   {
     slug: 'tailor-ai-custom-categories-health-weights',
     title: 'Tailoring the AI to Your Product: Custom Categories and Health Weights',
-    excerpt: 'Generic feedback categories rarely match how your team actually thinks about your product. Rereflect lets you define your own pain-point, feature-request, and urgency taxonomies and feed them directly into the analyzer — and tune the weights behind your customer health score so it reflects what churn actually looks like for you.',
+    excerpt: 'Generic feedback categories rarely match how your team actually thinks about your product. FeedSignal lets you define your own pain-point, feature-request, and urgency taxonomies and feed them directly into the analyzer — and tune the weights behind your customer health score so it reflects what churn actually looks like for you.',
     date: '2026-07-08',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['AI', 'Customer Health', 'Product Management'],
-    seoTitle: 'Custom AI Categories and Configurable Health Weights | Rereflect',
-    seoDescription: 'Define custom pain-point, feature-request, and urgency taxonomies that feed directly into Rereflect\'s analyzer, and configure per-organization customer-health-score weights to match how churn really looks for your product.',
+    seoTitle: 'Custom AI Categories and Configurable Health Weights | FeedSignal',
+    seoDescription: 'Define custom pain-point, feature-request, and urgency taxonomies that feed directly into FeedSignal\'s analyzer, and configure per-organization customer-health-score weights to match how churn really looks for your product.',
     sections: [
       {
         heading: 'Why generic categories fall short',
         content: [
           'Most feedback tools ship with a fixed set of categories — "bug," "feature request," "billing," "UX" — and quietly force your product into that mold. For a while it is fine. Then you notice that half your feedback lands in a vague catch-all, that two categories you actually care about are merged into one, and that the labels do not match the language your own team uses in standup.',
           'The problem is that categories are not universal. A developer-tools company cares about "API reliability" and "SDK ergonomics." A consumer app cares about "onboarding friction" and "notification fatigue." A vertical SaaS product has domain-specific concerns no off-the-shelf taxonomy will ever anticipate. When the categories are wrong, every downstream chart, filter, and priority list inherits that distortion.',
-          'Rereflect takes a different stance: the taxonomy is yours to define, and your definitions are fed directly into the analyzer so the AI categorizes against the buckets you actually use.',
+          'FeedSignal takes a different stance: the taxonomy is yours to define, and your definitions are fed directly into the analyzer so the AI categorizes against the buckets you actually use.',
         ],
       },
       {
         heading: 'Custom taxonomies that feed the analyzer',
         content: [
-          'Rereflect lets you define custom categories across the three dimensions it analyzes — pain points, feature requests, and urgency. Crucially, these are not just display labels applied after the fact. Your taxonomy is passed into the analysis step itself, so the AI is reasoning about your categories when it reads each piece of feedback.',
+          'FeedSignal lets you define custom categories across the three dimensions it analyzes — pain points, feature requests, and urgency. Crucially, these are not just display labels applied after the fact. Your taxonomy is passed into the analysis step itself, so the AI is reasoning about your categories when it reads each piece of feedback.',
           'That distinction matters. A tool that lets you "rename" categories after analysis is just relabeling generic output. A tool that feeds your taxonomy into the analyzer is genuinely classifying feedback into the buckets you defined, which produces far more accurate and useful results.',
         ],
         listItems: [
@@ -158,14 +158,14 @@ const posts: BlogPost[] = [
           'Start small and split later — begin with the handful of categories you genuinely track today. When one accumulates enough volume that it needs subdivision, split it then.',
         ],
         content2: [
-          'Because the taxonomy is configurable per organization, different teams running their own Rereflect instance can each shape it to their product without affecting anyone else.',
+          'Because the taxonomy is configurable per organization, different teams running their own FeedSignal instance can each shape it to their product without affecting anyone else.',
         ],
       },
       {
         heading: 'Configurable customer-health-score weights',
         content: [
           'Categorization tells you what customers are saying. The customer health score tells you which customers are in trouble. But "health" is not a one-size-fits-all formula — the signals that predict churn in your product are not the same as the ones that predict it in someone else\'s.',
-          'Rereflect makes the health score configurable per organization. Rather than locking you into a fixed formula, it lets you set the weights that determine how much each signal contributes to a customer\'s overall health. If declining sentiment is the strongest leading indicator of churn in your business, weight it heavily. If a drop in engagement matters more for your product, shift the weight there.',
+          'FeedSignal makes the health score configurable per organization. Rather than locking you into a fixed formula, it lets you set the weights that determine how much each signal contributes to a customer\'s overall health. If declining sentiment is the strongest leading indicator of churn in your business, weight it heavily. If a drop in engagement matters more for your product, shift the weight there.',
           'This turns the health score from a generic gauge into a model of churn that actually reflects your reality. Two organizations looking at the same raw signals can produce different, equally valid health scores — because they have tuned the weights to their own retention dynamics.',
         ],
       },
@@ -188,28 +188,28 @@ const posts: BlogPost[] = [
         heading: 'Bringing it together',
         content: [
           'Custom taxonomies and configurable health weights work best as a pair. The taxonomy shapes how feedback is understood; the health weights shape how that understanding rolls up into a per-customer risk signal. Together they let you bend a general-purpose feedback analyzer until it fits your specific product, your specific language, and your specific definition of a customer in trouble.',
-          'Rereflect is open source and self-hosted, so this configuration lives in your own instance, tuned by your own team. Define the categories that match how you actually think about your product, set the health weights that reflect how churn really happens for you, and let the analyzer do the rest. Clone Rereflect and start shaping it to your product on your own infrastructure.',
+          'FeedSignal is open source and self-hosted, so this configuration lives in your own instance, tuned by your own team. Define the categories that match how you actually think about your product, set the health weights that reflect how churn really happens for you, and let the analyzer do the rest. Clone FeedSignal and start shaping it to your product on your own infrastructure.',
         ],
       },
     ],
   },
   {
     slug: 'rereflect-public-api-build-on-your-feedback-data',
-    title: 'The Rereflect Public API: Build on Your Feedback Data',
-    excerpt: 'Rereflect ships with a Public REST API so your feedback data is never locked inside the dashboard. Authenticate with API keys, read feedback, customers, health scores, churn signals, and analytics, ingest feedback programmatically, subscribe to webhooks, and explore everything through OpenAPI docs.',
+    title: 'The FeedSignal Public API: Build on Your Feedback Data',
+    excerpt: 'FeedSignal ships with a Public REST API so your feedback data is never locked inside the dashboard. Authenticate with API keys, read feedback, customers, health scores, churn signals, and analytics, ingest feedback programmatically, subscribe to webhooks, and explore everything through OpenAPI docs.',
     date: '2026-07-22',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['API', 'Developers', 'Integrations'],
-    seoTitle: 'The Rereflect Public API: Build on Your Feedback Data | Rereflect',
-    seoDescription: 'A developer guide to the Rereflect Public REST API: API-key auth with read and ingest scopes, reading feedback and analytics, ingesting feedback programmatically, webhooks, and OpenAPI docs.',
+    seoTitle: 'The FeedSignal Public API: Build on Your Feedback Data | FeedSignal',
+    seoDescription: 'A developer guide to the FeedSignal Public REST API: API-key auth with read and ingest scopes, reading feedback and analytics, ingesting feedback programmatically, webhooks, and OpenAPI docs.',
     sections: [
       {
         heading: 'Your feedback data, programmatically accessible',
         content: [
-          'A dashboard is great until you need to do something the dashboard does not do. You want to pipe feedback into your data warehouse. You want to ingest messages from a channel Rereflect does not natively connect to. You want to surface a customer\'s health score inside your own internal admin tool. You want to trigger a workflow the moment a piece of feedback is flagged urgent.',
-          'For all of that, Rereflect exposes a Public REST API. Because Rereflect is self-hosted and open source, this is not a gated upsell — the API runs on your own instance, against your own data, and you can build whatever you need on top of it.',
+          'A dashboard is great until you need to do something the dashboard does not do. You want to pipe feedback into your data warehouse. You want to ingest messages from a channel FeedSignal does not natively connect to. You want to surface a customer\'s health score inside your own internal admin tool. You want to trigger a workflow the moment a piece of feedback is flagged urgent.',
+          'For all of that, FeedSignal exposes a Public REST API. Because FeedSignal is self-hosted and open source, this is not a gated upsell — the API runs on your own instance, against your own data, and you can build whatever you need on top of it.',
           'The API is organized around the same concepts you see in the product: feedback, customers, health, churn signals, and analytics for reading, plus an ingestion path for writing feedback in, and webhooks for getting events pushed out.',
         ],
       },
@@ -221,7 +221,7 @@ const posts: BlogPost[] = [
         ],
         listItems: [
           'Read scope — query feedback, customers, health scores, churn signals, and analytics. Ideal for dashboards, reporting jobs, and read-only integrations.',
-          'Ingest scope — push new feedback into Rereflect. Ideal for connectors that pull from a source Rereflect does not natively support and forward it in.',
+          'Ingest scope — push new feedback into FeedSignal. Ideal for connectors that pull from a source FeedSignal does not natively support and forward it in.',
         ],
         content2: [
           'Following least privilege, give each integration only the scope it actually requires: a reporting pipeline should hold a read-only key, while an inbound connector needs ingest. If a key leaks, revoke it and issue a new one — no user passwords or sessions are involved.',
@@ -230,11 +230,11 @@ const posts: BlogPost[] = [
       {
         heading: 'Reading your data',
         content: [
-          'The read endpoints expose the analyzed data Rereflect produces, so you can take insights out of the dashboard and put them wherever your team works. Everything that drives the UI is reachable programmatically:',
+          'The read endpoints expose the analyzed data FeedSignal produces, so you can take insights out of the dashboard and put them wherever your team works. Everything that drives the UI is reachable programmatically:',
         ],
         listItems: [
           'Feedback — list and retrieve feedback items along with their analysis: sentiment, categories, and urgency flags.',
-          'Customers — pull customer records to join Rereflect\'s view of a customer with your own systems.',
+          'Customers — pull customer records to join FeedSignal\'s view of a customer with your own systems.',
           'Health — read customer health scores to surface risk where your team already looks.',
           'Churn — access churn signals and risk indicators for proactive retention work.',
           'Analytics — retrieve aggregate metrics and trends for reporting and warehousing.',
@@ -246,12 +246,12 @@ const posts: BlogPost[] = [
       {
         heading: 'Ingesting feedback programmatically',
         content: [
-          'Reading is only half the story. The ingestion endpoint lets you push feedback into Rereflect from anywhere, which means you are never limited to the sources Rereflect connects to out of the box.',
-          'The pattern is straightforward: a client holding an ingest-scoped key sends feedback to the API, and Rereflect runs it through the same analysis pipeline as feedback from any other source — sentiment, categorization, urgency, the works. The feedback then appears in the dashboard and in the read API exactly like everything else.',
+          'Reading is only half the story. The ingestion endpoint lets you push feedback into FeedSignal from anywhere, which means you are never limited to the sources FeedSignal connects to out of the box.',
+          'The pattern is straightforward: a client holding an ingest-scoped key sends feedback to the API, and FeedSignal runs it through the same analysis pipeline as feedback from any other source — sentiment, categorization, urgency, the works. The feedback then appears in the dashboard and in the read API exactly like everything else.',
         ],
         listItems: [
-          'Custom connectors — pull from a channel Rereflect does not natively integrate (a niche support tool, an internal forum, a community platform) and forward each message in.',
-          'Bulk backfill — load historical feedback from a prior system so your trends and analytics reflect your full history, not just data since you adopted Rereflect.',
+          'Custom connectors — pull from a channel FeedSignal does not natively integrate (a niche support tool, an internal forum, a community platform) and forward each message in.',
+          'Bulk backfill — load historical feedback from a prior system so your trends and analytics reflect your full history, not just data since you adopted FeedSignal.',
           'Embedded capture — wire a feedback widget in your own product directly to the ingestion endpoint, so in-app feedback flows straight into analysis.',
         ],
         content2: [
@@ -262,50 +262,50 @@ const posts: BlogPost[] = [
         heading: 'Webhooks for real-time events',
         content: [
           'Polling the read API on a schedule works, but for time-sensitive reactions you want to be notified the moment something happens rather than discovering it on your next poll. That is what webhooks are for.',
-          'With webhooks, Rereflect pushes events to a URL you control as they occur. Instead of asking "has anything urgent come in?" every few minutes, your endpoint is called the instant it does — letting you react in real time.',
-          'Typical uses include alerting and automation: post urgent feedback to a Slack channel as it arrives, open a ticket in your issue tracker when a churn-risk signal fires, or kick off an internal workflow when a customer\'s health crosses a threshold. Because the event comes to you, the latency between something happening in Rereflect and your team acting on it shrinks to near zero.',
+          'With webhooks, FeedSignal pushes events to a URL you control as they occur. Instead of asking "has anything urgent come in?" every few minutes, your endpoint is called the instant it does — letting you react in real time.',
+          'Typical uses include alerting and automation: post urgent feedback to a Slack channel as it arrives, open a ticket in your issue tracker when a churn-risk signal fires, or kick off an internal workflow when a customer\'s health crosses a threshold. Because the event comes to you, the latency between something happening in FeedSignal and your team acting on it shrinks to near zero.',
         ],
       },
       {
         heading: 'OpenAPI docs and getting started',
         content: [
           'The whole API is described with OpenAPI, so you do not have to guess at endpoints, parameters, or response shapes. The interactive docs let you browse every endpoint, see request and response schemas, and try calls directly. The same OpenAPI definition also feeds client-generation tooling, so you can generate a typed client in your language of choice instead of writing HTTP plumbing by hand.',
-          'Because Rereflect is open source and self-hosted, the API and its docs run on your own instance against your own data — no external dependency, no rate-limit negotiations with a vendor, no data leaving your control. Clone Rereflect, create an API key with the scope you need, open the OpenAPI docs, and start building on top of your feedback data.',
+          'Because FeedSignal is open source and self-hosted, the API and its docs run on your own instance against your own data — no external dependency, no rate-limit negotiations with a vendor, no data leaving your control. Clone FeedSignal, create an API key with the scope you need, open the OpenAPI docs, and start building on top of your feedback data.',
         ],
       },
     ],
   },
   {
     slug: 'why-we-open-sourced-rereflect',
-    title: 'Why We Open-Sourced Rereflect',
-    excerpt: 'Rereflect is now open source and self-hosted under the MIT license — bring your own key, own your data, run it on your own infrastructure. As the year closes, here is an honest reflection on why we made that change and what it means for the people who use it.',
+    title: 'Why We Open-Sourced FeedSignal',
+    excerpt: 'FeedSignal is now open source and self-hosted under the MIT license — bring your own key, own your data, run it on your own infrastructure. As the year closes, here is an honest reflection on why we made that change and what it means for the people who use it.',
     date: '2026-12-15',
     status: 'scheduled',
     readTime: '6 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Open Source', 'Company'],
-    seoTitle: 'Why We Open-Sourced Rereflect (MIT, BYOK, Self-Hosted) | Rereflect',
-    seoDescription: 'A reflective end-of-year piece on why Rereflect went open source and self-hosted under the MIT license: bring your own key, own your data, run it yourself, and what it means for users.',
+    seoTitle: 'Why We Open-Sourced FeedSignal (MIT, BYOK, Self-Hosted) | FeedSignal',
+    seoDescription: 'A reflective end-of-year piece on why FeedSignal went open source and self-hosted under the MIT license: bring your own key, own your data, run it yourself, and what it means for users.',
     sections: [
       {
         heading: 'A different kind of year-end note',
         content: [
-          'It is easy to end a year with a list of features and a victory lap. This is not that. The biggest change to Rereflect this year was not a feature at all — it was a decision about what kind of product Rereflect should be. We made it open source and self-hosted under the MIT license, and we want to be honest about why.',
-          'Feedback data is intimate. It is your customers telling you, often candidly, what is wrong and what they wish were different. The more we sat with that, the less comfortable we were being a mandatory middleman between you and that data. Open-sourcing Rereflect was our way of removing ourselves from that position entirely.',
+          'It is easy to end a year with a list of features and a victory lap. This is not that. The biggest change to FeedSignal this year was not a feature at all — it was a decision about what kind of product FeedSignal should be. We made it open source and self-hosted under the MIT license, and we want to be honest about why.',
+          'Feedback data is intimate. It is your customers telling you, often candidly, what is wrong and what they wish were different. The more we sat with that, the less comfortable we were being a mandatory middleman between you and that data. Open-sourcing FeedSignal was our way of removing ourselves from that position entirely.',
         ],
       },
       {
         heading: 'Own your data, literally',
         content: [
           'The phrase "you own your data" gets used loosely. Plenty of products say it while still storing your data on their servers, processing it through their pipelines, and holding the keys to export it. Ownership in that arrangement is conditional — it lasts exactly as long as the relationship does.',
-          'Self-hosting makes ownership literal. When you run Rereflect on your own infrastructure, your feedback lives in your database, on your machines, behind your firewall. There is no copy on our side because there is no "our side" in the data path. If you walk away from the project tomorrow, nothing of yours leaves with us, because nothing of yours was ever with us.',
+          'Self-hosting makes ownership literal. When you run FeedSignal on your own infrastructure, your feedback lives in your database, on your machines, behind your firewall. There is no copy on our side because there is no "our side" in the data path. If you walk away from the project tomorrow, nothing of yours leaves with us, because nothing of yours was ever with us.',
           'That is a meaningfully different promise than "we will not misuse your data." It is "we cannot, because we never have it."',
         ],
       },
       {
         heading: 'BYOK: no lock-in on intelligence',
         content: [
-          'Rereflect is bring-your-own-key. The AI that powers analysis is yours to choose — a hosted provider with your own key, a local model on your own hardware, or the built-in local fallback when you want no external dependency at all. We do not sit in the middle of those calls, and we do not mark up anyone\'s tokens.',
+          'FeedSignal is bring-your-own-key. The AI that powers analysis is yours to choose — a hosted provider with your own key, a local model on your own hardware, or the built-in local fallback when you want no external dependency at all. We do not sit in the middle of those calls, and we do not mark up anyone\'s tokens.',
           'This matters beyond cost. BYOK means the intelligence layer is not a lever we can pull against you. We cannot quietly degrade the model, ration your usage, or hold better analysis behind a higher tier, because we are not the ones providing the model. You are. The most important and most expensive part of the system is under your control, not ours.',
         ],
       },
@@ -319,16 +319,16 @@ const posts: BlogPost[] = [
       {
         heading: 'What this asks of you, honestly',
         content: [
-          'We want to be straight about the trade-off, because pretending self-hosting is free would be dishonest. Running Rereflect yourself means you operate it: you provision the infrastructure, you apply updates, you handle backups, you decide how to configure the analyzer. A fully managed product hands all of that to a vendor. Self-hosting hands it to you.',
+          'We want to be straight about the trade-off, because pretending self-hosting is free would be dishonest. Running FeedSignal yourself means you operate it: you provision the infrastructure, you apply updates, you handle backups, you decide how to configure the analyzer. A fully managed product hands all of that to a vendor. Self-hosting hands it to you.',
           'For some teams that is more responsibility than they want, and that is a fair reason to choose a managed alternative. But for teams who care about data control, who already run their own infrastructure, or who simply do not want a third party in the path of their customers\' words, the operational cost buys something real: complete control and zero lock-in.',
-          'We think that trade is worth it for the people Rereflect is for. We would rather be honest about the cost than oversell the benefit.',
+          'We think that trade is worth it for the people FeedSignal is for. We would rather be honest about the cost than oversell the benefit.',
         ],
       },
       {
         heading: 'Where we go from here',
         content: [
-          'Open-sourcing Rereflect is not the end of the work — it is the foundation for the kind of work we want to do. The roadmap is built in the open now: improving the self-hosted experience, broadening the models and sources you can connect, and sharpening the analysis itself. And because the code is yours too, the project improves from contributions, not just from us.',
-          'If you have been waiting for a feedback analysis tool that you can actually own — code, data, and intelligence — Rereflect is that tool now, under the MIT license, on your infrastructure, with your keys. Clone it, run it, make it yours. Thank you to everyone who pushed us toward this. Here is to a year of owning your own data.',
+          'Open-sourcing FeedSignal is not the end of the work — it is the foundation for the kind of work we want to do. The roadmap is built in the open now: improving the self-hosted experience, broadening the models and sources you can connect, and sharpening the analysis itself. And because the code is yours too, the project improves from contributions, not just from us.',
+          'If you have been waiting for a feedback analysis tool that you can actually own — code, data, and intelligence — FeedSignal is that tool now, under the MIT license, on your infrastructure, with your keys. Clone it, run it, make it yours. Thank you to everyone who pushed us toward this. Here is to a year of owning your own data.',
         ],
       },
     ],
@@ -340,9 +340,9 @@ const posts: BlogPost[] = [
     date: '2026-02-14',
     status: 'published',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Customer Feedback', 'Product Management', 'SaaS'],
-    seoTitle: 'How to Organize Customer Feedback (2026 Guide) | Rereflect',
+    seoTitle: 'How to Organize Customer Feedback (2026 Guide) | FeedSignal',
     seoDescription: 'Learn how to organize customer feedback effectively. From spreadsheets to AI-powered tools, discover the best methods for SaaS teams to manage and act on feedback.',
     sections: [
       {
@@ -420,7 +420,7 @@ const posts: BlogPost[] = [
           'The best feedback system is one your team actually uses. Start with the simplest approach that handles your current volume, and upgrade when you hit the scaling threshold.',
           'If you are processing fewer than 50 items per week, a well-structured spreadsheet or Notion database will serve you well. Focus on building the habit of consistent categorization.',
           'If you are above 100 items per week — or heading there — consider AI-powered tools that can handle the volume without sacrificing analytical depth. The time your team saves on manual categorization can be redirected toward actually acting on the insights.',
-          'Rereflect is designed for exactly this transition point. It connects to the tools you already use (Slack, Intercom, email) and automatically categorizes incoming feedback with sentiment analysis, pain point detection, and urgency flagging. You can try it free at app.rereflect.ca.',
+          'FeedSignal is designed for exactly this transition point. It connects to the tools you already use (Slack, Intercom, email) and automatically categorizes incoming feedback with sentiment analysis, pain point detection, and urgency flagging. You can try it free at feedsignal-xi.vercel.app.',
         ],
       },
     ],
@@ -432,9 +432,9 @@ const posts: BlogPost[] = [
     date: '2026-02-14',
     status: 'published',
     readTime: '6 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['AI', 'Feedback Analysis', 'Comparison'],
-    seoTitle: 'Customer Feedback Analysis: Manual vs AI-Powered | Rereflect',
+    seoTitle: 'Customer Feedback Analysis: Manual vs AI-Powered | FeedSignal',
     seoDescription: 'Compare manual and AI-powered customer feedback analysis. Learn the trade-offs in accuracy, speed, and cost, and discover when SaaS teams should make the switch.',
     sections: [
       {
@@ -543,8 +543,8 @@ const posts: BlogPost[] = [
         heading: 'Getting started with AI-powered analysis',
         content: [
           'If your team is approaching the volume threshold where manual analysis becomes a bottleneck, the switching cost is lower than most people expect.',
-          'Rereflect automates the entire feedback analysis pipeline: sentiment classification, pain point detection, feature request extraction, and urgency flagging. It connects directly to the tools your team already uses — Slack, Intercom, and email — so there is no change to your existing workflow.',
-          'You can start with a free account and see results on your actual feedback data within minutes. No credit card required, no complex integration to configure. Visit app.rereflect.ca to try it.',
+          'FeedSignal automates the entire feedback analysis pipeline: sentiment classification, pain point detection, feature request extraction, and urgency flagging. It connects directly to the tools your team already uses — Slack, Intercom, and email — so there is no change to your existing workflow.',
+          'You can start with a free account and see results on your actual feedback data within minutes. No credit card required, no complex integration to configure. Visit feedsignal-xi.vercel.app to try it.',
         ],
       },
     ],
@@ -556,9 +556,9 @@ const posts: BlogPost[] = [
     date: '2026-03-01',
     status: 'published',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Sentiment Analysis', 'SaaS', 'Customer Feedback', 'AI'],
-    seoTitle: 'Sentiment Analysis for SaaS: A Beginner\'s Guide (2026) | Rereflect',
+    seoTitle: 'Sentiment Analysis for SaaS: A Beginner\'s Guide (2026) | FeedSignal',
     seoDescription: 'Learn what sentiment analysis is, how it works for SaaS companies, and how to use it to understand customer feedback, reduce churn, and prioritize your product roadmap.',
     sections: [
       {
@@ -664,29 +664,29 @@ const posts: BlogPost[] = [
         heading: 'Getting started',
         content: [
           'Sentiment analysis is one of those capabilities that delivers value from day one. Unlike complex analytics that require weeks of setup and tuning, you can get meaningful sentiment insights from your existing feedback data within minutes.',
-          'Rereflect includes sentiment analysis as a core feature, not an add-on. Every piece of feedback — whether it arrives via Slack, Intercom, email, or CSV upload — is automatically scored for sentiment, categorized by topic, and checked for urgency signals. The dashboard shows you sentiment trends over time, broken down by the dimensions that matter to your team.',
-          'You can start with a free account and upload your existing feedback data to see it in action. No data science background required, no complex configuration. Visit app.rereflect.ca to try it.',
+          'FeedSignal includes sentiment analysis as a core feature, not an add-on. Every piece of feedback — whether it arrives via Slack, Intercom, email, or CSV upload — is automatically scored for sentiment, categorized by topic, and checked for urgency signals. The dashboard shows you sentiment trends over time, broken down by the dimensions that matter to your team.',
+          'You can start with a free account and upload your existing feedback data to see it in action. No data science background required, no complex configuration. Visit feedsignal-xi.vercel.app to try it.',
         ],
       },
     ],
   },
   {
     slug: 'rereflect-vs-productboard',
-    title: 'Rereflect vs Productboard: Which Is Right for Your Team?',
-    excerpt: 'Productboard is a powerful product management platform. Rereflect is an AI-powered feedback analysis tool. They solve related but different problems. This comparison helps you decide which fits your team.',
+    title: 'FeedSignal vs Productboard: Which Is Right for Your Team?',
+    excerpt: 'Productboard is a powerful product management platform. FeedSignal is an AI-powered feedback analysis tool. They solve related but different problems. This comparison helps you decide which fits your team.',
     date: '2026-03-15',
     status: 'published',
     readTime: '10 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Comparison', 'Productboard', 'Product Management', 'Feedback Analysis'],
-    seoTitle: 'Rereflect vs Productboard: Honest Comparison for SaaS Teams (2026) | Rereflect',
-    seoDescription: 'Compare Rereflect and Productboard for customer feedback management. Feature-by-feature breakdown of pricing, AI analysis, integrations, and use cases to help you choose.',
+    seoTitle: 'FeedSignal vs Productboard: Honest Comparison for SaaS Teams (2026) | FeedSignal',
+    seoDescription: 'Compare FeedSignal and Productboard for customer feedback management. Feature-by-feature breakdown of pricing, AI analysis, integrations, and use cases to help you choose.',
     sections: [
       {
         heading: 'Why people compare these two tools',
         content: [
           'If you have searched for "Productboard alternative," you are probably experiencing one of two things: Productboard does more than you need and costs more than you want, or you want deeper feedback analysis than what Productboard provides out of the box.',
-          'Rereflect and Productboard both deal with customer feedback, but they approach the problem from different angles. Productboard is a product management platform that includes feedback collection as one of many features. Rereflect is a feedback analysis tool built specifically to turn raw feedback into categorized, scored, and prioritized insights using AI.',
+          'FeedSignal and Productboard both deal with customer feedback, but they approach the problem from different angles. Productboard is a product management platform that includes feedback collection as one of many features. FeedSignal is a feedback analysis tool built specifically to turn raw feedback into categorized, scored, and prioritized insights using AI.',
           'This comparison covers both tools honestly — including where each one is the better choice.',
         ],
       },
@@ -709,10 +709,10 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'Rereflect overview',
+        heading: 'FeedSignal overview',
         content: [
-          'Rereflect is an AI-powered feedback analysis platform built for SaaS teams that need to understand what their customers are telling them — fast.',
-          'Rather than managing the full product lifecycle, Rereflect focuses on one thing: turning unstructured feedback into structured, actionable insights. It does this automatically, using AI to handle what most teams do manually.',
+          'FeedSignal is an AI-powered feedback analysis platform built for SaaS teams that need to understand what their customers are telling them — fast.',
+          'Rather than managing the full product lifecycle, FeedSignal focuses on one thing: turning unstructured feedback into structured, actionable insights. It does this automatically, using AI to handle what most teams do manually.',
           'Key capabilities include:',
         ],
         listItems: [
@@ -725,7 +725,7 @@ const posts: BlogPost[] = [
           'Multi-model AI — Bring your own API keys (OpenAI, Anthropic, Google) and choose the model that fits your needs and budget.',
         ],
         content2: [
-          'Rereflect is strongest when a team needs fast, AI-driven analysis of incoming feedback without building spreadsheets, writing SQL, or manually tagging every item.',
+          'FeedSignal is strongest when a team needs fast, AI-driven analysis of incoming feedback without building spreadsheets, writing SQL, or manually tagging every item.',
         ],
       },
       {
@@ -734,7 +734,7 @@ const posts: BlogPost[] = [
           'Here is how the two tools compare across the dimensions that matter most for feedback management:',
         ],
         table: {
-          headers: ['Feature', 'Productboard', 'Rereflect'],
+          headers: ['Feature', 'Productboard', 'FeedSignal'],
           rows: [
             ['Primary purpose', 'Product management platform', 'AI feedback analysis'],
             ['AI sentiment analysis', 'Basic (manual + limited auto-tagging)', 'Core feature (automatic, every item)'],
@@ -758,7 +758,7 @@ const posts: BlogPost[] = [
           'Pricing is one of the biggest differences between the two tools:',
         ],
         table: {
-          headers: ['Plan', 'Productboard', 'Rereflect'],
+          headers: ['Plan', 'Productboard', 'FeedSignal'],
           rows: [
             ['Free tier', 'No free plan (trial only)', 'Free forever (250 feedback/mo, 2 seats)'],
             ['Starter / Pro', '$20/maker/mo (Essentials)', '$29/mo (2,500 feedback/mo, 10 seats)'],
@@ -768,9 +768,9 @@ const posts: BlogPost[] = [
           ],
         },
         content2: [
-          'The pricing models are fundamentally different. Productboard charges per "maker" — the product managers who actively use the system. Viewers are free. Rereflect charges per organization with all seats included in the plan.',
-          'For a team of 3 PMs, Productboard Essentials costs $60/month. Rereflect Pro at $29/month covers the entire team of up to 10 people. For larger teams with 5+ PMs, the gap widens significantly.',
-          'The key trade-off: Productboard includes roadmap management and feature prioritization tools that Rereflect does not offer. If you need those capabilities, the higher price includes genuine additional value.',
+          'The pricing models are fundamentally different. Productboard charges per "maker" — the product managers who actively use the system. Viewers are free. FeedSignal charges per organization with all seats included in the plan.',
+          'For a team of 3 PMs, Productboard Essentials costs $60/month. FeedSignal Pro at $29/month covers the entire team of up to 10 people. For larger teams with 5+ PMs, the gap widens significantly.',
+          'The key trade-off: Productboard includes roadmap management and feature prioritization tools that FeedSignal does not offer. If you need those capabilities, the higher price includes genuine additional value.',
         ],
       },
       {
@@ -786,35 +786,35 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'When to choose Rereflect',
+        heading: 'When to choose FeedSignal',
         content: [
-          'Rereflect is the better choice in these scenarios:',
+          'FeedSignal is the better choice in these scenarios:',
         ],
         listItems: [
-          'You need AI-powered analysis, not just collection — If your bottleneck is understanding what feedback means (not just storing it), Rereflect\'s automatic sentiment analysis, pain point detection, and churn risk scoring solve this directly.',
-          'You are drowning in feedback volume — When you have hundreds of items per week coming from multiple channels, manual tagging breaks down. Rereflect processes everything automatically with consistent AI analysis.',
-          'Churn prevention is a priority — Rereflect\'s 9-factor churn risk scoring, customer health dashboard, and proactive alerts are built specifically for teams that need to catch at-risk customers before they leave.',
-          'You want fast time-to-value — Rereflect takes 15 minutes to set up: connect Slack or upload a CSV, and you immediately see sentiment scores, pain point categories, and urgency flags. No configuration sprint required.',
-          'Budget is a constraint — At $29/month for a team of 10 versus $80+/maker/month, Rereflect is significantly more affordable for early-stage teams that need feedback intelligence without the full product management suite.',
-          'You want to ask questions about your data — Rereflect\'s AI Copilot lets you query your feedback with natural language. "What are the top 3 complaints from customers who mentioned pricing?" gets an instant answer without building a report.',
+          'You need AI-powered analysis, not just collection — If your bottleneck is understanding what feedback means (not just storing it), FeedSignal\'s automatic sentiment analysis, pain point detection, and churn risk scoring solve this directly.',
+          'You are drowning in feedback volume — When you have hundreds of items per week coming from multiple channels, manual tagging breaks down. FeedSignal processes everything automatically with consistent AI analysis.',
+          'Churn prevention is a priority — FeedSignal\'s 9-factor churn risk scoring, customer health dashboard, and proactive alerts are built specifically for teams that need to catch at-risk customers before they leave.',
+          'You want fast time-to-value — FeedSignal takes 15 minutes to set up: connect Slack or upload a CSV, and you immediately see sentiment scores, pain point categories, and urgency flags. No configuration sprint required.',
+          'Budget is a constraint — At $29/month for a team of 10 versus $80+/maker/month, FeedSignal is significantly more affordable for early-stage teams that need feedback intelligence without the full product management suite.',
+          'You want to ask questions about your data — FeedSignal\'s AI Copilot lets you query your feedback with natural language. "What are the top 3 complaints from customers who mentioned pricing?" gets an instant answer without building a report.',
         ],
       },
       {
         heading: 'Can you use both?',
         content: [
-          'Yes, and some teams do. The combination works like this: Rereflect handles the analysis layer — ingesting feedback from all channels, scoring sentiment, detecting pain points, and flagging churn risk. The insights from Rereflect then inform prioritization decisions in Productboard.',
+          'Yes, and some teams do. The combination works like this: FeedSignal handles the analysis layer — ingesting feedback from all channels, scoring sentiment, detecting pain points, and flagging churn risk. The insights from FeedSignal then inform prioritization decisions in Productboard.',
           'This makes sense for teams that already use Productboard for roadmap management but find its feedback analysis capabilities insufficient for their volume or complexity.',
-          'However, for most teams — especially those under 50 employees — using both tools adds unnecessary complexity. Choose the one that solves your primary problem: product lifecycle management (Productboard) or feedback intelligence (Rereflect).',
+          'However, for most teams — especially those under 50 employees — using both tools adds unnecessary complexity. Choose the one that solves your primary problem: product lifecycle management (Productboard) or feedback intelligence (FeedSignal).',
         ],
       },
       {
         heading: 'Verdict',
         content: [
-          'Productboard and Rereflect are not direct competitors — they solve related but different problems.',
+          'Productboard and FeedSignal are not direct competitors — they solve related but different problems.',
           'Productboard is a comprehensive product management platform. It excels at the full lifecycle from feedback collection through feature prioritization to roadmap communication. It is the right choice for teams that need all of these capabilities in one system and have the budget and organizational maturity to use them.',
-          'Rereflect is a focused feedback intelligence tool. It excels at turning raw, unstructured feedback into categorized, scored, and actionable insights using AI. It is the right choice for teams whose primary challenge is understanding what their customers are saying — especially at scale.',
-          'If you are reading this because you searched for "Productboard alternative," ask yourself what specifically is not working. If the answer is "it is too expensive for what I use" or "I need better feedback analysis," Rereflect is worth trying. If the answer is "I need better roadmap tools," you may want a different product management platform rather than a feedback analysis tool.',
-          'You can try Rereflect free at app.rereflect.ca — upload your existing feedback data and see AI-powered analysis on your actual data within minutes.',
+          'FeedSignal is a focused feedback intelligence tool. It excels at turning raw, unstructured feedback into categorized, scored, and actionable insights using AI. It is the right choice for teams whose primary challenge is understanding what their customers are saying — especially at scale.',
+          'If you are reading this because you searched for "Productboard alternative," ask yourself what specifically is not working. If the answer is "it is too expensive for what I use" or "I need better feedback analysis," FeedSignal is worth trying. If the answer is "I need better roadmap tools," you may want a different product management platform rather than a feedback analysis tool.',
+          'You can try FeedSignal free at feedsignal-xi.vercel.app — upload your existing feedback data and see AI-powered analysis on your actual data within minutes.',
         ],
       },
     ],
@@ -826,9 +826,9 @@ const posts: BlogPost[] = [
     date: '2026-03-05',
     status: 'published',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Product Management', 'Feature Prioritization', 'Customer Feedback', 'SaaS'],
-    seoTitle: 'How to Prioritize Features Using Customer Feedback (2026) | Rereflect',
+    seoTitle: 'How to Prioritize Features Using Customer Feedback (2026) | FeedSignal',
     seoDescription: 'Learn how to prioritize feature requests using customer feedback data. Practical frameworks for SaaS product teams to build what matters most, backed by real user signals.',
     sections: [
       {
@@ -931,28 +931,28 @@ const posts: BlogPost[] = [
           'You do not need a perfect system to start prioritizing better. Begin with what you have:',
           'If you have fewer than 50 feature requests, put them in a spreadsheet and score them on frequency and sentiment. That alone will surface your top priorities more reliably than discussion-based planning.',
           'If you have hundreds of requests across multiple channels, consider a tool that automates categorization and scoring. The time you save on data wrangling can be spent on the judgment calls that actually require human insight.',
-          'Rereflect automates the data layer of feature prioritization. It categorizes incoming feedback, groups related requests, scores sentiment and urgency, and flags churn-correlated patterns — all automatically. Your team focuses on the strategic decisions while AI handles the analysis.',
-          'Try it free at app.rereflect.ca. Upload your existing feedback and see a prioritized view of what your customers actually need.',
+          'FeedSignal automates the data layer of feature prioritization. It categorizes incoming feedback, groups related requests, scores sentiment and urgency, and flags churn-correlated patterns — all automatically. Your team focuses on the strategic decisions while AI handles the analysis.',
+          'Try it free at feedsignal-xi.vercel.app. Upload your existing feedback and see a prioritized view of what your customers actually need.',
         ],
       },
     ],
   },
   {
     slug: 'rereflect-vs-canny',
-    title: 'Rereflect vs Canny: Feedback Collection vs Feedback Intelligence',
-    excerpt: 'Canny is a popular feedback board for collecting and voting on feature requests. Rereflect uses AI to analyze feedback from all your channels. This comparison helps you understand which approach your team needs.',
+    title: 'FeedSignal vs Canny: Feedback Collection vs Feedback Intelligence',
+    excerpt: 'Canny is a popular feedback board for collecting and voting on feature requests. FeedSignal uses AI to analyze feedback from all your channels. This comparison helps you understand which approach your team needs.',
     date: '2026-03-10',
     status: 'published',
     readTime: '10 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Comparison', 'Canny', 'Feature Requests', 'Feedback Analysis'],
-    seoTitle: 'Rereflect vs Canny: Feedback Collection vs Intelligence (2026) | Rereflect',
-    seoDescription: 'Compare Rereflect and Canny for customer feedback. See how AI-powered feedback analysis differs from traditional voting boards, with pricing, features, and use cases.',
+    seoTitle: 'FeedSignal vs Canny: Feedback Collection vs Intelligence (2026) | FeedSignal',
+    seoDescription: 'Compare FeedSignal and Canny for customer feedback. See how AI-powered feedback analysis differs from traditional voting boards, with pricing, features, and use cases.',
     sections: [
       {
         heading: 'Why people compare these two tools',
         content: [
-          'Canny and Rereflect both help SaaS teams manage customer feedback, but they represent two fundamentally different philosophies. Canny gives customers a structured place to submit and vote on feature requests. Rereflect uses AI to analyze feedback that already exists across your channels.',
+          'Canny and FeedSignal both help SaaS teams manage customer feedback, but they represent two fundamentally different philosophies. Canny gives customers a structured place to submit and vote on feature requests. FeedSignal uses AI to analyze feedback that already exists across your channels.',
           'The distinction matters because it determines what kind of insights you get, where your feedback comes from, and how much of the process is automated versus manual.',
           'If you are evaluating both tools, you are probably trying to answer a specific question: should we build a system for customers to tell us what they want, or should we build a system that figures out what customers want from what they are already saying?',
         ],
@@ -977,9 +977,9 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'Rereflect overview',
+        heading: 'FeedSignal overview',
         content: [
-          'Rereflect is an AI-powered feedback analysis platform that works with the feedback you are already receiving — from Slack, Intercom, email, and CSV uploads. Instead of asking customers to go to a separate board, Rereflect analyzes conversations and messages where they already happen.',
+          'FeedSignal is an AI-powered feedback analysis platform that works with the feedback you are already receiving — from Slack, Intercom, email, and CSV uploads. Instead of asking customers to go to a separate board, FeedSignal analyzes conversations and messages where they already happen.',
           'Key capabilities include:',
         ],
         listItems: [
@@ -992,20 +992,20 @@ const posts: BlogPost[] = [
           'Workflow management — Built-in status tracking, team assignment, and internal notes for acting on feedback insights.',
         ],
         content2: [
-          'Rereflect is strongest when a team has feedback flowing in from multiple channels and needs AI to surface patterns, risks, and priorities automatically.',
+          'FeedSignal is strongest when a team has feedback flowing in from multiple channels and needs AI to surface patterns, risks, and priorities automatically.',
         ],
       },
       {
         heading: 'The core philosophical difference',
         content: [
-          'The most important difference between Canny and Rereflect is not a feature — it is an assumption about where valuable feedback lives.',
+          'The most important difference between Canny and FeedSignal is not a feature — it is an assumption about where valuable feedback lives.',
           'Canny assumes the best feedback comes when you ask for it. Give customers a structured form, let them articulate their requests clearly, and let the crowd vote on priorities. This is the "suggestion box" model, improved with software.',
-          'Rereflect assumes the most honest feedback already exists in your support conversations, Slack messages, and email threads. Customers express frustration in a support ticket more candidly than in a public feature request. The frustrated message "this export is broken AGAIN, I\'ve reported this 3 times" contains more signal than a clean vote on "improve data export."',
+          'FeedSignal assumes the most honest feedback already exists in your support conversations, Slack messages, and email threads. Customers express frustration in a support ticket more candidly than in a public feature request. The frustrated message "this export is broken AGAIN, I\'ve reported this 3 times" contains more signal than a clean vote on "improve data export."',
           'Neither assumption is wrong. They lead to different kinds of insights:',
         ],
         listItems: [
           'Canny captures explicit, considered requests — What customers think they want when asked directly.',
-          'Rereflect captures implicit, emotional signals — What customers actually struggle with in their daily use of your product.',
+          'FeedSignal captures implicit, emotional signals — What customers actually struggle with in their daily use of your product.',
         ],
         content2: [
           'The most complete picture comes from combining both, but most teams need to choose a primary approach based on their stage and resources.',
@@ -1017,7 +1017,7 @@ const posts: BlogPost[] = [
           'Here is how the two tools compare across key dimensions:',
         ],
         table: {
-          headers: ['Feature', 'Canny', 'Rereflect'],
+          headers: ['Feature', 'Canny', 'FeedSignal'],
           rows: [
             ['Primary model', 'Voting boards (customers submit)', 'AI analysis (of existing feedback)'],
             ['Feedback source', 'Dedicated board + manual push from tools', 'Slack, Intercom, email, CSV (automatic)'],
@@ -1041,7 +1041,7 @@ const posts: BlogPost[] = [
           'Both tools offer free tiers, but with different limits:',
         ],
         table: {
-          headers: ['Plan', 'Canny', 'Rereflect'],
+          headers: ['Plan', 'Canny', 'FeedSignal'],
           rows: [
             ['Free tier', 'Free (1 board, limited features)', 'Free (250 feedback/mo, 2 seats)'],
             ['Starter / Pro', '$79/mo (Starter, 3 boards)', '$29/mo (2,500 feedback/mo, 10 seats)'],
@@ -1052,7 +1052,7 @@ const posts: BlogPost[] = [
         },
         content2: [
           'Canny\'s pricing jumps significantly between tiers. The free plan is limited to one board with no AI features. To get Autopilot (AI), user segmentation, and priority scoring, you need the Growth plan at $359/month.',
-          'Rereflect\'s Pro plan at $29/month includes AI analysis, sentiment scoring, pain point detection, and 10 team seats. For teams where budget matters, the price difference is substantial — especially considering that Rereflect\'s core AI features are available from the free tier.',
+          'FeedSignal\'s Pro plan at $29/month includes AI analysis, sentiment scoring, pain point detection, and 10 team seats. For teams where budget matters, the price difference is substantial — especially considering that FeedSignal\'s core AI features are available from the free tier.',
         ],
       },
       {
@@ -1084,27 +1084,27 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'When to choose Rereflect',
+        heading: 'When to choose FeedSignal',
         content: [
-          'Rereflect is the better choice in these scenarios:',
+          'FeedSignal is the better choice in these scenarios:',
         ],
         listItems: [
-          'Your feedback is scattered across channels — If customers communicate through Slack, Intercom, email, and support tickets rather than a dedicated board, Rereflect meets feedback where it already lives instead of asking customers to change their behavior.',
-          'You need AI-powered analysis — If your bottleneck is understanding what feedback means (sentiment, pain points, urgency) rather than collecting more of it, Rereflect\'s automatic analysis solves this directly.',
-          'Churn prevention is a priority — Rereflect\'s health scores, churn risk detection, and proactive alerts are specifically designed to catch at-risk customers. Canny does not offer churn-related features.',
+          'Your feedback is scattered across channels — If customers communicate through Slack, Intercom, email, and support tickets rather than a dedicated board, FeedSignal meets feedback where it already lives instead of asking customers to change their behavior.',
+          'You need AI-powered analysis — If your bottleneck is understanding what feedback means (sentiment, pain points, urgency) rather than collecting more of it, FeedSignal\'s automatic analysis solves this directly.',
+          'Churn prevention is a priority — FeedSignal\'s health scores, churn risk detection, and proactive alerts are specifically designed to catch at-risk customers. Canny does not offer churn-related features.',
           'You have high feedback volume — At 200+ items per week, manual review of a voting board becomes unsustainable. AI analysis scales linearly with no additional human effort.',
-          'You want insights from all feedback types — Not just feature requests, but complaints, praise, questions, and support issues. Rereflect analyzes everything; Canny focuses on feature requests.',
-          'Budget is a consideration — Rereflect Pro ($29/mo) versus Canny Growth ($359/mo) is a significant difference for early-stage teams, especially when Rereflect includes AI features that Canny reserves for higher tiers.',
+          'You want insights from all feedback types — Not just feature requests, but complaints, praise, questions, and support issues. FeedSignal analyzes everything; Canny focuses on feature requests.',
+          'Budget is a consideration — FeedSignal Pro ($29/mo) versus Canny Growth ($359/mo) is a significant difference for early-stage teams, especially when FeedSignal includes AI features that Canny reserves for higher tiers.',
         ],
       },
       {
         heading: 'Verdict',
         content: [
-          'Canny and Rereflect represent two different approaches to the same underlying challenge: understanding what customers need.',
+          'Canny and FeedSignal represent two different approaches to the same underlying challenge: understanding what customers need.',
           'Canny is a feedback collection tool. It creates a structured channel for customers to tell you what they want, and uses voting to surface popular requests. It works well when customers are willing to use a feedback portal and when feature requests are your primary input for product decisions.',
-          'Rereflect is a feedback intelligence tool. It analyzes conversations that are already happening across your channels and uses AI to extract insights — sentiment, pain points, feature requests, and churn risk — without requiring customers to change their behavior or visit a separate tool.',
-          'For most SaaS teams between 5 and 50 employees, the deciding question is: do you need more feedback (Canny), or do you need more insight from the feedback you already have (Rereflect)?',
-          'If the answer is insight, you can try Rereflect free at app.rereflect.ca. Connect your Slack or upload a CSV and see AI analysis on your actual feedback within minutes.',
+          'FeedSignal is a feedback intelligence tool. It analyzes conversations that are already happening across your channels and uses AI to extract insights — sentiment, pain points, feature requests, and churn risk — without requiring customers to change their behavior or visit a separate tool.',
+          'For most SaaS teams between 5 and 50 employees, the deciding question is: do you need more feedback (Canny), or do you need more insight from the feedback you already have (FeedSignal)?',
+          'If the answer is insight, you can try FeedSignal free at feedsignal-xi.vercel.app. Connect your Slack or upload a CSV and see AI analysis on your actual feedback within minutes.',
         ],
       },
     ],
@@ -1116,9 +1116,9 @@ const posts: BlogPost[] = [
     date: '2026-03-17',
     status: 'published',
     readTime: '10 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Churn Prediction', 'Customer Feedback', 'SaaS', 'AI'],
-    seoTitle: '5 Signs Your Customers Are About to Churn (Hidden in Their Feedback) | Rereflect',
+    seoTitle: '5 Signs Your Customers Are About to Churn (Hidden in Their Feedback) | FeedSignal',
     seoDescription: 'Learn to spot the 5 hidden churn signals buried in customer feedback. From sentiment shifts to silence patterns, discover how to predict churn 30-60 days before it happens.',
     sections: [
       {
@@ -1252,31 +1252,31 @@ const posts: BlogPost[] = [
           'Review and calibrate regularly — Not every flagged signal leads to churn. Review your predictions monthly, track accuracy, and adjust your thresholds to reduce false positives without missing true risks.',
         ],
         content2: [
-          'For teams processing more than a few hundred feedback items per month, AI-powered analysis makes this framework practical at scale. Rereflect\'s churn prediction system uses a 9-factor scoring model that tracks all five of these signals automatically — per-customer sentiment trends, pain point repetition, competitor mentions, engagement patterns, and tone escalation. The customer health dashboard surfaces at-risk accounts before they reach the cancellation stage, and automated alerts notify your team when intervention is most likely to succeed.',
+          'For teams processing more than a few hundred feedback items per month, AI-powered analysis makes this framework practical at scale. FeedSignal\'s churn prediction system uses a 9-factor scoring model that tracks all five of these signals automatically — per-customer sentiment trends, pain point repetition, competitor mentions, engagement patterns, and tone escalation. The customer health dashboard surfaces at-risk accounts before they reach the cancellation stage, and automated alerts notify your team when intervention is most likely to succeed.',
           'Whether you build this capability internally or use a purpose-built tool, the principle is the same: churn signals exist in your feedback data right now. The question is whether you have a system that can find them.',
           'The best time to prevent churn is 30 days before it happens. The second best time is today.',
         ],
       },
     ],
   },
-  // --- Post #8: Rereflect vs UserVoice ---
+  // --- Post #8: FeedSignal vs UserVoice ---
   {
     slug: 'rereflect-vs-uservoice',
-    title: 'Rereflect vs UserVoice: Modern AI Analysis vs Traditional Feedback Boards',
-    excerpt: 'UserVoice pioneered online feedback boards. Rereflect uses AI to analyze feedback from every channel automatically. This comparison helps you decide between a traditional voting model and modern AI-powered analysis.',
+    title: 'FeedSignal vs UserVoice: Modern AI Analysis vs Traditional Feedback Boards',
+    excerpt: 'UserVoice pioneered online feedback boards. FeedSignal uses AI to analyze feedback from every channel automatically. This comparison helps you decide between a traditional voting model and modern AI-powered analysis.',
     date: '2026-04-01',
     status: 'scheduled',
     readTime: '10 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Comparison', 'UserVoice', 'Feedback Analysis', 'AI'],
-    seoTitle: 'Rereflect vs UserVoice: Modern AI Analysis vs Traditional Feedback Boards | Rereflect',
-    seoDescription: 'Compare Rereflect and UserVoice for customer feedback management. Feature-by-feature breakdown covering AI analysis, voting boards, pricing, and which tool fits your SaaS team.',
+    seoTitle: 'FeedSignal vs UserVoice: Modern AI Analysis vs Traditional Feedback Boards | FeedSignal',
+    seoDescription: 'Compare FeedSignal and UserVoice for customer feedback management. Feature-by-feature breakdown covering AI analysis, voting boards, pricing, and which tool fits your SaaS team.',
     sections: [
       {
-        heading: 'Why teams compare Rereflect and UserVoice',
+        heading: 'Why teams compare FeedSignal and UserVoice',
         content: [
           'UserVoice has been a household name in customer feedback since 2008. It pioneered the idea of public feedback portals where customers submit ideas and vote on them. If you have ever clicked a "suggest a feature" link in a SaaS product, there is a good chance it led to a UserVoice board.',
-          'Rereflect takes a fundamentally different approach. Instead of asking customers to visit a separate portal, it ingests feedback from the channels customers already use — Slack, Intercom, email, and support tickets — and applies AI analysis to every item automatically.',
+          'FeedSignal takes a fundamentally different approach. Instead of asking customers to visit a separate portal, it ingests feedback from the channels customers already use — Slack, Intercom, email, and support tickets — and applies AI analysis to every item automatically.',
           'The comparison comes down to a philosophical question: should customers come to you with structured requests, or should you go to where customers are already talking and extract the insights yourself?',
         ],
       },
@@ -1299,10 +1299,10 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'Rereflect overview',
+        heading: 'FeedSignal overview',
         content: [
-          'Rereflect is an AI-powered feedback analysis platform designed for SaaS teams that want insights without requiring customers to change their behavior.',
-          'Rather than building a portal for customers to visit, Rereflect connects to the tools where feedback already exists — Slack channels, Intercom conversations, support emails, and CSV imports. It then applies AI to every piece of feedback automatically: sentiment analysis, pain point detection, feature request extraction, urgency flagging, and topic clustering.',
+          'FeedSignal is an AI-powered feedback analysis platform designed for SaaS teams that want insights without requiring customers to change their behavior.',
+          'Rather than building a portal for customers to visit, FeedSignal connects to the tools where feedback already exists — Slack channels, Intercom conversations, support emails, and CSV imports. It then applies AI to every piece of feedback automatically: sentiment analysis, pain point detection, feature request extraction, urgency flagging, and topic clustering.',
           'Key capabilities include:',
         ],
         listItems: [
@@ -1320,7 +1320,7 @@ const posts: BlogPost[] = [
           'Here is how the two platforms compare across the dimensions that matter most for feedback management:',
         ],
         table: {
-          headers: ['Feature', 'UserVoice', 'Rereflect'],
+          headers: ['Feature', 'UserVoice', 'FeedSignal'],
           rows: [
             ['Primary model', 'Customer voting portal', 'AI analysis of existing feedback'],
             ['Feedback source', 'Portal submissions + integrations', 'Slack, Intercom, email, CSV (automatic)'],
@@ -1343,7 +1343,7 @@ const posts: BlogPost[] = [
           'The pricing models reflect the different approaches each tool takes:',
         ],
         table: {
-          headers: ['Plan', 'UserVoice', 'Rereflect'],
+          headers: ['Plan', 'UserVoice', 'FeedSignal'],
           rows: [
             ['Free tier', 'No free tier', 'Free (250 feedback/mo, 2 seats)'],
             ['Entry level', 'Essentials: $699/mo', 'Pro: $29/mo'],
@@ -1354,7 +1354,7 @@ const posts: BlogPost[] = [
         },
         content2: [
           'UserVoice\'s pricing reflects its enterprise positioning. The platform is designed for large organizations with dedicated product management teams and significant budgets. There is no free tier, and the entry point is $699 per month.',
-          'Rereflect\'s pricing is designed for growing SaaS teams. The free tier includes AI analysis, and the Pro plan at $29 per month includes 2,500 feedback items, 10 seats, and full AI capabilities. For teams at the early or mid stage, the cost difference is substantial.',
+          'FeedSignal\'s pricing is designed for growing SaaS teams. The free tier includes AI analysis, and the Pro plan at $29 per month includes 2,500 feedback items, 10 seats, and full AI capabilities. For teams at the early or mid stage, the cost difference is substantial.',
         ],
       },
       {
@@ -1370,7 +1370,7 @@ const posts: BlogPost[] = [
           'Missing negative signals — Customers who are frustrated or considering cancellation do not visit feedback portals. They write support tickets, complain in Slack, or simply leave. Portals over-represent engaged, constructive customers.',
         ],
         content2: [
-          'Rereflect\'s analysis model avoids these biases by going to where customers already communicate. Every support ticket, every Slack message, every email response is analyzed — not just the feedback from customers who opted in to a portal. The AI does not wait for customers to categorize their own feedback; it reads everything and surfaces what matters.',
+          'FeedSignal\'s analysis model avoids these biases by going to where customers already communicate. Every support ticket, every Slack message, every email response is analyzed — not just the feedback from customers who opted in to a portal. The AI does not wait for customers to categorize their own feedback; it reads everything and surfaces what matters.',
         ],
       },
       {
@@ -1387,9 +1387,9 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'When to choose Rereflect',
+        heading: 'When to choose FeedSignal',
         content: [
-          'Rereflect is the stronger choice when:',
+          'FeedSignal is the stronger choice when:',
         ],
         listItems: [
           'You want to analyze feedback from channels customers already use, without requiring them to visit a separate portal.',
@@ -1403,9 +1403,9 @@ const posts: BlogPost[] = [
       {
         heading: 'Verdict',
         content: [
-          'UserVoice and Rereflect solve the same underlying problem — understanding what customers want — but they approach it from opposite directions. UserVoice builds a front door and invites customers in. Rereflect goes to where customers are already talking and listens.',
+          'UserVoice and FeedSignal solve the same underlying problem — understanding what customers want — but they approach it from opposite directions. UserVoice builds a front door and invites customers in. FeedSignal goes to where customers are already talking and listens.',
           'For enterprise companies with established feedback programs and the budget to support them, UserVoice provides a proven, portal-based approach with strong prioritization tools.',
-          'For growing SaaS teams that want AI-powered analysis of feedback from every channel — without the overhead of managing a portal or the limitations of a voting model — Rereflect provides deeper insights at a fraction of the cost. You can start with a free account at app.rereflect.ca and see the difference in how your feedback is analyzed.',
+          'For growing SaaS teams that want AI-powered analysis of feedback from every channel — without the overhead of managing a portal or the limitations of a voting model — FeedSignal provides deeper insights at a fraction of the cost. You can start with a free account at feedsignal-xi.vercel.app and see the difference in how your feedback is analyzed.',
         ],
       },
     ],
@@ -1418,9 +1418,9 @@ const posts: BlogPost[] = [
     date: '2026-04-15',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Customer Support', 'Product Insights', 'SaaS'],
-    seoTitle: 'How Support Teams Can Turn Ticket Data Into Product Insights | Rereflect',
+    seoTitle: 'How Support Teams Can Turn Ticket Data Into Product Insights | FeedSignal',
     seoDescription: 'Learn how to extract product insights from customer support tickets. Practical guide for SaaS support and product teams to turn ticket data into roadmap decisions.',
     sections: [
       {
@@ -1506,29 +1506,29 @@ const posts: BlogPost[] = [
         content: [
           'The framework above works well at small scale — a team processing 50 tickets per week can do much of this manually. But as ticket volume grows past a few hundred per week, manual categorization and analysis become unsustainable.',
           'AI-powered analysis solves the scaling problem by automatically categorizing every ticket, scoring sentiment, detecting pain point patterns, and surfacing trends. What takes a human analyst hours to compile, AI delivers in seconds.',
-          'Rereflect is built for exactly this use case. Connect your support tool, import historical ticket data, and the AI immediately categorizes everything — sentiment, pain points, feature requests, and urgency signals. The AI Copilot lets anyone ask questions like "what are the top pain points for enterprise customers this quarter?" and get instant, data-backed answers.',
-          'Your support team already has the conversations. The question is whether those conversations are being mined for the product intelligence they contain. Start by exporting your last quarter of ticket data and see what patterns emerge. You can try it free at app.rereflect.ca.',
+          'FeedSignal is built for exactly this use case. Connect your support tool, import historical ticket data, and the AI immediately categorizes everything — sentiment, pain points, feature requests, and urgency signals. The AI Copilot lets anyone ask questions like "what are the top pain points for enterprise customers this quarter?" and get instant, data-backed answers.',
+          'Your support team already has the conversations. The question is whether those conversations are being mined for the product intelligence they contain. Start by exporting your last quarter of ticket data and see what patterns emerge. You can try it free at feedsignal-xi.vercel.app.',
         ],
       },
     ],
   },
-  // --- Post #10: Rereflect vs MonkeyLearn ---
+  // --- Post #10: FeedSignal vs MonkeyLearn ---
   {
     slug: 'rereflect-vs-monkeylearn',
-    title: 'Rereflect vs MonkeyLearn: Purpose-Built Feedback AI vs Generic Text Analysis',
-    excerpt: 'MonkeyLearn is a general-purpose text analysis platform. Rereflect is built specifically for customer feedback. This comparison explains why purpose-built tools often outperform generic ones for feedback analysis.',
+    title: 'FeedSignal vs MonkeyLearn: Purpose-Built Feedback AI vs Generic Text Analysis',
+    excerpt: 'MonkeyLearn is a general-purpose text analysis platform. FeedSignal is built specifically for customer feedback. This comparison explains why purpose-built tools often outperform generic ones for feedback analysis.',
     date: '2026-05-01',
     status: 'scheduled',
     readTime: '10 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Comparison', 'MonkeyLearn', 'AI', 'Feedback Analysis'],
-    seoTitle: 'Rereflect vs MonkeyLearn: Purpose-Built Feedback AI vs Generic Text Analysis | Rereflect',
-    seoDescription: 'Compare Rereflect and MonkeyLearn for customer feedback analysis. See how a purpose-built feedback AI compares to a generic text analysis platform on accuracy, setup, and value.',
+    seoTitle: 'FeedSignal vs MonkeyLearn: Purpose-Built Feedback AI vs Generic Text Analysis | FeedSignal',
+    seoDescription: 'Compare FeedSignal and MonkeyLearn for customer feedback analysis. See how a purpose-built feedback AI compares to a generic text analysis platform on accuracy, setup, and value.',
     sections: [
       {
         heading: 'Different tools for different problems',
         content: [
-          'MonkeyLearn and Rereflect both use AI to analyze text. But that is roughly where the similarity ends. MonkeyLearn is a general-purpose text analysis platform that can be configured for many tasks — email classification, social media monitoring, survey analysis, and more. Rereflect is purpose-built for one domain: customer feedback analysis for SaaS teams.',
+          'MonkeyLearn and FeedSignal both use AI to analyze text. But that is roughly where the similarity ends. MonkeyLearn is a general-purpose text analysis platform that can be configured for many tasks — email classification, social media monitoring, survey analysis, and more. FeedSignal is purpose-built for one domain: customer feedback analysis for SaaS teams.',
           'The distinction matters because general-purpose tools require significant configuration to match the performance of domain-specific ones. A Swiss Army knife can open a wine bottle, but a proper corkscrew does it better.',
           'This comparison helps you understand the trade-offs between flexibility and domain expertise when choosing a feedback analysis tool.',
         ],
@@ -1552,9 +1552,9 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'Rereflect overview',
+        heading: 'FeedSignal overview',
         content: [
-          'Rereflect is a feedback analysis platform where every feature is designed around one workflow: ingesting customer feedback, analyzing it with AI, and surfacing actionable insights for SaaS product teams.',
+          'FeedSignal is a feedback analysis platform where every feature is designed around one workflow: ingesting customer feedback, analyzing it with AI, and surfacing actionable insights for SaaS product teams.',
           'There is no model training, no configuration of classifiers, and no custom pipeline to build. You connect your feedback sources, and the AI handles categorization, sentiment scoring, pain point detection, feature request extraction, and churn risk assessment from day one.',
           'The difference is analogous to building a custom CRM in a spreadsheet versus using Salesforce. Both can technically manage customer data, but one is purpose-built and the other requires significant setup and maintenance.',
         ],
@@ -1565,7 +1565,7 @@ const posts: BlogPost[] = [
           'Here is how the two platforms compare across the dimensions that matter for customer feedback analysis:',
         ],
         table: {
-          headers: ['Feature', 'MonkeyLearn', 'Rereflect'],
+          headers: ['Feature', 'MonkeyLearn', 'FeedSignal'],
           rows: [
             ['Purpose', 'General text analysis', 'Customer feedback analysis'],
             ['Setup time', 'Hours to days (model training)', '15 minutes (connect + import)'],
@@ -1578,7 +1578,7 @@ const posts: BlogPost[] = [
             ['Customer health scores', 'Not available', 'Per-customer with trends'],
             ['Response suggestions', 'Not available', 'AI-generated responses'],
             ['Dashboard', 'Basic analytics', 'Purpose-built feedback dashboard'],
-            ['Maintenance', 'Model retraining needed', 'Managed by Rereflect'],
+            ['Maintenance', 'Model retraining needed', 'Managed by FeedSignal'],
           ],
         },
       },
@@ -1588,7 +1588,7 @@ const posts: BlogPost[] = [
           'The pricing models reflect the different value propositions:',
         ],
         table: {
-          headers: ['Plan', 'MonkeyLearn', 'Rereflect'],
+          headers: ['Plan', 'MonkeyLearn', 'FeedSignal'],
           rows: [
             ['Free tier', 'Free (300 queries/mo)', 'Free (250 feedback/mo, 2 seats)'],
             ['Entry level', 'Team: $299/mo (10K queries)', 'Pro: $29/mo (2,500 feedback)'],
@@ -1599,7 +1599,7 @@ const posts: BlogPost[] = [
         },
         content2: [
           'MonkeyLearn\'s pricing is based on API queries. Each time you send text to a model, it counts as a query. If you run sentiment analysis and topic detection on the same text, that is two queries. For a comprehensive feedback analysis pipeline (sentiment + categorization + urgency + topics), a single feedback item could consume four or more queries.',
-          'Rereflect charges per feedback item with the full analysis pipeline included. One feedback item gets sentiment analysis, pain point detection, feature request extraction, topic clustering, and churn risk scoring — all for one unit of usage.',
+          'FeedSignal charges per feedback item with the full analysis pipeline included. One feedback item gets sentiment analysis, pain point detection, feature request extraction, topic clustering, and churn risk scoring — all for one unit of usage.',
         ],
       },
       {
@@ -1616,7 +1616,7 @@ const posts: BlogPost[] = [
         ],
         content2: [
           'The total setup effort for a MonkeyLearn-based feedback analysis pipeline is typically 40 to 80 hours of engineering time, plus ongoing maintenance. For teams with strong engineering resources and unique requirements that no off-the-shelf tool meets, this investment can be worthwhile.',
-          'For teams that want to analyze customer feedback without building a custom ML pipeline, Rereflect delivers the same outcomes in 15 minutes of setup with zero ongoing maintenance.',
+          'For teams that want to analyze customer feedback without building a custom ML pipeline, FeedSignal delivers the same outcomes in 15 minutes of setup with zero ongoing maintenance.',
         ],
       },
       {
@@ -1632,9 +1632,9 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'When to choose Rereflect',
+        heading: 'When to choose FeedSignal',
         content: [
-          'Rereflect is the better choice when:',
+          'FeedSignal is the better choice when:',
         ],
         listItems: [
           'Your primary goal is understanding customer feedback for product decisions.',
@@ -1649,8 +1649,8 @@ const posts: BlogPost[] = [
         heading: 'Verdict',
         content: [
           'MonkeyLearn is a powerful platform for teams that need custom text analysis across multiple use cases. If customer feedback is just one of several text analysis problems you need to solve, and you have the engineering resources to build custom pipelines, MonkeyLearn provides the flexibility to do it.',
-          'For teams where the goal is specifically to analyze customer feedback and turn it into product insights, Rereflect provides a purpose-built solution that works out of the box. The analysis is deeper, the setup is faster, and the total cost is lower than building the equivalent capability on a general-purpose platform.',
-          'You can compare the results directly by uploading the same feedback data to both tools. Start a free Rereflect account at app.rereflect.ca and see how purpose-built AI analysis compares to what you have been building manually.',
+          'For teams where the goal is specifically to analyze customer feedback and turn it into product insights, FeedSignal provides a purpose-built solution that works out of the box. The analysis is deeper, the setup is faster, and the total cost is lower than building the equivalent capability on a general-purpose platform.',
+          'You can compare the results directly by uploading the same feedback data to both tools. Start a free FeedSignal account at feedsignal-xi.vercel.app and see how purpose-built AI analysis compares to what you have been building manually.',
         ],
       },
     ],
@@ -1663,9 +1663,9 @@ const posts: BlogPost[] = [
     date: '2026-05-15',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Product Management', 'Roadmap', 'Customer Feedback', 'Thought Leadership'],
-    seoTitle: 'The Data-Driven Product Roadmap: Stop Building What the Loudest Customer Wants | Rereflect',
+    seoTitle: 'The Data-Driven Product Roadmap: Stop Building What the Loudest Customer Wants | FeedSignal',
     seoDescription: 'Learn how to build a product roadmap driven by customer feedback data instead of opinions. A practical guide for SaaS product managers to prioritize based on evidence.',
     sections: [
       {
@@ -1745,29 +1745,29 @@ const posts: BlogPost[] = [
         heading: 'Making it practical',
         content: [
           'The gap between "we should be data-driven" and "we are data-driven" is usually a tooling problem. Manually aggregating feedback from five channels, categorizing it consistently, and scoring it by frequency, sentiment, and segment is a full-time job. Most teams do not have that headcount to spare.',
-          'Rereflect automates the entire evidence layer. It ingests feedback from Slack, Intercom, email, and CSV imports, applies AI-powered sentiment analysis and pain point detection to every item, and lets you query the data with natural language through the AI Copilot. You can ask "what are the top three pain points for customers on the Business plan?" and get an answer in seconds.',
-          'The result is a product team that makes roadmap decisions with evidence from thousands of customer conversations, not just the few that happened to reach someone\'s inbox this week. You can start building your evidence layer today for free at app.rereflect.ca.',
+          'FeedSignal automates the entire evidence layer. It ingests feedback from Slack, Intercom, email, and CSV imports, applies AI-powered sentiment analysis and pain point detection to every item, and lets you query the data with natural language through the AI Copilot. You can ask "what are the top three pain points for customers on the Business plan?" and get an answer in seconds.',
+          'The result is a product team that makes roadmap decisions with evidence from thousands of customer conversations, not just the few that happened to reach someone\'s inbox this week. You can start building your evidence layer today for free at feedsignal-xi.vercel.app.',
         ],
       },
     ],
   },
-  // --- Post #12: Rereflect vs Thematic ---
+  // --- Post #12: FeedSignal vs Thematic ---
   {
     slug: 'rereflect-vs-thematic',
-    title: 'Rereflect vs Thematic: Real-Time Feedback Analysis for Growing SaaS Teams',
-    excerpt: 'Thematic specializes in customer feedback analytics for large enterprises. Rereflect brings AI-powered analysis to growing SaaS teams. This comparison breaks down where each tool excels.',
+    title: 'FeedSignal vs Thematic: Real-Time Feedback Analysis for Growing SaaS Teams',
+    excerpt: 'Thematic specializes in customer feedback analytics for large enterprises. FeedSignal brings AI-powered analysis to growing SaaS teams. This comparison breaks down where each tool excels.',
     date: '2026-06-01',
     status: 'scheduled',
     readTime: '10 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Comparison', 'Thematic', 'Feedback Analysis', 'AI'],
-    seoTitle: 'Rereflect vs Thematic: Real-Time Feedback Analysis for Growing SaaS Teams | Rereflect',
-    seoDescription: 'Compare Rereflect and Thematic for customer feedback analysis. Detailed breakdown of AI capabilities, pricing, integrations, and which tool fits growing SaaS teams.',
+    seoTitle: 'FeedSignal vs Thematic: Real-Time Feedback Analysis for Growing SaaS Teams | FeedSignal',
+    seoDescription: 'Compare FeedSignal and Thematic for customer feedback analysis. Detailed breakdown of AI capabilities, pricing, integrations, and which tool fits growing SaaS teams.',
     sections: [
       {
         heading: 'Two approaches to feedback analytics',
         content: [
-          'Thematic and Rereflect both use AI to analyze customer feedback, but they are built for different organizations at different stages. Thematic is designed for large enterprises that need to analyze feedback at massive scale across multiple products and regions. Rereflect is designed for growing SaaS teams that need fast, actionable insights without enterprise complexity.',
+          'Thematic and FeedSignal both use AI to analyze customer feedback, but they are built for different organizations at different stages. Thematic is designed for large enterprises that need to analyze feedback at massive scale across multiple products and regions. FeedSignal is designed for growing SaaS teams that need fast, actionable insights without enterprise complexity.',
           'The tools overlap in some capabilities — both do sentiment analysis and topic detection — but diverge significantly in their approach to setup, pricing, and the type of insights they prioritize.',
           'This comparison is for product managers and customer success leaders evaluating which tool matches their team\'s size, budget, and analytical needs.',
         ],
@@ -1791,10 +1791,10 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'Rereflect overview',
+        heading: 'FeedSignal overview',
         content: [
-          'Rereflect approaches feedback analysis with a focus on speed, simplicity, and actionability for growing SaaS teams.',
-          'Where Thematic emphasizes deep analytics on large historical datasets, Rereflect emphasizes real-time analysis of incoming feedback with immediate alerts and actions. Every piece of feedback is processed as it arrives — categorized, scored, and flagged — so the team can act in hours rather than after a quarterly analysis cycle.',
+          'FeedSignal approaches feedback analysis with a focus on speed, simplicity, and actionability for growing SaaS teams.',
+          'Where Thematic emphasizes deep analytics on large historical datasets, FeedSignal emphasizes real-time analysis of incoming feedback with immediate alerts and actions. Every piece of feedback is processed as it arrives — categorized, scored, and flagged — so the team can act in hours rather than after a quarterly analysis cycle.',
           'Key differentiators from Thematic include:',
         ],
         listItems: [
@@ -1812,7 +1812,7 @@ const posts: BlogPost[] = [
           'Here is how the platforms compare across key capabilities:',
         ],
         table: {
-          headers: ['Feature', 'Thematic', 'Rereflect'],
+          headers: ['Feature', 'Thematic', 'FeedSignal'],
           rows: [
             ['Primary focus', 'Theme discovery and trend analytics', 'Real-time feedback analysis and action'],
             ['Setup time', 'Days to weeks (data mapping + configuration)', '15 minutes'],
@@ -1835,7 +1835,7 @@ const posts: BlogPost[] = [
           'Pricing reflects the different market positions:',
         ],
         table: {
-          headers: ['Dimension', 'Thematic', 'Rereflect'],
+          headers: ['Dimension', 'Thematic', 'FeedSignal'],
           rows: [
             ['Free tier', 'No (demo only)', 'Yes (250 feedback/mo, 2 seats)'],
             ['Entry price', 'Custom (typically $1,000+/mo)', '$29/mo (Pro)'],
@@ -1847,7 +1847,7 @@ const posts: BlogPost[] = [
         },
         content2: [
           'Thematic\'s pricing is not publicly listed and requires a sales conversation, which typically indicates enterprise pricing. Based on publicly available information and user reports, expect starting prices in the range of $1,000 to $2,000 per month with annual commitments.',
-          'Rereflect offers transparent pricing starting at $0 per month. The Pro plan at $29 per month includes full AI analysis for 2,500 feedback items. For growing SaaS teams, the difference in total cost of ownership is significant.',
+          'FeedSignal offers transparent pricing starting at $0 per month. The Pro plan at $29 per month includes full AI analysis for 2,500 feedback items. For growing SaaS teams, the difference in total cost of ownership is significant.',
         ],
       },
       {
@@ -1864,9 +1864,9 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'When to choose Rereflect',
+        heading: 'When to choose FeedSignal',
         content: [
-          'Rereflect is the stronger choice when:',
+          'FeedSignal is the stronger choice when:',
         ],
         listItems: [
           'You are a growing SaaS team (5 to 200 people) that needs feedback insights without enterprise complexity or cost.',
@@ -1880,9 +1880,9 @@ const posts: BlogPost[] = [
       {
         heading: 'Verdict',
         content: [
-          'Thematic and Rereflect serve different segments of the market with different analytical philosophies. Thematic excels at deep, retrospective analysis of massive datasets for large enterprises. Rereflect excels at real-time, actionable analysis for growing SaaS teams.',
-          'If you are processing tens of thousands of survey responses across multiple languages and need sophisticated theme discovery, Thematic is built for that. If you are a SaaS team that wants to turn Slack messages, support tickets, and customer emails into immediate insights with churn risk alerts, Rereflect is built for that.',
-          'The best way to evaluate is to try it with your own data. Sign up for a free Rereflect account at app.rereflect.ca and see what insights your existing feedback contains.',
+          'Thematic and FeedSignal serve different segments of the market with different analytical philosophies. Thematic excels at deep, retrospective analysis of massive datasets for large enterprises. FeedSignal excels at real-time, actionable analysis for growing SaaS teams.',
+          'If you are processing tens of thousands of survey responses across multiple languages and need sophisticated theme discovery, Thematic is built for that. If you are a SaaS team that wants to turn Slack messages, support tickets, and customer emails into immediate insights with churn risk alerts, FeedSignal is built for that.',
+          'The best way to evaluate is to try it with your own data. Sign up for a free FeedSignal account at feedsignal-xi.vercel.app and see what insights your existing feedback contains.',
         ],
       },
     ],
@@ -1895,9 +1895,9 @@ const posts: BlogPost[] = [
     date: '2026-06-15',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['NPS', 'Customer Feedback', 'Thought Leadership', 'SaaS'],
-    seoTitle: 'NPS Is Not Enough: Why Qualitative Feedback Analysis Matters More | Rereflect',
+    seoTitle: 'NPS Is Not Enough: Why Qualitative Feedback Analysis Matters More | FeedSignal',
     seoDescription: 'Learn why NPS alone is insufficient for SaaS product decisions. Discover how qualitative feedback analysis provides the context and depth that numeric scores miss.',
     sections: [
       {
@@ -1966,29 +1966,29 @@ const posts: BlogPost[] = [
         content: [
           'The historical objection to qualitative analysis was that it does not scale. Reading and categorizing every piece of customer feedback is a full-time job — and an inconsistent one at that.',
           'AI has eliminated that objection. Modern AI-powered tools can process thousands of feedback items per day, applying consistent sentiment analysis, pain point detection, and topic categorization to every single one. The output is as structured and quantifiable as any NPS report, but with orders of magnitude more depth.',
-          'Rereflect was built specifically to make qualitative feedback analysis practical for SaaS teams. Every piece of feedback from every channel is automatically analyzed for sentiment, categorized by type, and checked for urgency signals. The AI Copilot lets you query your entire feedback corpus with natural language questions. And the dashboard shows you trends that would take hours to surface manually.',
-          'If your team is making product decisions based primarily on NPS, try supplementing with qualitative analysis for one quarter. Import your feedback data into a free Rereflect account at app.rereflect.ca and compare the insights to what your NPS score tells you. The difference in actionable intelligence is usually immediately apparent.',
+          'FeedSignal was built specifically to make qualitative feedback analysis practical for SaaS teams. Every piece of feedback from every channel is automatically analyzed for sentiment, categorized by type, and checked for urgency signals. The AI Copilot lets you query your entire feedback corpus with natural language questions. And the dashboard shows you trends that would take hours to surface manually.',
+          'If your team is making product decisions based primarily on NPS, try supplementing with qualitative analysis for one quarter. Import your feedback data into a free FeedSignal account at feedsignal-xi.vercel.app and compare the insights to what your NPS score tells you. The difference in actionable intelligence is usually immediately apparent.',
         ],
       },
     ],
   },
-  // --- Post #14: Rereflect vs Idiomatic ---
+  // --- Post #14: FeedSignal vs Idiomatic ---
   {
     slug: 'rereflect-vs-idiomatic',
-    title: 'Rereflect vs Idiomatic: AI Feedback Analysis Compared',
-    excerpt: 'Both Rereflect and Idiomatic use AI to analyze customer feedback. But their approaches differ significantly in scope, pricing, and target audience. Here is an honest comparison.',
+    title: 'FeedSignal vs Idiomatic: AI Feedback Analysis Compared',
+    excerpt: 'Both FeedSignal and Idiomatic use AI to analyze customer feedback. But their approaches differ significantly in scope, pricing, and target audience. Here is an honest comparison.',
     date: '2026-07-01',
     status: 'scheduled',
     readTime: '10 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Comparison', 'Idiomatic', 'AI', 'Feedback Analysis'],
-    seoTitle: 'Rereflect vs Idiomatic: AI Feedback Analysis Compared | Rereflect',
-    seoDescription: 'Compare Rereflect and Idiomatic for AI-powered customer feedback analysis. Honest feature comparison covering sentiment analysis, pricing, integrations, and best use cases.',
+    seoTitle: 'FeedSignal vs Idiomatic: AI Feedback Analysis Compared | FeedSignal',
+    seoDescription: 'Compare FeedSignal and Idiomatic for AI-powered customer feedback analysis. Honest feature comparison covering sentiment analysis, pricing, integrations, and best use cases.',
     sections: [
       {
         heading: 'Why this comparison matters',
         content: [
-          'Rereflect and Idiomatic are both AI-powered customer feedback analysis tools. Unlike comparisons with Productboard or Canny (which are primarily collection tools), this is a genuine category match — both platforms use AI to categorize, analyze, and surface insights from unstructured customer feedback.',
+          'FeedSignal and Idiomatic are both AI-powered customer feedback analysis tools. Unlike comparisons with Productboard or Canny (which are primarily collection tools), this is a genuine category match — both platforms use AI to categorize, analyze, and surface insights from unstructured customer feedback.',
           'The differences are in execution: who the tool is built for, how much setup is required, what insights it prioritizes, and what it costs. This comparison covers all of that honestly.',
         ],
       },
@@ -2012,9 +2012,9 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'Rereflect overview',
+        heading: 'FeedSignal overview',
         content: [
-          'Rereflect is an AI-powered feedback analysis platform built for growing SaaS teams. It shares some capabilities with Idiomatic (AI categorization, sentiment analysis) but adds several layers of analysis specific to SaaS product teams:',
+          'FeedSignal is an AI-powered feedback analysis platform built for growing SaaS teams. It shares some capabilities with Idiomatic (AI categorization, sentiment analysis) but adds several layers of analysis specific to SaaS product teams:',
         ],
         listItems: [
           'Pain point detection — Beyond categorization, identifies specific customer problems and groups similar complaints even when expressed differently.',
@@ -2031,7 +2031,7 @@ const posts: BlogPost[] = [
           'A side-by-side look at the two platforms:',
         ],
         table: {
-          headers: ['Feature', 'Idiomatic', 'Rereflect'],
+          headers: ['Feature', 'Idiomatic', 'FeedSignal'],
           rows: [
             ['Primary audience', 'Support + CX teams at mid/enterprise', 'Product + CS teams at growing SaaS'],
             ['AI categorization', 'Custom taxonomies (user-defined)', 'Automatic (pain points, features, praise)'],
@@ -2054,7 +2054,7 @@ const posts: BlogPost[] = [
           'Pricing information reveals different market positioning:',
         ],
         table: {
-          headers: ['Dimension', 'Idiomatic', 'Rereflect'],
+          headers: ['Dimension', 'Idiomatic', 'FeedSignal'],
           rows: [
             ['Free tier', 'No (demo only)', 'Yes (250 feedback/mo)'],
             ['Entry price', 'Custom (reported $500+/mo)', '$29/mo (Pro)'],
@@ -2066,18 +2066,18 @@ const posts: BlogPost[] = [
         },
         content2: [
           'Idiomatic does not publicly list pricing, which is common for enterprise-focused tools. Based on publicly available reviews and user reports, expect starting prices in the $500 to $1,000 per month range.',
-          'Rereflect\'s transparent pricing starts at free, with Pro at $29 per month and Business at $99 per month. Self-serve signup means you can evaluate the tool with your own data before talking to a sales team.',
+          'FeedSignal\'s transparent pricing starts at free, with Pro at $29 per month and Business at $99 per month. Self-serve signup means you can evaluate the tool with your own data before talking to a sales team.',
         ],
       },
       {
         heading: 'The customization trade-off',
         content: [
-          'One key philosophical difference deserves attention. Idiomatic lets teams define their own category taxonomies, which the AI then applies. Rereflect applies its own categorization automatically.',
+          'One key philosophical difference deserves attention. Idiomatic lets teams define their own category taxonomies, which the AI then applies. FeedSignal applies its own categorization automatically.',
           'Both approaches have merit:',
         ],
         listItems: [
           'Custom taxonomies (Idiomatic) — Give you complete control over how feedback is organized. If you have an established internal vocabulary for categorizing issues, you can map that directly into the tool. The trade-off is setup time and ongoing taxonomy maintenance.',
-          'Automatic categorization (Rereflect) — Removes the setup burden and ensures consistency, but gives you less control over the specific categories used. Rereflect\'s AI categorizes into standard types (pain points, feature requests, praise, questions) with automatic sub-categorization.',
+          'Automatic categorization (FeedSignal) — Removes the setup burden and ensures consistency, but gives you less control over the specific categories used. FeedSignal\'s AI categorizes into standard types (pain points, feature requests, praise, questions) with automatic sub-categorization.',
         ],
         content2: [
           'For teams that have an established, well-defined categorization system and the resources to maintain it, custom taxonomies offer flexibility. For teams that want fast insights without building and maintaining a category hierarchy, automatic categorization gets you to actionable results faster.',
@@ -2097,9 +2097,9 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'When to choose Rereflect',
+        heading: 'When to choose FeedSignal',
         content: [
-          'Rereflect is the better fit when:',
+          'FeedSignal is the better fit when:',
         ],
         listItems: [
           'You are a growing SaaS team that needs fast, automatic feedback analysis without lengthy setup.',
@@ -2113,9 +2113,9 @@ const posts: BlogPost[] = [
       {
         heading: 'Verdict',
         content: [
-          'Idiomatic and Rereflect are both legitimate AI feedback analysis tools, which makes this a closer comparison than some in this series. The choice comes down to your team size, data sources, and which type of analysis matters most.',
-          'Idiomatic is built for support-centric organizations that need custom categorization and detailed reporting dashboards. Rereflect is built for product-centric SaaS teams that need fast insights, churn prediction, and an AI Copilot for exploring feedback data.',
-          'The fastest way to compare is to run your own data through both tools. Start a free Rereflect account at app.rereflect.ca, import a month of feedback, and see how the automatic AI analysis compares to what you are getting today.',
+          'Idiomatic and FeedSignal are both legitimate AI feedback analysis tools, which makes this a closer comparison than some in this series. The choice comes down to your team size, data sources, and which type of analysis matters most.',
+          'Idiomatic is built for support-centric organizations that need custom categorization and detailed reporting dashboards. FeedSignal is built for product-centric SaaS teams that need fast insights, churn prediction, and an AI Copilot for exploring feedback data.',
+          'The fastest way to compare is to run your own data through both tools. Start a free FeedSignal account at feedsignal-xi.vercel.app, import a month of feedback, and see how the automatic AI analysis compares to what you are getting today.',
         ],
       },
     ],
@@ -2128,9 +2128,9 @@ const posts: BlogPost[] = [
     date: '2026-07-15',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Voice of Customer', 'SaaS', 'Customer Feedback'],
-    seoTitle: 'How to Build a Voice-of-Customer Program Without a Dedicated Team | Rereflect',
+    seoTitle: 'How to Build a Voice-of-Customer Program Without a Dedicated Team | FeedSignal',
     seoDescription: 'A practical guide for small SaaS teams to build a voice-of-customer program without dedicated headcount. Step-by-step approach to capturing and acting on customer insights.',
     sections: [
       {
@@ -2231,7 +2231,7 @@ const posts: BlogPost[] = [
         ],
         content2: [
           'Total time investment: approximately 2 hours per month. That is the cost of a VoC program when the collection and analysis are automated.',
-          'Rereflect is designed for exactly this model. It connects to your existing tools, analyzes every piece of feedback automatically, and provides the dashboard and AI Copilot that make a 2-hour-per-month VoC program genuinely effective. Start for free at app.rereflect.ca and build your VoC program this week.',
+          'FeedSignal is designed for exactly this model. It connects to your existing tools, analyzes every piece of feedback automatically, and provides the dashboard and AI Copilot that make a 2-hour-per-month VoC program genuinely effective. Start for free at feedsignal-xi.vercel.app and build your VoC program this week.',
         ],
       },
     ],
@@ -2244,16 +2244,16 @@ const posts: BlogPost[] = [
     date: '2026-08-01',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Tools', 'Comparison', 'Customer Feedback', 'SaaS'],
-    seoTitle: 'Best Customer Feedback Tools for SaaS in 2026 (Honest Roundup) | Rereflect',
-    seoDescription: 'Honest comparison of the best customer feedback tools for SaaS teams in 2026. Covers Rereflect, Productboard, Canny, UserVoice, and more with real pricing and use cases.',
+    seoTitle: 'Best Customer Feedback Tools for SaaS in 2026 (Honest Roundup) | FeedSignal',
+    seoDescription: 'Honest comparison of the best customer feedback tools for SaaS teams in 2026. Covers FeedSignal, Productboard, Canny, UserVoice, and more with real pricing and use cases.',
     sections: [
       {
         heading: 'Why another tools roundup?',
         content: [
           'Most "best feedback tools" articles are thinly disguised affiliate marketing. They list 15 tools, give each one a glowing review, and collect a commission when you click their links.',
-          'This is not that. We build a feedback tool (Rereflect), which means we have studied every competitor in this space closely. This roundup shares what we have learned honestly — including where competitors are genuinely better than us.',
+          'This is not that. We build a feedback tool (FeedSignal), which means we have studied every competitor in this space closely. This roundup shares what we have learned honestly — including where competitors are genuinely better than us.',
           'The feedback tools market has shifted significantly in 2025-2026. AI-powered analysis has moved from a nice-to-have to an expectation, and several legacy tools have either been acquired or struggled to adapt. This roundup reflects the current state of the market.',
         ],
       },
@@ -2282,7 +2282,7 @@ const posts: BlogPost[] = [
           'These tools focus on automatically analyzing feedback data to surface insights:',
         ],
         listItems: [
-          'Rereflect — AI-powered analysis of feedback from Slack, Intercom, email, and CSV. Automatic sentiment scoring, pain point detection, feature request extraction, churn risk alerts, and an AI Copilot for querying data with natural language. Best for growing SaaS teams (5-200 people) that want fast insights without enterprise complexity. Pricing: Free tier, Pro at $29/mo, Business at $99/mo.',
+          'FeedSignal — AI-powered analysis of feedback from Slack, Intercom, email, and CSV. Automatic sentiment scoring, pain point detection, feature request extraction, churn risk alerts, and an AI Copilot for querying data with natural language. Best for growing SaaS teams (5-200 people) that want fast insights without enterprise complexity. Pricing: Free tier, Pro at $29/mo, Business at $99/mo.',
           'Thematic — AI theme discovery and trend analysis for large feedback datasets. Strong multilingual support and survey analytics. Best for enterprise companies processing 10,000+ feedback items from surveys and support tickets. Pricing: Custom (typically $1,000+/mo).',
           'Idiomatic — AI categorization with custom taxonomies for support ticket analysis. Best for support-centric teams at mid-size companies. Pricing: Custom (reported $500+/mo).',
           'MonkeyLearn (Medallia) — General-purpose text analysis platform with customizable ML models. Requires model training and custom pipeline building. Best for teams with engineering resources that need text analysis beyond just customer feedback. Pricing: Free tier (limited), Team at $299/mo.',
@@ -2318,7 +2318,7 @@ const posts: BlogPost[] = [
         table: {
           headers: ['Tool', 'Primary Strength', 'AI Analysis', 'Starting Price', 'Best For'],
           rows: [
-            ['Rereflect', 'AI feedback analysis', 'Deep (sentiment, pain points, churn, copilot)', 'Free', 'Growing SaaS teams'],
+            ['FeedSignal', 'AI feedback analysis', 'Deep (sentiment, pain points, churn, copilot)', 'Free', 'Growing SaaS teams'],
             ['Thematic', 'Theme discovery', 'Strong (themes, multilingual)', '$1,000+/mo', 'Enterprise'],
             ['Productboard', 'Product management', 'Limited', '$19/user/mo', 'Product teams needing roadmaps'],
             ['Canny', 'Voting boards', 'Basic (Autopilot on Growth)', 'Free', 'Public feedback portals'],
@@ -2333,15 +2333,15 @@ const posts: BlogPost[] = [
           'The right tool depends on your primary need, team size, and budget:',
         ],
         listItems: [
-          'You want to understand what customers are saying (analysis) — Choose an AI-powered analysis tool. Rereflect for growing teams, Thematic for enterprise.',
+          'You want to understand what customers are saying (analysis) — Choose an AI-powered analysis tool. FeedSignal for growing teams, Thematic for enterprise.',
           'You want customers to tell you what to build (collection) — Choose a voting board. Canny for simplicity, UserVoice for enterprise.',
           'You need a full product management system — Choose a PM platform. Productboard is the market leader.',
-          'You are on a tight budget — Rereflect\'s free tier or Canny\'s free plan both provide meaningful capability at zero cost.',
+          'You are on a tight budget — FeedSignal\'s free tier or Canny\'s free plan both provide meaningful capability at zero cost.',
           'You need everything right now — Start with one tool that solves your most pressing problem. You can always add more later. Trying to implement three tools simultaneously usually means none gets adopted properly.',
         ],
         content2: [
           'Whatever you choose, the most important thing is to choose something. The cost of not analyzing customer feedback — missed churn signals, misprioritized features, product decisions based on assumptions — dwarfs the cost of any tool on this list.',
-          'If you are unsure where to start, sign up for a free Rereflect account at app.rereflect.ca and import a month of feedback data. In 15 minutes, you will have a clearer picture of what your customers need than most teams get in a quarter of manual analysis.',
+          'If you are unsure where to start, sign up for a free FeedSignal account at feedsignal-xi.vercel.app and import a month of feedback data. In 15 minutes, you will have a clearer picture of what your customers need than most teams get in a quarter of manual analysis.',
         ],
       },
     ],
@@ -2354,9 +2354,9 @@ const posts: BlogPost[] = [
     date: '2026-08-15',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Slack', 'Product Strategy', 'Customer Feedback', 'SaaS'],
-    seoTitle: 'From Slack Messages to Product Strategy: A Feedback Pipeline Guide | Rereflect',
+    seoTitle: 'From Slack Messages to Product Strategy: A Feedback Pipeline Guide | FeedSignal',
     seoDescription: 'Learn how to build a feedback pipeline that turns Slack customer messages into product strategy. Practical guide for SaaS teams to capture and act on Slack-based feedback.',
     sections: [
       {
@@ -2450,8 +2450,8 @@ const posts: BlogPost[] = [
           'Month 2 — Add emoji-based tagging for internal channels. Expand the pipeline to cover sales call notes and support summaries shared in Slack.',
         ],
         content2: [
-          'Rereflect\'s Slack integration is designed to make this pipeline operational in minutes. Connect your channels, and every message is automatically analyzed for sentiment, pain points, feature requests, and churn signals. The AI Copilot lets you query your Slack feedback with natural language: "What are the top complaints from the #customers channel this month?" gives you instant, structured results.',
-          'Your Slack is already full of product intelligence. The question is whether you have a system to capture it. Start building your pipeline today at app.rereflect.ca.',
+          'FeedSignal\'s Slack integration is designed to make this pipeline operational in minutes. Connect your channels, and every message is automatically analyzed for sentiment, pain points, feature requests, and churn signals. The AI Copilot lets you query your Slack feedback with natural language: "What are the top complaints from the #customers channel this month?" gives you instant, structured results.',
+          'Your Slack is already full of product intelligence. The question is whether you have a system to capture it. Start building your pipeline today at feedsignal-xi.vercel.app.',
         ],
       },
     ],
@@ -2464,9 +2464,9 @@ const posts: BlogPost[] = [
     date: '2026-09-01',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Thought Leadership', 'Customer Feedback', 'SaaS'],
-    seoTitle: 'Why Most SaaS Companies Ignore 80% of Their Customer Feedback | Rereflect',
+    seoTitle: 'Why Most SaaS Companies Ignore 80% of Their Customer Feedback | FeedSignal',
     seoDescription: 'Most SaaS companies only analyze a fraction of their customer feedback. Learn why this happens, what it costs in churn and missed opportunities, and how to fix it.',
     sections: [
       {
@@ -2527,7 +2527,7 @@ const posts: BlogPost[] = [
         ],
         content2: [
           'The companies that close this gap gain a structural advantage. They see problems sooner, prioritize more accurately, and make product decisions backed by evidence from their entire customer base — not just the 20 percent they happened to analyze.',
-          'Rereflect is built to close the 80 percent gap. It connects to the channels where your customers are already communicating, analyzes every piece of feedback with AI, and surfaces the patterns that matter. If you want to see what the other 80 percent of your feedback is telling you, start a free account at app.rereflect.ca.',
+          'FeedSignal is built to close the 80 percent gap. It connects to the channels where your customers are already communicating, analyzes every piece of feedback with AI, and surfaces the patterns that matter. If you want to see what the other 80 percent of your feedback is telling you, start a free account at feedsignal-xi.vercel.app.',
         ],
       },
     ],
@@ -2540,9 +2540,9 @@ const posts: BlogPost[] = [
     date: '2026-09-15',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Customer Feedback', 'Framework', 'Product Management', 'SaaS'],
-    seoTitle: 'Customer Feedback Categories: A Framework for SaaS Teams | Rereflect',
+    seoTitle: 'Customer Feedback Categories: A Framework for SaaS Teams | FeedSignal',
     seoDescription: 'A practical framework for categorizing customer feedback in SaaS. Learn the essential categories, how to apply them consistently, and how categorization drives better product decisions.',
     sections: [
       {
@@ -2616,8 +2616,8 @@ const posts: BlogPost[] = [
         content: [
           'Manual categorization works when you are processing 20 to 50 feedback items per week. Above that, the time cost and consistency problems make automation the practical choice.',
           'AI-powered categorization offers two critical advantages over manual: consistency (the same rules applied to every item, every time) and scale (processing hundreds or thousands of items without proportional time investment).',
-          'Rereflect applies this categorization framework automatically to every piece of feedback it ingests. Pain points, feature requests, praise, questions, and churn signals are identified and sub-categorized by product area — all without manual tagging or custom taxonomy configuration. The framework described in this article is built into the AI analysis pipeline.',
-          'If you want to see how your feedback breaks down across these categories, import a month of data into a free Rereflect account at app.rereflect.ca. The distribution alone will tell you something useful about your product\'s health.',
+          'FeedSignal applies this categorization framework automatically to every piece of feedback it ingests. Pain points, feature requests, praise, questions, and churn signals are identified and sub-categorized by product area — all without manual tagging or custom taxonomy configuration. The framework described in this article is built into the AI analysis pipeline.',
+          'If you want to see how your feedback breaks down across these categories, import a month of data into a free FeedSignal account at feedsignal-xi.vercel.app. The distribution alone will tell you something useful about your product\'s health.',
         ],
       },
     ],
@@ -2626,14 +2626,14 @@ const posts: BlogPost[] = [
   {
     slug: 'ai-copilot-natural-language-feedback-insights',
     title: 'How AI Copilot Turns Natural Language Questions Into Feedback Insights',
-    excerpt: 'What if you could ask your feedback data a question in plain English and get an instant, structured answer? Rereflect\'s AI Copilot makes that possible. Here is how it works and why it changes the way teams use feedback.',
+    excerpt: 'What if you could ask your feedback data a question in plain English and get an instant, structured answer? FeedSignal\'s AI Copilot makes that possible. Here is how it works and why it changes the way teams use feedback.',
     date: '2026-10-01',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
-    tags: ['AI Copilot', 'Product', 'Customer Feedback', 'Rereflect'],
-    seoTitle: 'How AI Copilot Turns Natural Language Questions Into Feedback Insights | Rereflect',
-    seoDescription: 'Discover how Rereflect AI Copilot lets you ask natural language questions about your customer feedback data and get instant, structured answers for product decisions.',
+    author: 'FeedSignal Team',
+    tags: ['AI Copilot', 'Product', 'Customer Feedback', 'FeedSignal'],
+    seoTitle: 'How AI Copilot Turns Natural Language Questions Into Feedback Insights | FeedSignal',
+    seoDescription: 'Discover how FeedSignal AI Copilot lets you ask natural language questions about your customer feedback data and get instant, structured answers for product decisions.',
     sections: [
       {
         heading: 'The dashboard limitation',
@@ -2647,7 +2647,7 @@ const posts: BlogPost[] = [
       {
         heading: 'How it works',
         content: [
-          'Rereflect\'s AI Copilot sits on top of your entire feedback dataset — every item from every channel, with all the AI-generated analysis (sentiment scores, categories, topics, urgency flags, customer attributes) already attached.',
+          'FeedSignal\'s AI Copilot sits on top of your entire feedback dataset — every item from every channel, with all the AI-generated analysis (sentiment scores, categories, topics, urgency flags, customer attributes) already attached.',
           'When you ask a question, the Copilot:',
         ],
         listItems: [
@@ -2685,7 +2685,7 @@ const posts: BlogPost[] = [
       {
         heading: 'Getting started with Copilot',
         content: [
-          'AI Copilot is available on all Rereflect plans, including the free tier. Here is how to start using it effectively:',
+          'AI Copilot is available on all FeedSignal plans, including the free tier. Here is how to start using it effectively:',
         ],
         listItems: [
           'Start with your burning question — Every team has a question they have been wanting to answer but could not justify the effort to research. Ask the Copilot that question first.',
@@ -2694,7 +2694,7 @@ const posts: BlogPost[] = [
           'Compare over time — Ask the same question at different intervals. "Top pain points" this month versus last month reveals whether your product changes are actually reducing friction.',
         ],
         content2: [
-          'The best way to understand AI Copilot is to try it with your own data. Sign up for a free account at app.rereflect.ca, import a month of feedback, and start asking questions. The first answer that surprises you will demonstrate why natural language access to feedback data changes how teams make decisions.',
+          'The best way to understand AI Copilot is to try it with your own data. Sign up for a free account at feedsignal-xi.vercel.app, import a month of feedback, and start asking questions. The first answer that surprises you will demonstrate why natural language access to feedback data changes how teams make decisions.',
         ],
       },
     ],
@@ -2707,9 +2707,9 @@ const posts: BlogPost[] = [
     date: '2026-10-15',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Thought Leadership', 'Product Strategy', 'Customer Feedback', 'Planning'],
-    seoTitle: 'Year-End Customer Feedback Review: What to Analyze Before 2027 Planning | Rereflect',
+    seoTitle: 'Year-End Customer Feedback Review: What to Analyze Before 2027 Planning | FeedSignal',
     seoDescription: 'A practical guide to year-end customer feedback review for SaaS teams. What to analyze, how to structure the review, and how insights should shape your 2027 product strategy.',
     sections: [
       {
@@ -2772,8 +2772,8 @@ const posts: BlogPost[] = [
           'Schedule quarterly check-ins — Do not wait another year. Schedule quarterly mini-reviews to track whether 2027 changes are actually moving the feedback metrics in the right direction.',
         ],
         content2: [
-          'Rereflect makes year-end reviews dramatically easier by maintaining a complete, AI-analyzed record of every piece of feedback from the entire year. The AI Copilot can answer review questions instantly — "What were the top 10 pain points in 2026?" or "How did enterprise sentiment change after the Q3 release?" — turning what used to be a week-long analysis project into a few hours of strategic thinking.',
-          'If you are not yet systematically analyzing feedback, start now so you have data for your next year-end review. Sign up free at app.rereflect.ca.',
+          'FeedSignal makes year-end reviews dramatically easier by maintaining a complete, AI-analyzed record of every piece of feedback from the entire year. The AI Copilot can answer review questions instantly — "What were the top 10 pain points in 2026?" or "How did enterprise sentiment change after the Q3 release?" — turning what used to be a week-long analysis project into a few hours of strategic thinking.',
+          'If you are not yet systematically analyzing feedback, start now so you have data for your next year-end review. Sign up free at feedsignal-xi.vercel.app.',
         ],
       },
     ],
@@ -2786,9 +2786,9 @@ const posts: BlogPost[] = [
     date: '2026-11-01',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Conversion', 'Customer Feedback', 'SaaS', 'ROI'],
-    seoTitle: 'The Real Cost of Not Analyzing Customer Feedback | Rereflect',
+    seoTitle: 'The Real Cost of Not Analyzing Customer Feedback | FeedSignal',
     seoDescription: 'Calculate the real cost of not analyzing customer feedback. Understand the impact on churn, wasted development, and competitive position for SaaS companies.',
     sections: [
       {
@@ -2845,7 +2845,7 @@ const posts: BlogPost[] = [
         ],
         content2: [
           'For most SaaS companies, the total cost of not analyzing feedback is 5 to 20 percent of annual revenue. At $500K ARR, that is $25,000 to $100,000. At $2M ARR, it is $100,000 to $400,000.',
-          'The cost of a feedback analysis tool — $0 to $99 per month for Rereflect — is a rounding error in comparison. If you are curious what your feedback data contains, sign up for a free account at app.rereflect.ca and import a month of data. The insights you gain in the first hour will make the ROI obvious.',
+          'The cost of a feedback analysis tool — $0 to $99 per month for FeedSignal — is a rounding error in comparison. If you are curious what your feedback data contains, sign up for a free account at feedsignal-xi.vercel.app and import a month of data. The insights you gain in the first hour will make the ROI obvious.',
         ],
       },
     ],
@@ -2858,9 +2858,9 @@ const posts: BlogPost[] = [
     date: '2026-11-15',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Webhooks', 'Product', 'Customer Feedback', 'Integration'],
-    seoTitle: 'How to Set Up Custom Webhooks for Real-Time Feedback Alerts | Rereflect',
+    seoTitle: 'How to Set Up Custom Webhooks for Real-Time Feedback Alerts | FeedSignal',
     seoDescription: 'Learn how to set up custom webhooks for real-time customer feedback alerts. Send critical feedback signals to Slack, email, PagerDuty, or any tool via webhook integration.',
     sections: [
       {
@@ -2893,12 +2893,12 @@ const posts: BlogPost[] = [
         ],
       },
       {
-        heading: 'Setting up webhooks in Rereflect',
+        heading: 'Setting up webhooks in FeedSignal',
         content: [
-          'Rereflect\'s webhook system is designed to be configured without engineering support. Here is the setup process:',
+          'FeedSignal\'s webhook system is designed to be configured without engineering support. Here is the setup process:',
         ],
         listItems: [
-          'Navigate to Settings > Integrations > Webhooks in your Rereflect dashboard.',
+          'Navigate to Settings > Integrations > Webhooks in your FeedSignal dashboard.',
           'Click "Add Webhook" and enter the destination URL. This is the endpoint where the notification will be sent — typically a Slack incoming webhook URL, a Zapier catch hook, or a custom API endpoint.',
           'Define the trigger conditions. Choose from: feedback sentiment (positive, neutral, negative), urgency level (low, medium, high, critical), feedback category (pain point, feature request, praise, churn signal), customer segment, or any combination.',
           'Customize the payload. Select which data fields to include in the webhook notification: feedback text, sentiment score, category, customer information, and AI-generated summary.',
@@ -2921,10 +2921,10 @@ const posts: BlogPost[] = [
       {
         heading: 'Getting started',
         content: [
-          'Webhooks are available on Rereflect\'s Pro plan ($29/mo) and above. If you are already using Rereflect, you can set up your first webhook in under five minutes.',
+          'Webhooks are available on FeedSignal\'s Pro plan ($29/mo) and above. If you are already using FeedSignal, you can set up your first webhook in under five minutes.',
           'Start with one high-value alert: churn risk notifications to your CS team\'s Slack channel. This single webhook often delivers more value than all the dashboards combined, because it puts the right information in front of the right person at the right time.',
           'Once you see the value of real-time alerting, expand to cover feature requests, critical bugs, and segment-specific sentiment changes. Each webhook you add closes another gap between feedback arrival and team action.',
-          'If you are not yet using Rereflect, start with a free account at app.rereflect.ca. Import your feedback data, see the AI analysis, and then upgrade to Pro to activate webhooks and start receiving real-time alerts.',
+          'If you are not yet using FeedSignal, start with a free account at feedsignal-xi.vercel.app. Import your feedback data, see the AI analysis, and then upgrade to Pro to activate webhooks and start receiving real-time alerts.',
         ],
       },
     ],
@@ -2937,9 +2937,9 @@ const posts: BlogPost[] = [
     date: '2026-12-01',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
-    tags: ['AI', 'Customer Feedback', 'Product', 'Rereflect'],
-    seoTitle: 'AI Response Suggestions: How to Reply to Customer Feedback 10x Faster | Rereflect',
+    author: 'FeedSignal Team',
+    tags: ['AI', 'Customer Feedback', 'Product', 'FeedSignal'],
+    seoTitle: 'AI Response Suggestions: How to Reply to Customer Feedback 10x Faster | FeedSignal',
     seoDescription: 'Learn how AI response suggestions help SaaS teams reply to customer feedback faster. Reduce response time, improve consistency, and maintain empathy at scale.',
     sections: [
       {
@@ -2970,7 +2970,7 @@ const posts: BlogPost[] = [
         heading: 'How AI response suggestions work',
         content: [
           'AI response suggestions use the same language understanding that powers feedback analysis, but in the opposite direction. Instead of analyzing what the customer said, it generates what the team should say back.',
-          'When you select a feedback item in Rereflect and request a response suggestion, the AI:',
+          'When you select a feedback item in FeedSignal and request a response suggestion, the AI:',
         ],
         listItems: [
           'Reads the full feedback content, including any thread context or previous interactions.',
@@ -3018,10 +3018,10 @@ const posts: BlogPost[] = [
       {
         heading: 'Getting started',
         content: [
-          'AI response suggestions are available in Rereflect on all plans. Here is how to start using them:',
+          'AI response suggestions are available in FeedSignal on all plans. Here is how to start using them:',
         ],
         listItems: [
-          'Open any feedback item in your Rereflect dashboard.',
+          'Open any feedback item in your FeedSignal dashboard.',
           'Click the "Suggest Response" button. The AI generates a contextual response based on the feedback content, sentiment, and customer context.',
           'Review the suggestion. Edit the tone, add specific details about your team\'s plans, or adjust the level of detail.',
           'Send the response through your existing communication channel. Copy it to Intercom, Slack, email, or wherever the customer reached you.',
@@ -3029,22 +3029,22 @@ const posts: BlogPost[] = [
         content2: [
           'Start by using AI suggestions for the feedback you currently do not respond to — the items that fall into the "thank you for your feedback" default or get no response at all. These are where the impact is highest: customers who expected to be ignored but instead receive a thoughtful, personalized reply.',
           'Every response to customer feedback is a retention touchpoint. When customers feel heard, they are more patient with product limitations, more likely to provide detailed feedback in the future, and more resistant to competitive alternatives. AI response suggestions make it practical to treat every piece of feedback as the retention opportunity it is.',
-          'Try it free at app.rereflect.ca.',
+          'Try it free at feedsignal-xi.vercel.app.',
         ],
       },
     ],
   },
   {
     slug: 'how-rereflect-predicts-churn-30-days-out',
-    title: 'How Rereflect Predicts Churn 30 Days Out (Honestly)',
-    excerpt: 'Most churn prediction tools hide behind vague "risk scores" with no honesty about accuracy. Here is how Rereflect does it differently: calibrated probabilities, structured labels, and a transparent accuracy dashboard.',
+    title: 'How FeedSignal Predicts Churn 30 Days Out (Honestly)',
+    excerpt: 'Most churn prediction tools hide behind vague "risk scores" with no honesty about accuracy. Here is how FeedSignal does it differently: calibrated probabilities, structured labels, and a transparent accuracy dashboard.',
     date: '2026-08-08',
     status: 'scheduled',
     readTime: '10 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Churn Prediction', 'Product Analytics', 'Customer Health'],
-    seoTitle: 'How Rereflect Predicts Churn 30 Days Out (Honestly) | Rereflect',
-    seoDescription: 'Discover how Rereflect predicts customer churn with calibrated probabilities, confidence intervals, and transparent accuracy metrics. No vague risk scores.',
+    seoTitle: 'How FeedSignal Predicts Churn 30 Days Out (Honestly) | FeedSignal',
+    seoDescription: 'Discover how FeedSignal predicts customer churn with calibrated probabilities, confidence intervals, and transparent accuracy metrics. No vague risk scores.',
     sections: [
       {
         heading: 'The churn prediction problem',
@@ -3052,13 +3052,13 @@ const posts: BlogPost[] = [
           'Every SaaS company understands its biggest vulnerability: the silent churn. A customer stops using the product. They do not complain. They do not email support. One day, they just do not log in anymore. By the time you notice, they are three weeks into their decision to leave.',
           'This is why churn prediction has become a fixture in modern SaaS tools. If you could predict which customers are likely to churn 30 days before it happens, you could intervene. You could reach out, solve their problem, or even negotiate a better plan. Early churn detection is worth millions.',
           'The problem: most "churn prediction" tools ship a vague risk pill. "This customer is high risk," they say. No probability. No confidence interval. No honest accounting of how often that prediction is actually correct. You are supposed to trust the tool, but the tool gives you no basis for trust.',
-          'Rereflect takes a different approach. Every probability comes with a confidence interval. Every accuracy metric is visible. And the system tells you exactly what it does not know.',
+          'FeedSignal takes a different approach. Every probability comes with a confidence interval. Every accuracy metric is visible. And the system tells you exactly what it does not know.',
         ],
       },
       {
         heading: 'The foundation: a 9-factor heuristic',
         content: [
-          'Churn is not a sudden event. It is a pattern of signals in customer feedback and behavior. Rereflect monitors nine factors that correlate with churn risk:',
+          'Churn is not a sudden event. It is a pattern of signals in customer feedback and behavior. FeedSignal monitors nine factors that correlate with churn risk:',
         ],
         listItems: [
           'Sentiment trend — Is the customer\'s recent feedback more negative than their historical average?',
@@ -3079,7 +3079,7 @@ const posts: BlogPost[] = [
         heading: 'From score to probability: isotonic regression',
         content: [
           'The 9-factor heuristic produces a score from 0 to 100 per customer. This score is useful for relative ranking — "which of my customers are most at risk?" — but it tells you nothing about absolute probability. A score of 75 might mean 70% churn risk or 30%. You do not know.',
-          'Rereflect uses isotonic regression to map the heuristic score to a probability. Here is how it works:',
+          'FeedSignal uses isotonic regression to map the heuristic score to a probability. Here is how it works:',
         ],
         listItems: [
           'Customers mark themselves as churned when they cancel, or when they clearly state they are leaving.',
@@ -3105,7 +3105,7 @@ const posts: BlogPost[] = [
       {
         heading: 'Weekly recalibration',
         content: [
-          'Once per week (Mondays at 07:45 UTC), Rereflect refits the isotonic model against all your labeled churn events. The probabilities get updated for every customer. The model tracks its own accuracy: precision, recall, F1, and AUC.',
+          'Once per week (Mondays at 07:45 UTC), FeedSignal refits the isotonic model against all your labeled churn events. The probabilities get updated for every customer. The model tracks its own accuracy: precision, recall, F1, and AUC.',
           'If the accuracy drops significantly, the system alerts. This might mean your business has changed (perhaps churn is driven by different factors now) or your product has improved (churn signals are no longer predictive).',
           'You can see the full model history: when it was last retrained, how many labels were used, which metrics improved or declined. This is observability for your churn model, not a black box.',
         ],
@@ -3113,7 +3113,7 @@ const posts: BlogPost[] = [
       {
         heading: 'Time-to-churn buckets',
         content: [
-          'Raw probability is useful, but context is better. Rereflect derives time-to-churn buckets from the probability and recent sentiment trend:',
+          'Raw probability is useful, but context is better. FeedSignal derives time-to-churn buckets from the probability and recent sentiment trend:',
         ],
         listItems: [
           'Immediate — Probability 85%+ or (probability 70%+ AND negative sentiment trend)',
@@ -3129,7 +3129,7 @@ const posts: BlogPost[] = [
       {
         heading: 'Playbooks: from prediction to action',
         content: [
-          'A prediction is only useful if it leads to action. Rereflect ships with 7 pre-built playbooks, each designed for a churn probability range:',
+          'A prediction is only useful if it leads to action. FeedSignal ships with 7 pre-built playbooks, each designed for a churn probability range:',
         ],
         listItems: [
           'Critical Save (85-100%) — Escalate to leadership, send urgent Slack alert, assign to CS lead',
@@ -3141,7 +3141,7 @@ const posts: BlogPost[] = [
           'Silent-Churn Watch (manual trigger) — Send re-engagement email, flag for follow-up',
         ],
         content2: [
-          'Each playbook is a sequence of actions (reusing the same automation engine Rereflect uses for workflows). You can clone templates and customize them, or create your own.',
+          'Each playbook is a sequence of actions (reusing the same automation engine FeedSignal uses for workflows). You can clone templates and customize them, or create your own.',
           'Playbooks are rate-limited to prevent spam: maximum once per customer per 60 minutes. You can manually trigger them or run them in batch against all customers in a probability range.',
         ],
       },
@@ -3191,7 +3191,7 @@ const posts: BlogPost[] = [
       {
         heading: 'Getting started',
         content: [
-          'If you are using Rereflect, churn probabilities are already showing on your customers page. You will see the percentage and the confidence interval.',
+          'If you are using FeedSignal, churn probabilities are already showing on your customers page. You will see the percentage and the confidence interval.',
           'To improve the model, start marking customers as churned:',
         ],
         listItems: [

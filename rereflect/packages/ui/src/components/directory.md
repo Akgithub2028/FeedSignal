@@ -28,3 +28,7 @@ Inputs are composition props, public content/assets, and workspace consumers; ou
 Use the service's current package.json scripts, pnpm workspace installation, relevant Vitest checks, and a production build for UI/config changes. Do not infer tool availability or build success from package metadata.
 
 This summary was generated from tracked filenames, source declarations/module documentation, and document headings/prose, then sampled for navigation quality. It is not a full semantic audit or a runtime verification. Read actual files before editing. Missing owner settings and validation evidence remain in [UNANSWERED_SECRETS.md](<../../../../UNANSWERED_SECRETS.md>).
+
+## FeedSignal identity update
+
+[Logo.tsx](Logo.tsx) retains the inherited abstract glyph and size contract; `LogoWithText` now renders FeedSignal. Package/import names remain `@rereflect/ui`. Artwork replacement is an open owner decision; do not restore the upstream wordmark.

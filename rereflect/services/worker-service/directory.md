@@ -35,3 +35,5 @@ Inputs include validated API/task payloads, organization-scoped database rows, a
 Use focused worker pytest checks and real Redis/PostgreSQL where dispatch, retries, and committed-state visibility matter. Verify Beat scheduling topology before deployment.
 
 This summary was generated from tracked filenames, source declarations/module documentation, and document headings/prose, then sampled for navigation quality. It is not a full semantic audit or a runtime verification. Read actual files before editing. Missing owner settings and validation evidence remain in [UNANSWERED_SECRETS.md](<../../UNANSWERED_SECRETS.md>).
+
+Owner launch: Celery no longer loads or schedules Salesforce, Intercom or Zendesk tasks. Generic retired-provider events and churn backfill cannot dispatch ingestion; historical models/task files remain for migration provenance. No live worker/Beat exists under the current $0 topology.

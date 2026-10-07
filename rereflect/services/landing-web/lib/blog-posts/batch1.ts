@@ -9,9 +9,9 @@ export const batch1: BlogPost[] = [
     date: '2026-06-26',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Feedback Operations', 'Customer Retention', 'Product Management', 'Customer Success'],
-    seoTitle: 'How to Close the Customer Feedback Loop | Rereflect',
+    seoTitle: 'How to Close the Customer Feedback Loop | FeedSignal',
     seoDescription: 'A practical guide to closing the customer feedback loop: what it means, why most teams fail at it, the inner and outer loop model, and how to build the habit sustainably.',
     sections: [
       {
@@ -41,7 +41,7 @@ export const batch1: BlogPost[] = [
           'The inner loop gets closed, albeit imperfectly, because there is a direct human in the chain — a support ticket naturally demands a reply. The outer loop dies because there is no direct human pressure to close it. The customer who requested a feature six months ago does not send a follow-up. The PM who made the roadmap decision does not have a list of customers to notify. The connection is lost.',
           'The root cause is almost always the same: feedback was collected without being tagged to the customer or the theme in a retrievable way. When the decision finally gets made, there is no practical way to find "all the customers who mentioned X" and reach out to them. The cost of the loop is too high, so nothing gets sent.',
           'The fix is structural, not motivational. The feedback process has to tag every item to both the customer who sent it and the theme it belongs to, so that when a theme is resolved — whether by shipping a feature, issuing a policy change, or consciously deciding not to act — the relevant contacts can be found and notified without manual archaeology.',
-          'Rereflect automatically categorizes incoming feedback into themes as it is analyzed, linking each item to the customer and organization that submitted it. That structure is what makes outer-loop closure tractable: when a theme is addressed, the list of customers to notify already exists.',
+          'FeedSignal automatically categorizes incoming feedback into themes as it is analyzed, linking each item to the customer and organization that submitted it. That structure is what makes outer-loop closure tractable: when a theme is addressed, the list of customers to notify already exists.',
         ],
       },
       {
@@ -78,9 +78,9 @@ export const batch1: BlogPost[] = [
     date: '2026-06-30',
     status: 'scheduled',
     readTime: '6 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Feedback Operations', 'Customer Support', 'Product Management', 'Workflow'],
-    seoTitle: 'How to Triage Customer Feedback Fast Without Losing Signal | Rereflect',
+    seoTitle: 'How to Triage Customer Feedback Fast Without Losing Signal | FeedSignal',
     seoDescription: 'A practical guide to triaging customer feedback at volume: urgency criteria, routing logic, categorization, escalation paths, and how to keep signal from disappearing into inboxes.',
     sections: [
       {
@@ -116,7 +116,7 @@ export const batch1: BlogPost[] = [
         ],
         content2: [
           'Everything that does not meet the urgency criteria is not urgent. That is the point. Protect your urgent queue from inflation, or it becomes meaningless.',
-          'Rereflect flags urgency automatically during analysis, applying consistent criteria to every piece of feedback regardless of volume. That removes the human bottleneck from the urgency detection step — you still decide what to do with urgent items, but you do not have to find them yourself.',
+          'FeedSignal flags urgency automatically during analysis, applying consistent criteria to every piece of feedback regardless of volume. That removes the human bottleneck from the urgency detection step — you still decide what to do with urgent items, but you do not have to find them yourself.',
         ],
       },
       {
@@ -157,9 +157,9 @@ export const batch1: BlogPost[] = [
     date: '2026-07-03',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Feedback Operations', 'Product Management', 'Taxonomy', 'Workflow'],
-    seoTitle: 'Feedback Tagging and Taxonomy Best Practices | Rereflect',
+    seoTitle: 'Feedback Tagging and Taxonomy Best Practices | FeedSignal',
     seoDescription: 'Design a feedback tagging taxonomy that stays useful over time. Covers tag design principles, common failure modes like tag sprawl and ambiguity, and governance practices to maintain consistency.',
     sections: [
       {
@@ -209,7 +209,7 @@ export const batch1: BlogPost[] = [
           'Write a one-line definition for each category — not a paragraph, just enough to resolve the ambiguous cases. "Checkout flow: issues with the payment process, cart, and order confirmation, but not account billing or subscription management."',
         ],
         content2: [
-          'Rereflect supports custom categories that feed directly into the analysis step — the AI categorizes feedback against your taxonomy rather than a generic one. That means your definitions do real work, not just display work, which raises the bar on getting them right from the start.',
+          'FeedSignal supports custom categories that feed directly into the analysis step — the AI categorizes feedback against your taxonomy rather than a generic one. That means your definitions do real work, not just display work, which raises the bar on getting them right from the start.',
         ],
       },
       {
@@ -236,9 +236,9 @@ export const batch1: BlogPost[] = [
     date: '2026-07-07',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Feedback Operations', 'Product Management', 'Integrations', 'Workflow'],
-    seoTitle: 'How to Centralize Customer Feedback in One Place | Rereflect',
+    seoTitle: 'How to Centralize Customer Feedback in One Place | FeedSignal',
     seoDescription: 'Centralizing customer feedback is harder than it looks — every team ends up with multiple partial sources of truth. This guide explains why and how to actually consolidate feedback across channels.',
     sections: [
       {
@@ -273,7 +273,7 @@ export const batch1: BlogPost[] = [
           'Normalize to a common structure on the way in — every feedback item entering the central system should have at minimum: source, customer identifier, date, and raw text. Categorization can happen after the fact, but these four fields are what make aggregation possible.',
         ],
         content2: [
-          'Rereflect supports ingesting feedback through integrations and its API, so teams can connect the sources they control and route everything through a single analysis pipeline. The goal is not forcing all feedback into one interface — it is ensuring that every piece of feedback gets the same analytical treatment regardless of where it originated.',
+          'FeedSignal supports ingesting feedback through integrations and its API, so teams can connect the sources they control and route everything through a single analysis pipeline. The goal is not forcing all feedback into one interface — it is ensuring that every piece of feedback gets the same analytical treatment regardless of where it originated.',
         ],
       },
       {
@@ -308,9 +308,9 @@ export const batch1: BlogPost[] = [
     date: '2026-07-10',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Customer Support', 'Feedback Operations', 'Customer Success', 'Templates'],
-    seoTitle: 'Customer Feedback Response Templates Library | Rereflect',
+    seoTitle: 'Customer Feedback Response Templates Library | FeedSignal',
     seoDescription: 'A practical library of customer feedback response templates for bug reports, feature requests, complaints, compliments, urgent issues, and feature ships — plus guidance on when to personalize.',
     sections: [
       {
@@ -397,9 +397,9 @@ export const batch1: BlogPost[] = [
     date: '2026-07-14',
     status: 'scheduled',
     readTime: '6 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Customer Support', 'Feedback Operations', 'Workflow', 'Customer Success'],
-    seoTitle: 'Reduce Customer Feedback Response Time Without Burning Out Your Team | Rereflect',
+    seoTitle: 'Reduce Customer Feedback Response Time Without Burning Out Your Team | FeedSignal',
     seoDescription: 'Practical guide to reducing feedback response time: triage by urgency, queue design, templating, coverage hours, and which feedback genuinely needs a fast response vs. which can wait.',
     sections: [
       {
@@ -444,7 +444,7 @@ export const batch1: BlogPost[] = [
         content: [
           'All of the above structural improvements assume you can identify urgent feedback quickly. That identification step is its own bottleneck if done manually at scale.',
           'Common urgency signals — churn language, broken core workflows, data concerns, high-value account names — are identifiable patterns, not purely contextual judgments. Automating the detection of these signals ensures that urgent feedback rises to the top of the queue immediately, regardless of when it arrived or which team member last checked the queue.',
-          'Rereflect runs urgency analysis on every piece of feedback as it is ingested, flagging items that meet urgency criteria without requiring a human to make that determination first. That removes the detection lag for your most time-sensitive cases — the items that genuinely need a fast response are identified and surfaced before a human even reads them.',
+          'FeedSignal runs urgency analysis on every piece of feedback as it is ingested, flagging items that meet urgency criteria without requiring a human to make that determination first. That removes the detection lag for your most time-sensitive cases — the items that genuinely need a fast response are identified and surfaced before a human even reads them.',
         ],
       },
       {
@@ -471,9 +471,9 @@ export const batch1: BlogPost[] = [
     date: '2026-07-17',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Feedback Operations', 'Workflow', 'Product Management', 'Customer Success'],
-    seoTitle: 'Customer Feedback Workflow and Status Tracking Guide | Rereflect',
+    seoTitle: 'Customer Feedback Workflow and Status Tracking Guide | FeedSignal',
     seoDescription: 'How to build a customer feedback workflow with status tracking your whole team will actually use: defining states, ownership at each stage, handoffs, and avoiding workflow drift.',
     sections: [
       {
@@ -537,7 +537,7 @@ export const batch1: BlogPost[] = [
         content: [
           'Workflows drift when the friction of maintaining them exceeds the perceived benefit. The result is a system where statuses are not updated, items pile up in one state, and the team starts working around the process rather than through it.',
           'The drift usually starts with Resolved and Closed not being distinguished — teams mark things resolved and skip the close-the-loop step. The fix is to make Closed the step that is visible and reported on, not Resolved. If your team sees "48 items awaiting close-the-loop message" in a dashboard, the motivation to complete that step is much higher than if Resolved is the final state.',
-          'Rereflect tracks feedback workflow status and surfaces items by state, which means the work of seeing "what is stalled" does not require manually searching through a spreadsheet or ticket system. The items that have been waiting longest, or that are approaching an SLA limit, surface naturally in the workflow view rather than requiring a periodic manual audit.',
+          'FeedSignal tracks feedback workflow status and surfaces items by state, which means the work of seeing "what is stalled" does not require manually searching through a spreadsheet or ticket system. The items that have been waiting longest, or that are approaching an SLA limit, surface naturally in the workflow view rather than requiring a periodic manual audit.',
           'Review the workflow states quarterly alongside your taxonomy. If a state is consistently skipped, either it is not needed or the friction of completing it is too high. Either way, it should change.',
         ],
       },
@@ -550,9 +550,9 @@ export const batch1: BlogPost[] = [
     date: '2026-07-22',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Customer Support', 'Product Management', 'Feedback Operations', 'Workflow'],
-    seoTitle: 'How to Turn Support Tickets Into Product Feedback | Rereflect',
+    seoTitle: 'How to Turn Support Tickets Into Product Feedback | FeedSignal',
     seoDescription: 'Support tickets are rich with product signal that rarely reaches PMs in a useful form. This guide covers the handoff process, tagging conventions, and how to make product-relevant signal visible.',
     sections: [
       {
@@ -588,7 +588,7 @@ export const batch1: BlogPost[] = [
           'Automated volume aggregation — every ticket tagged with a category increments a counter. PMs should see "23 tickets tagged checkout-flow in the last 30 days" without anyone having to count.',
         ],
         content2: [
-          'When feedback is ingested into Rereflect from a support tool integration, the categorization happens automatically — the AI reads the ticket content and applies categories from your taxonomy. Support agents who want to flag a ticket as product-relevant can still do so, but the categorization step does not require their time.',
+          'When feedback is ingested into FeedSignal from a support tool integration, the categorization happens automatically — the AI reads the ticket content and applies categories from your taxonomy. Support agents who want to flag a ticket as product-relevant can still do so, but the categorization step does not require their time.',
         ],
       },
       {
@@ -623,9 +623,9 @@ export const batch1: BlogPost[] = [
     date: '2026-07-29',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Feedback Operations', 'Team Management', 'Workflow', 'Product Management'],
-    seoTitle: 'How to Onboard Your Team to a New Customer Feedback Process | Rereflect',
+    seoTitle: 'How to Onboard Your Team to a New Customer Feedback Process | FeedSignal',
     seoDescription: 'Practical guide to onboarding your team to a new customer feedback process: building shared vocabulary, phased rollout, accountability without friction, and measuring adoption.',
     sections: [
       {

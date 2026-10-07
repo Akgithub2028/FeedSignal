@@ -72,7 +72,7 @@ export default function UsageEventsPage() {
       <div>
         <h2 className="text-xl font-semibold text-foreground">Send Product-Usage Events</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Feed per-customer product activity into Rereflect to enrich health scores and the
+          Feed per-customer product activity into FeedSignal to enrich health scores and the
           Customer 360 profile. This uses an inbound{' '}
           <code className="text-xs bg-muted px-1 py-0.5 rounded">POST</code> endpoint — distinct
           from the outbound webhooks in{' '}
@@ -191,7 +191,7 @@ export default function UsageEventsPage() {
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <ol className="list-decimal list-inside space-y-1">
             <li>
-              POST one or two events for a customer email that already exists in Rereflect
+              POST one or two events for a customer email that already exists in FeedSignal
               (e.g. a customer you can see in the Customers list).
             </li>
             <li>
@@ -218,7 +218,7 @@ export default function UsageEventsPage() {
           <p className="text-xs pt-2">
             For more details, see the{' '}
             <a
-              href="https://github.com/haqaliz/rereflect/blob/master/docs/SELF_HOSTING.md"
+              href="https://github.com/Akgithub2028/FeedSignal/blob/feedsignal/owner-launch/rereflect/docs/SELF_HOSTING.md"
               target="_blank"
               rel="noopener noreferrer"
               className="underline underline-offset-2 inline-flex items-center gap-1"

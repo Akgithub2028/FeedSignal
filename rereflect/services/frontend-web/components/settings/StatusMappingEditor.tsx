@@ -80,7 +80,7 @@ export function StatusMappingEditor({
           <thead className="bg-muted/50">
             <tr>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Foreign Status</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Rereflect Status</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">FeedSignal Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

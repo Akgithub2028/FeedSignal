@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { EvidenceCell } from '../../app/(dashboard)/customers/churn-suggestions/page';
+import { EvidenceCell } from '../../components/customers/ChurnSuggestionEvidenceCell';
 
 const usageDeclineEvidence = {
   trend_state: 'declining',

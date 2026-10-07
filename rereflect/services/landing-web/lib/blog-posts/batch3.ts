@@ -5,13 +5,13 @@ export const batch3: BlogPost[] = [
   {
     slug: 'how-sentiment-analysis-works-vader',
     title: 'How Sentiment Analysis Works: A Plain-English Guide to VADER',
-    excerpt: 'Before you trust a sentiment score, it helps to understand where it comes from. Rereflect uses VADER — a lexicon and rule-based analyzer built specifically for short, informal text — as its built-in sentiment engine. This post explains how VADER scores text, what those scores actually mean, and where the approach has real limits.',
+    excerpt: 'Before you trust a sentiment score, it helps to understand where it comes from. FeedSignal uses VADER — a lexicon and rule-based analyzer built specifically for short, informal text — as its built-in sentiment engine. This post explains how VADER scores text, what those scores actually mean, and where the approach has real limits.',
     date: '2026-09-01',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Sentiment Analysis', 'NLP', 'VADER', 'AI'],
-    seoTitle: 'How Sentiment Analysis Works: A Plain-English Guide to VADER | Rereflect',
+    seoTitle: 'How Sentiment Analysis Works: A Plain-English Guide to VADER | FeedSignal',
     seoDescription: 'Understand how VADER lexicon-based sentiment analysis scores customer feedback, what compound scores mean, where VADER excels, and where it falls short compared to LLM-based approaches.',
     sections: [
       {
@@ -19,7 +19,7 @@ export const batch3: BlogPost[] = [
         content: [
           'Sentiment analysis assigns a valence — positive, negative, or neutral — to a piece of text. The goal is not to summarize what the text is about, but to capture the emotional polarity of how it was written. A review that says "the export took three minutes and I nearly gave up" is negative. One that says "slower than I expected but the results were worth it" is mixed. One that says "works exactly as described" is positive.',
           'That sounds straightforward, and for clear-cut cases it is. The hard part is handling everything in between: sarcasm, hedged praise, domain-specific jargon, intensifiers ("absolutely terrible" vs "terrible"), negations ("not bad at all"), and the casual abbreviated style of support tickets and in-app surveys.',
-          'Different approaches handle this complexity in different ways. Rereflect ships with VADER as its built-in engine because VADER was designed specifically for the kind of informal, short-form text that customer feedback tends to be.',
+          'Different approaches handle this complexity in different ways. FeedSignal ships with VADER as its built-in engine because VADER was designed specifically for the kind of informal, short-form text that customer feedback tends to be.',
         ],
       },
       {
@@ -36,7 +36,7 @@ export const batch3: BlogPost[] = [
           'Special idioms — common phrases like "kind of" or "sort of" are handled as damping modifiers rather than parsed word-by-word.',
         ],
         content2: [
-          'The output is three raw scores (positive, negative, neutral proportions that sum to 1.0) plus a compound score that ranges from -1.0 (maximally negative) to +1.0 (maximally positive). Rereflect maps this compound score to the three-way label — positive, neutral, negative — using conventional thresholds, and stores both the label and the raw compound value so you can filter and sort by either.',
+          'The output is three raw scores (positive, negative, neutral proportions that sum to 1.0) plus a compound score that ranges from -1.0 (maximally negative) to +1.0 (maximally positive). FeedSignal maps this compound score to the three-way label — positive, neutral, negative — using conventional thresholds, and stores both the label and the raw compound value so you can filter and sort by either.',
         ],
       },
       {
@@ -51,7 +51,7 @@ export const batch3: BlogPost[] = [
           'Speed and zero dependencies — VADER runs entirely in-process, requires no GPU, makes no network calls, and can score thousands of items per second on a modest machine.',
         ],
         content2: [
-          'For teams running Rereflect without a configured LLM, VADER provides immediate, always-on sentiment scoring across all ingested feedback. That is genuinely useful even before any AI model is wired in.',
+          'For teams running FeedSignal without a configured LLM, VADER provides immediate, always-on sentiment scoring across all ingested feedback. That is genuinely useful even before any AI model is wired in.',
         ],
       },
       {
@@ -73,7 +73,7 @@ export const batch3: BlogPost[] = [
       {
         heading: 'VADER vs. an LLM: when to upgrade',
         content: [
-          'If you configure Rereflect with a language model, the LLM takes over the deeper categorization steps — pain point extraction, feature request classification, urgency reasoning — while VADER continues handling the basic sentiment pass. The LLM brings contextual understanding that VADER lacks: it can recognize sarcasm, infer domain-specific negativity, and reason about long-form text.',
+          'If you configure FeedSignal with a language model, the LLM takes over the deeper categorization steps — pain point extraction, feature request classification, urgency reasoning — while VADER continues handling the basic sentiment pass. The LLM brings contextual understanding that VADER lacks: it can recognize sarcasm, infer domain-specific negativity, and reason about long-form text.',
           'That said, LLM-based sentiment is not always better in every dimension. It is slower, it costs tokens, and it introduces a dependency on either a hosted API key or a locally running model. VADER runs instantly with no configuration and no cost.',
           'The practical recommendation: start with VADER to establish a baseline sentiment signal across your feedback. If you find that scores on your specific type of feedback are consistently off — because your domain language is unusual, because your customers write in multiple languages, or because sarcasm is endemic to your feedback channel — that is when an LLM upgrade makes sense. The two approaches are complementary, not competing.',
         ],
@@ -83,21 +83,21 @@ export const batch3: BlogPost[] = [
   {
     slug: 'ai-feedback-categorization-explained',
     title: 'AI Feedback Categorization Explained: From Raw Text to Actionable Labels',
-    excerpt: 'Sentiment scores tell you how customers feel. Categorization tells you what they are feeling that way about. Rereflect uses a combination of keyword matching and LLM-based classification to assign pain points, feature requests, and urgency flags to each piece of feedback. This post explains how that pipeline works and what drives its accuracy.',
+    excerpt: 'Sentiment scores tell you how customers feel. Categorization tells you what they are feeling that way about. FeedSignal uses a combination of keyword matching and LLM-based classification to assign pain points, feature requests, and urgency flags to each piece of feedback. This post explains how that pipeline works and what drives its accuracy.',
     date: '2026-09-04',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['AI', 'Categorization', 'NLP', 'Feedback Analysis'],
-    seoTitle: 'AI Feedback Categorization Explained: From Raw Text to Labels | Rereflect',
-    seoDescription: 'Learn how Rereflect combines keyword matching and LLM classification to categorize customer feedback into pain points, feature requests, and urgency flags — and what drives accuracy in each step.',
+    seoTitle: 'AI Feedback Categorization Explained: From Raw Text to Labels | FeedSignal',
+    seoDescription: 'Learn how FeedSignal combines keyword matching and LLM classification to categorize customer feedback into pain points, feature requests, and urgency flags — and what drives accuracy in each step.',
     sections: [
       {
         heading: 'Why categorization matters more than sentiment',
         content: [
           'Knowing that 40% of last month\'s feedback was negative is useful context. Knowing that 40% was negative, and that the dominant theme in that negative feedback was "CSV export failures in the billing module," is actionable. Categorization is what turns a sentiment trend into a product decision.',
           'The categorization problem is harder than the sentiment problem. Sentiment is a single dimension — positive to negative — and a lexicon-based rule system can approximate it reasonably well for short text. Categorization requires understanding what a piece of text is about, matching that meaning to one or more predefined categories, and doing so consistently across thousands of items that are written in different styles, with different levels of detail, by different people.',
-          'Rereflect approaches this with a two-layer pipeline: a lightweight keyword pass for speed and a LLM pass for depth.',
+          'FeedSignal approaches this with a two-layer pipeline: a lightweight keyword pass for speed and a LLM pass for depth.',
         ],
       },
       {
@@ -113,7 +113,7 @@ export const batch3: BlogPost[] = [
         content: [
           'The second layer sends feedback items (and their preliminary keyword signals) to the configured language model for deeper classification. The prompt includes your custom category taxonomy and descriptions, the raw feedback text, and any preliminary keyword signals from the first pass.',
           'The LLM can handle things keyword matching cannot: paraphrasing, implied meaning, multi-topic feedback, and context-dependent categorization. A piece of feedback that says "I keep having to redo things after navigating away" is about state persistence or navigation, not about any single keyword — but an LLM with the right category descriptions can recognize that.',
-          'The tradeoff is cost and latency. Every LLM call consumes tokens and takes time. Rereflect uses the keyword layer to avoid sending items that can be classified confidently without a model, reserving LLM calls for the harder cases.',
+          'The tradeoff is cost and latency. Every LLM call consumes tokens and takes time. FeedSignal uses the keyword layer to avoid sending items that can be classified confidently without a model, reserving LLM calls for the harder cases.',
         ],
         listItems: [
           'Pain point classification — maps complaints and friction signals to your defined pain-point categories.',
@@ -121,7 +121,7 @@ export const batch3: BlogPost[] = [
           'Urgency scoring — reasons about signals like churn risk, SLA mentions, angry tone, and escalation language to assign an urgency flag.',
         ],
         content2: [
-          'If no LLM is configured, Rereflect falls back to keyword-only classification and VADER sentiment. You get a coarser signal, but the pipeline still runs completely offline.',
+          'If no LLM is configured, FeedSignal falls back to keyword-only classification and VADER sentiment. You get a coarser signal, but the pipeline still runs completely offline.',
         ],
       },
       {
@@ -150,13 +150,13 @@ export const batch3: BlogPost[] = [
   {
     slug: 'topic-clustering-customer-feedback',
     title: 'Topic Clustering in Customer Feedback: How TF-IDF Surfaces Themes',
-    excerpt: 'When you have hundreds or thousands of feedback items, reading them one by one is not a strategy. Topic clustering groups feedback into thematic clusters automatically so you can see which issues are recurring patterns and which are one-offs. Rereflect uses TF-IDF-based clustering for this — here is what that means and what it produces.',
+    excerpt: 'When you have hundreds or thousands of feedback items, reading them one by one is not a strategy. Topic clustering groups feedback into thematic clusters automatically so you can see which issues are recurring patterns and which are one-offs. FeedSignal uses TF-IDF-based clustering for this — here is what that means and what it produces.',
     date: '2026-09-07',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['NLP', 'Topic Clustering', 'TF-IDF', 'Feedback Analysis'],
-    seoTitle: 'Topic Clustering in Customer Feedback: How TF-IDF Works | Rereflect',
+    seoTitle: 'Topic Clustering in Customer Feedback: How TF-IDF Works | FeedSignal',
     seoDescription: 'Understand how TF-IDF-based topic clustering groups customer feedback into thematic clusters, what the algorithm is actually doing, and how to interpret the themes it surfaces.',
     sections: [
       {
@@ -172,7 +172,7 @@ export const batch3: BlogPost[] = [
           'TF-IDF stands for Term Frequency–Inverse Document Frequency. It is a classical information-retrieval technique that represents each piece of text as a vector of weighted term scores.',
           'The term frequency part is intuitive: words that appear more often in a document are more important to it. But frequency alone is a poor signal — common words like "the," "is," and "my" appear in everything and distinguish nothing.',
           'The inverse document frequency part corrects for this: it down-weights terms that appear in many documents across the corpus and up-weights terms that appear in relatively few. A word like "timeout" that appears in 30 out of 1,000 feedback items is carrying more signal than a word like "the" that appears in all 1,000.',
-          'The result is a numeric vector for each feedback item where the high-scoring dimensions correspond to the distinctive vocabulary of that item. Items about similar topics will have similar vectors — even if they used different specific words — because they share the same distinctive vocabulary. Clustering algorithms (Rereflect uses k-means over these TF-IDF vectors) then group items with similar vectors together.',
+          'The result is a numeric vector for each feedback item where the high-scoring dimensions correspond to the distinctive vocabulary of that item. Items about similar topics will have similar vectors — even if they used different specific words — because they share the same distinctive vocabulary. Clustering algorithms (FeedSignal uses k-means over these TF-IDF vectors) then group items with similar vectors together.',
         ],
       },
       {
@@ -191,9 +191,9 @@ export const batch3: BlogPost[] = [
         ],
       },
       {
-        heading: 'How Rereflect uses clustering in practice',
+        heading: 'How FeedSignal uses clustering in practice',
         content: [
-          'Rereflect runs topic clustering as part of the analysis pipeline and attaches cluster tags to each feedback item. The tags are surfaced on the feedback detail view, in filter options, and in the dashboard\'s topic breakdown.',
+          'FeedSignal runs topic clustering as part of the analysis pipeline and attaches cluster tags to each feedback item. The tags are surfaced on the feedback detail view, in filter options, and in the dashboard\'s topic breakdown.',
           'The cluster labels are generated from the top-weighted terms in each cluster. These are not always elegant phrases — they reflect the dominant vocabulary of the group, which is sometimes a technical term and sometimes a common word that happens to be distinctive in your corpus. Treat them as signposts for the theme, not polished category names.',
           'If you want more semantically coherent cluster labels, the LLM-based categorization layer produces those — at the cost of tokens and latency. Topic clustering gives you an always-available, zero-cost view of thematic distribution that does not require a language model.',
         ],
@@ -211,21 +211,21 @@ export const batch3: BlogPost[] = [
   {
     slug: 'llm-vs-rules-feedback-analysis',
     title: 'LLM vs. Rule-Based Feedback Analysis: When Each Approach Wins',
-    excerpt: 'There are two broad philosophies for automating feedback analysis: rules and lexicons (fast, predictable, free) or language models (flexible, contextual, costly). Rereflect uses both — but understanding the tradeoffs helps you configure the system in a way that actually fits your situation.',
+    excerpt: 'There are two broad philosophies for automating feedback analysis: rules and lexicons (fast, predictable, free) or language models (flexible, contextual, costly). FeedSignal uses both — but understanding the tradeoffs helps you configure the system in a way that actually fits your situation.',
     date: '2026-09-10',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['AI', 'LLM', 'NLP', 'Feedback Analysis'],
-    seoTitle: 'LLM vs. Rule-Based Feedback Analysis: When Each Approach Wins | Rereflect',
-    seoDescription: 'Compare rule-based (VADER, TF-IDF, keywords) and LLM-based approaches to customer feedback analysis — when each performs better, what they cost, and how Rereflect combines both.',
+    seoTitle: 'LLM vs. Rule-Based Feedback Analysis: When Each Approach Wins | FeedSignal',
+    seoDescription: 'Compare rule-based (VADER, TF-IDF, keywords) and LLM-based approaches to customer feedback analysis — when each performs better, what they cost, and how FeedSignal combines both.',
     sections: [
       {
         heading: 'Two philosophies, one pipeline',
         content: [
           'The field of natural language processing has two long-running traditions. The first is rule-based and statistical: build explicit systems from human-curated knowledge — dictionaries, grammatical rules, frequency statistics — and apply them mechanically to text. The second is learned: train a neural network on enough text that it develops an implicit model of language and can generalize to novel inputs.',
-          'For most of the 2010s, these traditions were positioned as competing. In practice, they are complementary, and the best-performing systems often use both. Rereflect\'s analysis pipeline is an example of this: it uses rule-based and statistical methods (VADER, TF-IDF, keyword matching) where they are sufficient, and calls a language model where they are not.',
-          'Understanding the tradeoffs helps you configure Rereflect appropriately for your situation — and helps you interpret results honestly rather than expecting either approach to be perfect.',
+          'For most of the 2010s, these traditions were positioned as competing. In practice, they are complementary, and the best-performing systems often use both. FeedSignal\'s analysis pipeline is an example of this: it uses rule-based and statistical methods (VADER, TF-IDF, keyword matching) where they are sufficient, and calls a language model where they are not.',
+          'Understanding the tradeoffs helps you configure FeedSignal appropriately for your situation — and helps you interpret results honestly rather than expecting either approach to be perfect.',
         ],
       },
       {
@@ -261,11 +261,11 @@ export const batch3: BlogPost[] = [
         ],
       },
       {
-        heading: 'How Rereflect combines them',
+        heading: 'How FeedSignal combines them',
         content: [
-          'Rereflect uses a tiered approach. VADER runs on every item, always, for sentiment scoring — it is fast, free, and good enough for the majority of English feedback. TF-IDF clustering runs across the corpus periodically to surface thematic groups. Keyword matching makes an initial categorization pass on each new item.',
+          'FeedSignal uses a tiered approach. VADER runs on every item, always, for sentiment scoring — it is fast, free, and good enough for the majority of English feedback. TF-IDF clustering runs across the corpus periodically to surface thematic groups. Keyword matching makes an initial categorization pass on each new item.',
           'The LLM layer runs on items where the keyword pass is ambiguous or where deeper categorization is needed — pain point extraction, feature request classification, urgency reasoning. If an LLM is configured, these steps use it. If not, the keyword-only results are used as a fallback.',
-          'This means you can run a fully useful version of Rereflect with no LLM configured at all. You get sentiment, basic categorization, and topic clustering. When you add an LLM — whether a hosted API or a local model via Ollama — the categorization quality improves, particularly on ambiguous and nuanced items.',
+          'This means you can run a fully useful version of FeedSignal with no LLM configured at all. You get sentiment, basic categorization, and topic clustering. When you add an LLM — whether a hosted API or a local model via Ollama — the categorization quality improves, particularly on ambiguous and nuanced items.',
         ],
       },
       {
@@ -274,12 +274,12 @@ export const batch3: BlogPost[] = [
           'The right balance depends on your constraints:',
         ],
         listItems: [
-          'No LLM, fully offline — use Rereflect with just VADER and keyword matching. Good for small volumes, strict privacy requirements, or teams that want to start immediately without any AI configuration.',
+          'No LLM, fully offline — use FeedSignal with just VADER and keyword matching. Good for small volumes, strict privacy requirements, or teams that want to start immediately without any AI configuration.',
           'Local LLM via Ollama — add a local model for better categorization while keeping data on your own infrastructure. Appropriate for teams with a GPU or a server with enough memory, and strong privacy or data residency requirements.',
           'Hosted API with your own key — use OpenAI, Anthropic, or another provider for the highest categorization quality. You pay the provider per token. Best for teams where accuracy is the priority and data residency is not a blocker.',
         ],
         content2: [
-          'None of these configurations is universally correct. The point of Rereflect\'s design is that you can start with no model, see whether the results are useful, and add a model later if you want better accuracy — without changing anything else about how the system works.',
+          'None of these configurations is universally correct. The point of FeedSignal\'s design is that you can start with no model, see whether the results are useful, and add a model later if you want better accuracy — without changing anything else about how the system works.',
         ],
       },
     ],
@@ -291,9 +291,9 @@ export const batch3: BlogPost[] = [
     date: '2026-09-13',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['AI', 'Categorization', 'Accuracy', 'Evaluation'],
-    seoTitle: 'Measuring AI Categorization Accuracy on Your Own Feedback | Rereflect',
+    seoTitle: 'Measuring AI Categorization Accuracy on Your Own Feedback | FeedSignal',
     seoDescription: 'Learn how to practically measure the accuracy of AI feedback categorization on your own data — without a machine learning background — and use those measurements to improve your taxonomy.',
     sections: [
       {
@@ -361,13 +361,13 @@ export const batch3: BlogPost[] = [
   {
     slug: 'prompt-design-feedback-analysis',
     title: 'Prompt Design for Feedback Analysis: What Goes Into a Good Classification Prompt',
-    excerpt: 'When Rereflect uses a language model to categorize feedback, the quality of the result depends heavily on the prompt — what context the model receives, how categories are described, and how the output format is specified. This post explains the design choices behind feedback analysis prompts and how your taxonomy descriptions feed into them.',
+    excerpt: 'When FeedSignal uses a language model to categorize feedback, the quality of the result depends heavily on the prompt — what context the model receives, how categories are described, and how the output format is specified. This post explains the design choices behind feedback analysis prompts and how your taxonomy descriptions feed into them.',
     date: '2026-09-16',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['AI', 'Prompt Engineering', 'LLM', 'Categorization'],
-    seoTitle: 'Prompt Design for Feedback Analysis: Classification Prompts | Rereflect',
+    seoTitle: 'Prompt Design for Feedback Analysis: Classification Prompts | FeedSignal',
     seoDescription: 'Learn how prompt design affects AI feedback categorization quality — what context matters, how category descriptions shape model output, and practical principles for writing better taxonomy descriptions.',
     sections: [
       {
@@ -415,7 +415,7 @@ export const batch3: BlogPost[] = [
         listItems: [
           'Keep descriptions precise, not exhaustive — a well-targeted 40-word description often outperforms a rambling 200-word one, and costs a fraction as much.',
           'Avoid redundancy across categories — if the same phrase appears in multiple category descriptions, it is doing no work. Descriptions derive their value from distinctiveness.',
-          'Consider the keyword pre-filter — Rereflect\'s keyword layer handles items that are obviously in one category, reserving LLM calls for ambiguous cases. This reduces your effective per-item token spend without sacrificing accuracy on the hard cases.',
+          'Consider the keyword pre-filter — FeedSignal\'s keyword layer handles items that are obviously in one category, reserving LLM calls for ambiguous cases. This reduces your effective per-item token spend without sacrificing accuracy on the hard cases.',
         ],
       },
       {
@@ -435,10 +435,10 @@ export const batch3: BlogPost[] = [
     date: '2026-09-19',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['NLP', 'Multilingual', 'AI', 'Feedback Analysis'],
-    seoTitle: 'Multilingual Customer Feedback Analysis: What Actually Works | Rereflect',
-    seoDescription: 'A practical look at analyzing customer feedback in multiple languages — what VADER, TF-IDF, and LLMs can and cannot do, and how to configure Rereflect for multilingual feedback corpora.',
+    seoTitle: 'Multilingual Customer Feedback Analysis: What Actually Works | FeedSignal',
+    seoDescription: 'A practical look at analyzing customer feedback in multiple languages — what VADER, TF-IDF, and LLMs can and cannot do, and how to configure FeedSignal for multilingual feedback corpora.',
     sections: [
       {
         heading: 'The multilingual problem is harder than it looks',
@@ -467,7 +467,7 @@ export const batch3: BlogPost[] = [
         content: [
           'TF-IDF clustering is language-agnostic in the sense that it works on tokens regardless of language. The practical problem is that it will create language-segregated clusters: Spanish feedback will cluster with other Spanish feedback about the same topic, but that Spanish cluster will be separate from the English cluster about the same topic — because the vocabulary is different.',
           'For a multilingual corpus, this means your topic clusters reflect language as much as they reflect theme. A single problem reported by English-speaking and Spanish-speaking customers will appear as two separate clusters rather than one. This is not wrong — it is an accurate reflection of the vocabulary distance — but it means you need to be aware that similar-sized clusters in different languages may represent the same underlying issue.',
-          'If you want cross-language topic coherence, the practical options are either to translate all feedback to a common language before clustering, or to use a multilingual embedding model that maps text in different languages to a shared vector space before clustering. Rereflect\'s current TF-IDF implementation does not handle this automatically.',
+          'If you want cross-language topic coherence, the practical options are either to translate all feedback to a common language before clustering, or to use a multilingual embedding model that maps text in different languages to a shared vector space before clustering. FeedSignal\'s current TF-IDF implementation does not handle this automatically.',
         ],
       },
       {
@@ -496,14 +496,14 @@ export const batch3: BlogPost[] = [
   {
     slug: 'detect-urgent-feedback-automatically',
     title: 'Detecting Urgent Feedback Automatically: Signals, Heuristics, and Limits',
-    excerpt: 'Some feedback needs to be read today, not at the next weekly review. Rereflect\'s urgency detection layer flags items that show signs of churn risk, critical failures, escalation language, or other high-priority signals. This post explains what those signals are, how the detection works, and where it will miss things.',
+    excerpt: 'Some feedback needs to be read today, not at the next weekly review. FeedSignal\'s urgency detection layer flags items that show signs of churn risk, critical failures, escalation language, or other high-priority signals. This post explains what those signals are, how the detection works, and where it will miss things.',
     date: '2026-09-23',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['AI', 'Urgency Detection', 'Churn Risk', 'Feedback Analysis'],
-    seoTitle: 'Detect Urgent Customer Feedback Automatically: Signals and Limits | Rereflect',
-    seoDescription: 'How Rereflect automatically detects urgent customer feedback using sentiment signals, keyword heuristics, and LLM-based reasoning — plus an honest look at what it misses.',
+    seoTitle: 'Detect Urgent Customer Feedback Automatically: Signals and Limits | FeedSignal',
+    seoDescription: 'How FeedSignal automatically detects urgent customer feedback using sentiment signals, keyword heuristics, and LLM-based reasoning — plus an honest look at what it misses.',
     sections: [
       {
         heading: 'The cost of missing urgent feedback',
@@ -513,9 +513,9 @@ export const batch3: BlogPost[] = [
         ],
       },
       {
-        heading: 'The signals Rereflect looks for',
+        heading: 'The signals FeedSignal looks for',
         content: [
-          'Urgency is not a single thing. Rereflect\'s urgency detection looks for a combination of signals, each of which increases the probability that an item is high-priority:',
+          'Urgency is not a single thing. FeedSignal\'s urgency detection looks for a combination of signals, each of which increases the probability that an item is high-priority:',
         ],
         listItems: [
           'Strong negative sentiment — a compound VADER score in the very negative range is correlated with urgent feedback, though not deterministic. Most very negative feedback is urgent; not all urgent feedback is maximally negative.',
@@ -525,7 +525,7 @@ export const batch3: BlogPost[] = [
           'SLA or compliance references — mentions of contractual obligations, SLA terms, or compliance requirements often indicate that the impact of a failure is not just inconvenience.',
         ],
         content2: [
-          'When an LLM is configured, Rereflect uses it to reason about urgency more holistically — considering the combination of signals and the overall context of the feedback, rather than checking for individual keywords. The LLM can identify urgency in items that do not use the exact phrases on a keyword list but clearly describe a critical situation.',
+          'When an LLM is configured, FeedSignal uses it to reason about urgency more holistically — considering the combination of signals and the overall context of the feedback, rather than checking for individual keywords. The LLM can identify urgency in items that do not use the exact phrases on a keyword list but clearly describe a critical situation.',
         ],
       },
       {
@@ -562,7 +562,7 @@ export const batch3: BlogPost[] = [
         heading: 'Tuning urgency for your product',
         content: [
           'The default urgency signals are reasonable starting points, but "urgent" is product-specific. A data loss event is always urgent. Whether a feature request marked as blocking is urgent depends on who the customer is and your support policies.',
-          'Rereflect\'s custom urgency configuration lets you describe what urgent means for your business. The description feeds into the LLM classification prompt, which means you can include product-specific signals ("any mention of data export failure is urgent") and exclusions ("billing questions are not urgent unless the customer mentions cancellation").',
+          'FeedSignal\'s custom urgency configuration lets you describe what urgent means for your business. The description feeds into the LLM classification prompt, which means you can include product-specific signals ("any mention of data export failure is urgent") and exclusions ("billing questions are not urgent unless the customer mentions cancellation").',
           'Review your false negatives — items that should have been flagged but were not — periodically and use them to refine the urgency description. A few targeted additions to the description usually cover the systematic gaps.',
         ],
       },
@@ -575,10 +575,10 @@ export const batch3: BlogPost[] = [
     date: '2026-09-28',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['AI', 'Feature Requests', 'Product Management', 'Feedback Analysis'],
-    seoTitle: 'Feature Request Extraction With AI: Surfacing Customer Requests | Rereflect',
-    seoDescription: 'How Rereflect uses AI to extract and categorize feature requests from customer feedback — turning scattered asks across support tickets, surveys, and reviews into an aggregated, prioritizable list.',
+    seoTitle: 'Feature Request Extraction With AI: Surfacing Customer Requests | FeedSignal',
+    seoDescription: 'How FeedSignal uses AI to extract and categorize feature requests from customer feedback — turning scattered asks across support tickets, surveys, and reviews into an aggregated, prioritizable list.',
     sections: [
       {
         heading: 'Why feature requests are hard to collect manually',
@@ -591,7 +591,7 @@ export const batch3: BlogPost[] = [
       {
         heading: 'What extraction identifies',
         content: [
-          'Rereflect\'s feature request extraction looks for two categories of signal:',
+          'FeedSignal\'s feature request extraction looks for two categories of signal:',
         ],
         listItems: [
           'Explicit requests — direct statements of desire: "I\'d love to be able to...", "Is there a way to...", "It would be great if...", "Can you add...", "We need...". These are the easiest to catch because the language is unambiguous.',
@@ -599,7 +599,7 @@ export const batch3: BlogPost[] = [
         ],
         content2: [
           'A keyword system catches explicit requests reasonably well. Implicit requests require a language model — recognizing that "I have to do this manually every week" contains a feature request requires understanding the context of what "this" refers to and inferring that automation is being implicitly requested.',
-          'When no LLM is configured, Rereflect extracts explicit requests through keyword matching. With an LLM configured, it also captures the implicit requests that keyword matching misses.',
+          'When no LLM is configured, FeedSignal extracts explicit requests through keyword matching. With an LLM configured, it also captures the implicit requests that keyword matching misses.',
         ],
       },
       {

@@ -3287,6 +3287,8 @@ No immediate baseline/preparation files.
 - [test_zendesk_sync_endpoint.py](<../services/backend-api/tests/test_zendesk_sync_endpoint.py>) — Tests for POST /api/v1/integrations/zendesk/sync (manual "Sync now" trigger). Phase 6 (should-have) of ingestion-pull aspect. Mirrors tests/test_hubspot_sync_endpoint.py — but per plan D7…
 - [test_zendesk_webhook.py](<../services/backend-api/tests/test_zendesk_webhook.py>) — TDD tests for the Zendesk webhook entry point (ingestion-webhook aspect). Covers: POST /api/v1/webhooks/zendesk/events. Mirrors TestIntercomWebhook in test_intercom.py; seeds…
 
+- [test_owner_bootstrap.py](<../services/backend-api/tests/test_owner_bootstrap.py>) — Owner launch bootstrap: explicit credentials, existing-user protection, atomic rollback; nine focused real-database tests.
+
 ## `services/backend-api/tests/embeddings`
 
 [Directory guide](<../services/backend-api/tests/embeddings/directory.md>)
@@ -5087,3 +5089,20 @@ No immediate baseline/preparation files.
 - [intercom_webhook_rating_envelope.json](<../services/worker-service/tests/fixtures/intercom_webhook_rating_envelope.json>) — Configuration or structured fixture; inspect named settings and consumers before changing it. Secret values must remain outside tracked configuration.
 - [intercom_webhook_reply_envelope.json](<../services/worker-service/tests/fixtures/intercom_webhook_reply_envelope.json>) — Configuration or structured fixture; inspect named settings and consumers before changing it. Secret values must remain outside tracked configuration.
 
+
+## Owner cloud preparation additions — 6 October 2026
+
+These entries extend the baseline inventory; generated core secrets are deliberately excluded.
+
+- [Cloud launch setup](LAUNCH_SETUP.md) — confirmed decisions, provider authentication, credentials, constraints and verification.
+- [Baseline launch implementation plan](BASELINE_LAUNCH_PLAN.md) — runtime ownership, connector replacement and acceptance work still required.
+- [API preview manifest](../render.api-preview.yaml) — one free Render API only; not a full deployment.
+- [App Vercel config](../services/frontend-web/vercel.json) — workspace build configuration.
+- [Landing Vercel config](../services/landing-web/vercel.json) — workspace static-export build configuration.
+
+## Owner launch files added after the baseline inventory
+
+- [OWNERSHIP_DEPLOYMENT_STATUS.md](OWNERSHIP_DEPLOYMENT_STATUS.md): verified ownership/deployment state and remaining release steps.
+- [Provider setup directory](provider-setup/directory.md): Slack target manifest and registration safety/order.
+- Frontend helpers: components/customers/ChurnSuggestionEvidenceCell.tsx, components/settings/ApiKeyScopes.tsx and lib/ssoErrorMessage.ts.
+- Backend tests: test_owner_bootstrap.py, test_owner_authorization.py, test_owner_email_config.py, test_owner_inbound_domain.py and test_owner_oauth_requirements.py.

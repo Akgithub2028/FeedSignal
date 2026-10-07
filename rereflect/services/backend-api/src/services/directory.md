@@ -37,3 +37,7 @@ Inputs include validated API/task payloads, organization-scoped database rows, a
 Use focused backend pytest checks for changed contracts; use real PostgreSQL for migration, transaction visibility, and database timeout behavior. CI also checks a clean migration and a single Alembic head.
 
 This summary was generated from tracked filenames, source declarations/module documentation, and document headings/prose, then sampled for navigation quality. It is not a full semantic audit or a runtime verification. Read actual files before editing. Missing owner settings and validation evidence remain in [UNANSWERED_SECRETS.md](<../../../../UNANSWERED_SECRETS.md>).
+
+## Owner Linear token lifecycle
+
+`linear_tokens.py` is the single usable-token path for Linear routes and responses. It validates/encrypts access and rotating refresh tokens, records UTC expiry, uses PostgreSQL NOWAIT plus bounded asynchronous retry to avoid event-loop lock starvation, commits both tokens atomically and returns sanitized reconnect/retry errors. Call before other DB mutations. All expired legacy grants need reauthorization. Review the companion `fe20261006a1` migration before deploying; never rotate the existing shared encryption key to repair a connection.

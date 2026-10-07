@@ -354,7 +354,7 @@ export function LinearSettings() {
               {/* Team Mapping Tab */}
               <TabsContent value="team-mapping" className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Map Rereflect categories to Linear teams. When creating an issue, the matching team will be pre-selected.
+                  Map FeedSignal categories to Linear teams. When creating an issue, the matching team will be pre-selected.
                 </p>
                 <div className="border border-border rounded-lg overflow-hidden">
                   <table className="w-full text-sm">
@@ -410,14 +410,14 @@ export function LinearSettings() {
               {/* Status Mapping Tab */}
               <TabsContent value="status-mapping" className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Map Linear status types to Rereflect workflow statuses. Status changes in Linear will update feedback automatically.
+                  Map Linear status types to FeedSignal workflow statuses. Status changes in Linear will update feedback automatically.
                 </p>
                 <div className="border border-border rounded-lg overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/50">
                       <tr>
                         <th className="text-left px-4 py-3 font-medium text-muted-foreground">Linear Status Type</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Rereflect Status</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">FeedSignal Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">

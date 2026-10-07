@@ -45,7 +45,7 @@ Files: backend `src/seed.py`, `src/api/routes/team.py`, email services/templates
 - [x] Test fresh bootstrap without configured admin credentials creates no inherited owner; with explicit credentials it creates only the intended owner (9 tests, real isolated SQLite DB).
 - [x] Test an existing-user database is never promoted or overwritten by changing admin environment variables. Failed bootstrap rolls back organization creation too.
 - [x] Remove embedded password and original privileged-email defaults locally; require explicit bootstrap credentials and persisted system-admin authorization. Verify the published revision separately.
-- [ ] Rebrand active product text and make legal/marketing/app origins explicit. Remove upstream website destinations from active signup, redirect and email flows; preserve attribution separately.
+- [x] Rebrand active product text and make legal/marketing/app origins explicit. Remove upstream website destinations from active signup, redirect and email flows; preserve attribution separately.
 - [x] Make Sentry source-map organization/project operator-supplied locally and disable unconfigured upload/runtime telemetry; focused source tests passed.
 - [ ] Configure backend/worker shared encryption key and all public URLs; rebuild frontend after public-variable changes.
 
@@ -55,13 +55,13 @@ Verification: focused bootstrap/authorization tests; missing/incorrect origin te
 
 Files: backend API router registration and generic integration validation; worker `src/celery_app.py`, sync/writeback dispatchers; frontend settings/integration cards, notification and response settings; active landing claims/environment examples.
 
-- [ ] Test retired provider connection endpoints and generic create/update paths cannot enable a connection.
-- [ ] Remove active provider choices, OAuth callbacks and router registration; remove their Beat schedule and task loading/dispatch.
-- [ ] Remove active response/notification choices and marketing promises that depend on these connectors.
-- [ ] Preserve applied migrations and historical record provenance; a fresh DB contains no inherited provider records. Do not revoke another creator's account credentials.
-- [ ] Run router, schedule integrity and settings tests, then frontend build. Audit indirect calls before deleting implementation modules.
+- [x] Test retired provider connection endpoints and generic create/update paths cannot enable a connection.
+- [x] Remove active provider choices, OAuth callbacks and router registration; remove their Beat schedule and task loading/dispatch.
+- [x] Remove active response/notification choices and marketing promises that depend on these connectors.
+- [x] Preserve applied migrations and historical record provenance; a fresh DB contains no inherited provider records. Do not revoke another creator's account credentials.
+- [x] Run router, schedule integrity and settings tests, then frontend build. Audit indirect calls before deleting implementation modules.
 
-Deliverable: no active retired-provider authorization, polling or writeback path. Until these checks pass, record removal as pending.
+Deliverable: no active retired-provider authorization, polling or writeback path. Focused checks pass locally; verify the published revision before marking live retirement complete.
 
 ## Task 4: tawk.to free ingestion
 
@@ -90,4 +90,4 @@ Original full deliverable remains gated on the two checks above. Durable ingesti
 - [ ] Run tenant-isolation tests, migration upgrade, backup/restore, worker/Beat and end-to-end analysis checks; restart services and verify persisted data/retry recovery.
 - [ ] Capture observed deployment URLs and results in the ledger. Deploy reviewed artifacts only after a viable budget/topology and authenticated access exist.
 
-**Status (7 October 2026):** both owner Vercel frontends READY. Owner API runtime/security/email revision `9a76919` LIVE with reviewed OAuth/Asana fixes. Google public audience published (homepage ownership verified; branding recheck awaits 24-hour propagation); Slack posting and Linear/Jira/Asana signed tracker round trips PASS. HubSpot connection and required reads PASS. Eight owner Resend templates published/settings installed; isolated baseline welcome function delivered to owner. tawk.to signed ingestion/configuration and controlled fixture pass; actual provider delivery, retired-provider removal, worker/AI and durable hosting remain OPEN. See [current evidence](OWNERSHIP_DEPLOYMENT_STATUS.md).
+**Status (7 October 2026):** both owner Vercel frontends READY. Owner API runtime/security/email revision `9a76919` LIVE with reviewed OAuth/Asana fixes. Google public audience published (homepage ownership verified; branding recheck awaits 24-hour propagation); Slack posting and Linear/Jira/Asana signed tracker round trips PASS. HubSpot connection and required reads PASS. Eight owner Resend templates published/settings installed; isolated baseline welcome function delivered to owner. tawk.to signed ingestion/configuration and controlled fixture pass; actual provider delivery, retired-provider removal is locally implemented/tested and awaits publication; worker/AI and durable hosting remain OPEN. See [current evidence](OWNERSHIP_DEPLOYMENT_STATUS.md).

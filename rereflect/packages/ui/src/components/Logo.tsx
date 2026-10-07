@@ -35,7 +35,7 @@ export function LogoWithText({ className, size = "md" }: LogoProps) {
     <div className={cn("flex items-center gap-2", className)}>
       <Logo size={size} />
       <span className="font-semibold text-foreground">
-        <span className="text-muted-foreground">Re</span>reflect
+        <span className="text-muted-foreground">Feed</span>Signal
       </span>
     </div>
   );

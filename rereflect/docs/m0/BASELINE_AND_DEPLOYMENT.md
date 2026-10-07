@@ -3,6 +3,10 @@
 Source audited locally on 2026-10-05: `93359c4a2bf20310f98e42d570de50a1586812d8`.
 Upstream: [haqaliz/rereflect](https://github.com/haqaliz/rereflect).
 
+## Current owner decisions — 6 October
+
+This is the original inherited-source audit, not the current deployment inventory. Owner GitHub/Vercel/Render access is verified; dashboard project, API, PostgreSQL and Redis now exist. The API is live on an older remote revision; frontends/worker/provider setup remain unfinished. No full local startup is requested. Salesforce removal and Intercom/Zendesk replacement remain pending. Read [current ownership/deployment status](../OWNERSHIP_DEPLOYMENT_STATUS.md) and [launch setup](../LAUNCH_SETUP.md). Statements below about absent resources describe the earlier audit date and must not be used as current status.
+
 ## Database answer
 
 The original repository uses **PostgreSQL**, through SQLAlchemy and Alembic. Production Compose specifies **PostgreSQL 16** (`postgres:16-alpine`) with a persistent `postgres_data` volume. Source: `docker-compose.prod.yml`, `services/backend-api/src/database/session.py`, and `services/backend-api/alembic/`. The backend's local fallback database is `customer_feedback_saas`; Compose uses its configured PostgreSQL database. The worker connects to the same customer database. Redis handles Celery jobs/results/cache; it is not the primary customer-data store. SQLite appears in tests and is not a production database substitute.
@@ -11,7 +15,7 @@ The original repository uses **PostgreSQL**, through SQLAlchemy and Alembic. Pro
 
 Missing answers: `UNANSWERED_DATABASE_REUSE_AUTHORIZATION`, `UNANSWERED_DATABASE_RETENTION_CHOICE`, `UNANSWERED_DATABASE_HOST`, `UNANSWERED_DATABASE_URL`, `UNANSWERED_DOCKER_ACCESS`.
 
-The engine is straightforward to provision with the retained Compose recipe once Docker access and required secrets are available, or through owner-controlled PostgreSQL hosting. No new hosting provider is selected here. No database was created, queried with credentials, migrated, or wiped. Never seek access to the original maintainer's database merely because its source code is public.
+The engine is straightforward to provision with the retained Compose recipe once Docker access and required secrets are available, or through owner-controlled PostgreSQL hosting. Render was subsequently selected; its free tier cannot host the entire continuous-worker topology. No database was created, queried with credentials, migrated, or wiped. Never seek access to the original maintainer's database merely because its source code is public.
 
 If retaining existing data, first establish ownership and backup/restore; inspect users, organization roles, integration metadata, source mappings, and encryption-key availability. Preserve `LLM_ENCRYPTION_KEY` until encrypted records are migrated; changing `ADMIN_EMAIL` does not transfer an existing account. If no usable owner-controlled database exists, propose a fresh PostgreSQL instance and obtain a retention decision before provisioning.
 
@@ -28,7 +32,7 @@ If retaining existing data, first establish ownership and backup/restore; inspec
 
 Do not assume Railway is the original live host solely from its config files. Preserve it as the existing deployment option. Vercel ownership is not inherited by cloning. No local `.vercel` metadata or `vercel.json` was found. Follow [Vercel's monorepo setup](https://vercel.com/docs/monorepos) and the owner's account before linking projects; app and landing both depend on `packages/ui`.
 
-## All integration capabilities retained
+## Inherited capabilities (current launch scope differs)
 
 | Capability | Actual implementation entry points | Missing owner-controlled setup |
 |---|---|---|

@@ -35,7 +35,7 @@ class TestAnotherCrmActive:
         db.commit()
         assert another_crm_active(db, test_organization.id, exclude_provider="salesforce") == "hubspot"
 
-    def test_detects_active_salesforce(self, db: Session, test_organization):
+    def test_retired_salesforce_does_not_block_hubspot(self, db: Session, test_organization):
         from src.services.crm_integration_common import another_crm_active
         db.add(SalesforceIntegration(
             organization_id=test_organization.id,
@@ -44,7 +44,7 @@ class TestAnotherCrmActive:
             is_active=True,
         ))
         db.commit()
-        assert another_crm_active(db, test_organization.id, exclude_provider="hubspot") == "salesforce"
+        assert another_crm_active(db, test_organization.id, exclude_provider="hubspot") is None
 
     def test_returns_none_when_only_excluded_provider_active(self, db: Session, test_organization):
         from src.services.crm_integration_common import another_crm_active

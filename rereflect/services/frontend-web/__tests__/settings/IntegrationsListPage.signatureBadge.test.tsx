@@ -156,15 +156,7 @@ describe('IntegrationsPage - unverified signature badge', () => {
 
     render(<IntegrationsPage />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Intercom Bridge')).toBeInTheDocument();
-    });
-
-    const intercomRow = screen.getByText('Intercom Bridge').closest('div.p-4') as HTMLElement;
-    const badge = within(intercomRow).getByText(/signature.*not.*verified|not.*verified|unverified/i);
-    expect(badge).toBeInTheDocument();
-
-    const docsLink = within(intercomRow).getByRole('link', { name: /self.hosting|docs/i });
-    expect(docsLink).toHaveAttribute('href', expect.stringContaining('SELF_HOSTING.md'));
+    await waitFor(() => expect(mockList).toHaveBeenCalled());
+    expect(screen.queryByText('Intercom Bridge')).not.toBeInTheDocument();
   });
 });

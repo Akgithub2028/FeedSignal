@@ -36,34 +36,34 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { SlackIcon } from '@/components/icons/SlackIcon';
-import { IntercomIcon } from '@/components/icons/IntercomIcon';
+
 import { DiscordIcon } from '@/components/icons/DiscordIcon';
 import { TeamsIcon } from '@/components/icons/TeamsIcon';
 import { LinearIcon } from '@/components/icons/LinearIcon';
-import { SalesforceIcon } from '@/components/icons/SalesforceIcon';
+
 import { JiraIcon } from '@/components/icons/JiraIcon';
-import { ZendeskIcon } from '@/components/icons/ZendeskIcon';
+
 import { AsanaIcon } from '@/components/icons/AsanaIcon';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { linearAPI, LinearConnectionStatus } from '@/lib/api/linear';
 import { hubspotAPI, HubSpotConnectionStatus } from '@/lib/api/hubspot';
-import { salesforceAPI, SalesforceConnectionStatus } from '@/lib/api/salesforce';
+
 import { jiraAPI, JiraConnectionStatus } from '@/lib/api/jira';
-import { intercomAPI, IntercomConnectionStatus } from '@/lib/api/intercom';
-import { zendeskAPI, ZendeskConnectionStatus } from '@/lib/api/zendesk';
+
+
 import { asanaAPI, AsanaConnectionStatus } from '@/lib/api/asana';
 import { getOauthErrorMessage } from '@/lib/oauthErrors';
 
 // Docs entry point for the env vars that enable inbound webhook signature
-// verification (SLACK_SIGNING_SECRET, INTERCOM_CLIENT_SECRET).
-const SELF_HOSTING_DOCS_URL = 'https://github.com/Akgithub2028/FeedSignal/blob/master/docs/SELF_HOSTING.md';
+// verification (SLACK_SIGNING_SECRET).
+const SELF_HOSTING_DOCS_URL = 'https://github.com/Akgithub2028/FeedSignal/blob/feedsignal/owner-launch/rereflect/docs/SELF_HOSTING.md';
 
 // The env var a self-hoster needs to set for each integration type that can
 // receive inbound signed webhooks. Only consulted when the backend reports
 // signature_verification_configured: false, so no other type needs an entry.
 function signingSecretEnvVar(integrationType: string): string {
-  return integrationType === 'intercom' ? 'INTERCOM_CLIENT_SECRET' : 'SLACK_SIGNING_SECRET';
+  return 'SLACK_SIGNING_SECRET';
 }
 
 function IntegrationsContent() {
@@ -77,19 +77,19 @@ function IntegrationsContent() {
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [linearStatus, setLinearStatus] = useState<LinearConnectionStatus | null>(null);
   const [hubspotStatus, setHubspotStatus] = useState<HubSpotConnectionStatus | null>(null);
-  const [salesforceStatus, setSalesforceStatus] = useState<SalesforceConnectionStatus | null>(null);
+
   const [jiraStatus, setJiraStatus] = useState<JiraConnectionStatus | null>(null);
-  const [intercomStatus, setIntercomStatus] = useState<IntercomConnectionStatus | null>(null);
-  const [zendeskStatus, setZendeskStatus] = useState<ZendeskConnectionStatus | null>(null);
+
+
   const [asanaStatus, setAsanaStatus] = useState<AsanaConnectionStatus | null>(null);
   const [linearTesting, setLinearTesting] = useState(false);
   const [linearTestResult, setLinearTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [salesforceTesting, setSalesforceTesting] = useState(false);
-  const [salesforceTestResult, setSalesforceTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+
   const [jiraTesting, setJiraTesting] = useState(false);
   const [jiraTestResult, setJiraTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [zendeskTesting, setZendeskTesting] = useState(false);
-  const [zendeskTestResult, setZendeskTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
+
   const [asanaTesting, setAsanaTesting] = useState(false);
   const [asanaTestResult, setAsanaTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
@@ -130,18 +130,18 @@ function IntegrationsContent() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [integrationResponse, linearStatusResponse, hubspotStatusResponse, salesforceStatusResponse, jiraStatusResponse, zendeskStatusResponse, asanaStatusResponse, intercomStatusResponse] = await Promise.allSettled([
+      const [integrationResponse, linearStatusResponse, hubspotStatusResponse, jiraStatusResponse, asanaStatusResponse] = await Promise.allSettled([
         integrationsAPI.list(),
         linearAPI.getStatus(),
         hubspotAPI.getStatus(),
-        salesforceAPI.getStatus(),
+
         jiraAPI.getStatus(),
-        zendeskAPI.getStatus(),
+
         asanaAPI.getStatus(),
-        intercomAPI.getStatus(),
+
       ]);
       if (integrationResponse.status === 'fulfilled') {
-        setIntegrations(integrationResponse.value.integrations);
+        setIntegrations(integrationResponse.value.integrations.filter(i => !['salesforce', 'intercom', 'zendesk'].includes(i.type)));
       }
       if (linearStatusResponse.status === 'fulfilled') {
         setLinearStatus(linearStatusResponse.value);
@@ -149,18 +149,12 @@ function IntegrationsContent() {
       if (hubspotStatusResponse.status === 'fulfilled') {
         setHubspotStatus(hubspotStatusResponse.value);
       }
-      if (salesforceStatusResponse.status === 'fulfilled') {
-        setSalesforceStatus(salesforceStatusResponse.value);
-      }
+
       if (jiraStatusResponse.status === 'fulfilled') {
         setJiraStatus(jiraStatusResponse.value);
       }
-      if (intercomStatusResponse.status === 'fulfilled') {
-        setIntercomStatus(intercomStatusResponse.value);
-      }
-      if (zendeskStatusResponse.status === 'fulfilled') {
-        setZendeskStatus(zendeskStatusResponse.value);
-      }
+
+
       if (asanaStatusResponse.status === 'fulfilled') {
         setAsanaStatus(asanaStatusResponse.value);
       }
@@ -268,12 +262,12 @@ function IntegrationsContent() {
             <CardTitle>Active Integrations</CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
-            {integrations.length === 0 && !(linearStatus?.connected) && !(hubspotStatus?.connected) && !(salesforceStatus?.connected) && !(jiraStatus?.connected) && !(zendeskStatus?.connected) && !(asanaStatus?.connected) ? (
+            {integrations.length === 0 && !(linearStatus?.connected) && !(hubspotStatus?.connected) && !(jiraStatus?.connected) && !(asanaStatus?.connected) ? (
               <div className="text-center py-12">
                 <Settings2 className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">No integrations yet</h3>
                 <p className="text-muted-foreground mb-6">
-                  Connect Slack, Intercom, or other services to receive feedback alerts
+                  Connect Slack or other retained services to receive feedback alerts
                 </p>
                 {isAdminOrOwner ? (
                   <Link href="/settings/integrations/new">
@@ -302,18 +296,14 @@ function IntegrationsContent() {
                       >
                         <div
                           className={`p-2 rounded-lg ${
-                            integration.type === 'intercom'
-                              ? 'bg-[#1F8DED]/10'
-                              : integration.type === 'discord'
+                            integration.type === 'discord'
                               ? 'bg-[#5865F2]/10'
                               : integration.type === 'teams'
                               ? 'bg-[#6264A7]/10'
                               : 'bg-secondary'
                           }`}
                         >
-                          {integration.type === 'intercom' ? (
-                            <IntercomIcon className="w-6 h-6" />
-                          ) : integration.type === 'discord' ? (
+                          {integration.type === 'discord' ? (
                             <DiscordIcon className="w-6 h-6" />
                           ) : integration.type === 'teams' ? (
                             <TeamsIcon className="w-6 h-6" />
@@ -649,126 +639,7 @@ function IntegrationsContent() {
                 )}
 
                 {/* Salesforce CRM — Active Integration Card */}
-                {salesforceStatus?.connected && (
-                  <div className="p-4 border border-border rounded-xl bg-card/50 hover:bg-card/80 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <Link
-                        href="/settings/integrations/salesforce"
-                        className="flex items-center gap-3 flex-1 group"
-                      >
-                        <div className="p-2 rounded-lg bg-[#00A1E0]/10">
-                          <SalesforceIcon className="w-6 h-6 text-[#00A1E0]" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                              Salesforce
-                            </span>
-                            <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-50 dark:bg-green-950">
-                              Connected
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs flex items-center gap-1">
-                              <LinkIcon className="w-3 h-3" /> OAuth
-                            </Badge>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            {salesforceStatus.instance_url && (
-                              <span>{salesforceStatus.instance_url}</span>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            <Badge variant="secondary" className="text-xs">
-                              CRM Enrichment
-                            </Badge>
-                          </div>
-                        </div>
-                      </Link>
-                      {isAdminOrOwner && (
-                        <div className="flex items-center gap-2 ml-4">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
-                              setSalesforceTesting(true);
-                              setSalesforceTestResult(null);
-                              try {
-                                const result = await salesforceAPI.test();
-                                setSalesforceTestResult(result);
-                              } catch (err: any) {
-                                setSalesforceTestResult({
-                                  success: false,
-                                  message: err.response?.data?.detail || 'Test failed',
-                                });
-                              } finally {
-                                setSalesforceTesting(false);
-                              }
-                            }}
-                            disabled={salesforceTesting}
-                            title="Test connection"
-                          >
-                            {salesforceTesting ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Send className="w-4 h-4" />
-                            )}
-                          </Button>
-                          <Link href="/settings/integrations/salesforce">
-                            <Button variant="outline" size="sm" title="Configure">
-                              <Settings2 className="w-4 h-4" />
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              requestConfirm(
-                                'Disconnect Salesforce? Existing enrichment data will not be deleted.',
-                                async () => {
-                                  try {
-                                    await salesforceAPI.disconnect();
-                                    await fetchData();
-                                  } catch (err) {
-                                    console.error('Failed to disconnect Salesforce:', err);
-                                  }
-                                }
-                              );
-                            }}
-                            className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                            title="Disconnect"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    {salesforceStatus.connected_at && (
-                      <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground ml-11">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Connected: {new Date(salesforceStatus.connected_at).toLocaleString()}
-                        </span>
-                      </div>
-                    )}
 
-                    {salesforceTestResult && (
-                      <div
-                        className={`mt-3 p-3 rounded-lg text-sm flex items-center gap-2 ml-11 ${
-                          salesforceTestResult.success
-                            ? 'bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300'
-                            : 'bg-destructive/10 text-destructive'
-                        }`}
-                      >
-                        {salesforceTestResult.success ? (
-                          <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                        ) : (
-                          <XCircle className="w-4 h-4 flex-shrink-0" />
-                        )}
-                        {salesforceTestResult.message}
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Jira — Active Integration Card */}
                 {jiraStatus?.connected && (
@@ -896,129 +767,7 @@ function IntegrationsContent() {
                 )}
 
                 {/* Zendesk — Active Integration Card */}
-                {zendeskStatus?.connected && (
-                  <div className="p-4 border border-border rounded-xl bg-card/50 hover:bg-card/80 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <Link
-                        href="/settings/integrations/zendesk"
-                        className="flex items-center gap-3 flex-1 group"
-                      >
-                        <div className="p-2 rounded-lg bg-[#03363D]/10">
-                          <ZendeskIcon className="w-6 h-6 text-[#03363D]" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                              Zendesk
-                            </span>
-                            {zendeskStatus.is_active ? (
-                              <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-50 dark:bg-green-950">
-                                Active
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-muted-foreground">
-                                Disconnected
-                              </Badge>
-                            )}
-                            <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            {zendeskStatus.subdomain && (
-                              <span>{zendeskStatus.subdomain}.zendesk.com</span>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            <Badge variant="secondary" className="text-xs">
-                              Support Tickets
-                            </Badge>
-                          </div>
-                        </div>
-                      </Link>
-                      {isAdminOrOwner && (
-                        <div className="flex items-center gap-2 ml-4">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
-                              setZendeskTesting(true);
-                              setZendeskTestResult(null);
-                              try {
-                                const result = await zendeskAPI.testConnection();
-                                setZendeskTestResult({ success: result.success, message: result.message ?? '' });
-                              } catch (err: any) {
-                                setZendeskTestResult({
-                                  success: false,
-                                  message: err.response?.data?.detail || 'Test failed',
-                                });
-                              } finally {
-                                setZendeskTesting(false);
-                              }
-                            }}
-                            disabled={zendeskTesting}
-                            title="Test connection"
-                          >
-                            {zendeskTesting ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Send className="w-4 h-4" />
-                            )}
-                          </Button>
-                          <Link href="/settings/integrations/zendesk">
-                            <Button variant="outline" size="sm" title="Configure">
-                              <Settings2 className="w-4 h-4" />
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              requestConfirm(
-                                'Disconnect Zendesk? Existing feedback ingested from tickets will be preserved.',
-                                async () => {
-                                  try {
-                                    await zendeskAPI.disconnect();
-                                    await fetchData();
-                                  } catch (err) {
-                                    console.error('Failed to disconnect Zendesk:', err);
-                                  }
-                                }
-                              );
-                            }}
-                            className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                            title="Disconnect"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    {zendeskStatus.connected_at && (
-                      <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground ml-11">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Connected: {new Date(zendeskStatus.connected_at).toLocaleString()}
-                        </span>
-                      </div>
-                    )}
 
-                    {zendeskTestResult && (
-                      <div
-                        className={`mt-3 p-3 rounded-lg text-sm flex items-center gap-2 ml-11 ${
-                          zendeskTestResult.success
-                            ? 'bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300'
-                            : 'bg-destructive/10 text-destructive'
-                        }`}
-                      >
-                        {zendeskTestResult.success ? (
-                          <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                        ) : (
-                          <XCircle className="w-4 h-4 flex-shrink-0" />
-                        )}
-                        {zendeskTestResult.message}
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Asana — Active Integration Card */}
                 {asanaStatus?.connected && (
@@ -1207,27 +956,7 @@ function IntegrationsContent() {
               </Link>
 
               {/* Intercom - Available */}
-              <Link href="/settings/integrations/new?type=intercom">
-                <div className="p-4 border border-border rounded-xl hover:border-primary/50 hover:bg-secondary/30 transition-all cursor-pointer group">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-[#1F8DED]/10 rounded-lg">
-                      <IntercomIcon className="w-6 h-6" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Intercom</span>
-                        <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-50 dark:bg-green-950 text-xs">
-                          Available
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Analyze support conversations with AI
-                      </p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                  </div>
-                </div>
-              </Link>
+
 
               {/* HubSpot CRM - Available (only shown when not connected) */}
               {!hubspotStatus?.connected && (
@@ -1282,29 +1011,7 @@ function IntegrationsContent() {
               )}
 
               {/* Salesforce CRM - Available (only shown when not connected) */}
-              {!salesforceStatus?.connected && (
-                <Link href="/settings/integrations/salesforce">
-                  <div className="p-4 border border-border rounded-xl hover:border-primary/50 hover:bg-secondary/30 transition-all cursor-pointer group">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-[#00A1E0]/10 rounded-lg">
-                        <SalesforceIcon className="w-6 h-6 text-[#00A1E0]" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Salesforce</span>
-                          <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-50 dark:bg-green-950 text-xs">
-                            Available
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Enrich customer profiles with CRM data
-                        </p>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                  </div>
-                </Link>
-              )}
+
 
               {/* Jira Cloud - Available (only shown when not connected) */}
               {!jiraStatus?.connected && (
@@ -1334,54 +1041,10 @@ function IntegrationsContent() {
               {/* Intercom - Available (only shown when not connected).
                   Token-paste path; the older OAuth wizard entry still exists
                   under settings/integrations/new and both remain supported. */}
-              {!intercomStatus?.connected && (
-                <Link href="/settings/integrations/intercom">
-                  <div className="p-4 border border-border rounded-xl hover:border-primary/50 hover:bg-secondary/30 transition-all cursor-pointer group">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-[#1F8DED]/10 rounded-lg">
-                        <IntercomIcon className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Intercom</span>
-                          <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-50 dark:bg-green-950 text-xs">
-                            Available
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Pull conversations as feedback
-                        </p>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                  </div>
-                </Link>
-              )}
+
 
               {/* Zendesk - Available (only shown when not connected) */}
-              {!zendeskStatus?.connected && (
-                <Link href="/settings/integrations/zendesk">
-                  <div className="p-4 border border-border rounded-xl hover:border-primary/50 hover:bg-secondary/30 transition-all cursor-pointer group">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-[#03363D]/10 rounded-lg">
-                        <ZendeskIcon className="w-6 h-6 text-[#03363D]" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Zendesk</span>
-                          <Badge variant="outline" className="text-green-600 border-green-600/30 bg-green-50 dark:bg-green-950 text-xs">
-                            Available
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Pull support tickets as feedback
-                        </p>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                  </div>
-                </Link>
-              )}
+
 
               {/* Asana - Available (only shown when not connected) */}
               {!asanaStatus?.connected && (

@@ -122,22 +122,11 @@ describe('IntegrationsPage - Discord row rendering', () => {
     expect(within(discordRow).queryByTestId('slack-icon')).not.toBeInTheDocument();
   });
 
-  it('test_intercom_row_still_renders_intercom_icon', async () => {
-    mockList.mockResolvedValue({
-      integrations: [makeIntegration({ id: 3, type: 'intercom', name: 'Intercom Bridge' })],
-      total: 1,
-    });
-
+  it('does not offer an active legacy Intercom connection', async () => {
+    mockList.mockResolvedValue({ integrations: [makeIntegration({ id: 3, type: 'intercom', name: 'Intercom Bridge' })], total: 1 });
     render(<IntegrationsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Intercom Bridge')).toBeInTheDocument();
-    });
-
-    const intercomRow = screen.getByText('Intercom Bridge').closest('div.p-4') as HTMLElement;
-    expect(within(intercomRow).getByTestId('intercom-icon')).toBeInTheDocument();
-    expect(within(intercomRow).queryByTestId('slack-icon')).not.toBeInTheDocument();
-    expect(within(intercomRow).queryByTestId('discord-icon')).not.toBeInTheDocument();
+    await waitFor(() => expect(mockList).toHaveBeenCalled());
+    expect(screen.queryByText('Intercom Bridge')).not.toBeInTheDocument();
   });
 });
 

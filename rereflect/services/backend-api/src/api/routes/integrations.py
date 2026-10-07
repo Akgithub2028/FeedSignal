@@ -1,5 +1,5 @@
 """
-Integrations API routes for managing Slack, Intercom, and other third-party integrations.
+Integrations API routes for managing Slack and other third-party integrations.
 """
 
 from typing import Optional, List
@@ -38,9 +38,6 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET", "")
 
 # Intercom OAuth Configuration
-INTERCOM_CLIENT_ID = os.environ.get("INTERCOM_CLIENT_ID", "")
-INTERCOM_CLIENT_SECRET = os.environ.get("INTERCOM_CLIENT_SECRET", "")
-INTERCOM_REDIRECT_URI = os.environ.get("INTERCOM_REDIRECT_URI", "http://localhost:8000/api/v1/integrations/intercom/oauth/callback")
 
 
 # ============================================================================
@@ -327,15 +324,13 @@ TEMPLATE_VARIABLES = [
 def _signature_verification_configured(integration_type: str) -> bool:
     """Whether inbound webhooks for this integration type are signature-verified.
 
-    Only slack and intercom integrations receive inbound, signed webhooks
+    Only slack integrations receive inbound, signed webhooks
     (source_webhooks.py) — everything else (e.g. discord, which carries its
     credential in the webhook URL itself) has no signature to configure, so
     it reports True rather than raising a warning that doesn't apply.
     """
     if integration_type == "slack":
         return bool(SLACK_SIGNING_SECRET)
-    if integration_type == "intercom":
-        return bool(INTERCOM_CLIENT_SECRET)
     return True
 
 
@@ -463,7 +458,8 @@ def list_integrations(
 ):
     """List all integrations for the current organization."""
     integrations = db.query(Integration).filter(
-        Integration.organization_id == current_org.id
+        Integration.organization_id == current_org.id,
+        Integration.type.notin_(("salesforce", "intercom", "zendesk")),
     ).order_by(Integration.created_at.desc()).all()
 
     return IntegrationListResponse(
@@ -774,6 +770,9 @@ def update_integration(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Integration not found"
         )
+
+    if integration.type in ("salesforce", "intercom", "zendesk"):
+        raise HTTPException(410, "This provider has been retired.")
 
     # Update fields
     if data.name is not None:
@@ -1193,150 +1192,3 @@ def send_slack_message_oauth(access_token: str, channel_id: str, blocks: list, t
 # ============================================================================
 # Intercom OAuth Endpoints
 # ============================================================================
-
-@router.get("/intercom/oauth/connect", response_model=OAuthConnectResponse, dependencies=[Depends(require_admin_or_owner), Depends(require_feature("intercom_integration"))])
-def intercom_oauth_connect(
-    name: str = Query(..., description="Name for the integration"),
-    current_org: Organization = Depends(get_current_org),
-):
-    """
-    Initiate Intercom OAuth flow.
-    Returns the authorization URL to redirect the user to.
-    """
-    if not INTERCOM_CLIENT_ID:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Intercom OAuth is not configured. Set INTERCOM_CLIENT_ID environment variable."
-        )
-
-    # Stateless signed state (org + name travel in the signed blob; no store)
-    state = sign_oauth_state(current_org.id, name)
-
-    # Build Intercom OAuth authorization URL
-    params = {
-        "client_id": INTERCOM_CLIENT_ID,
-        "state": state,
-        "redirect_uri": INTERCOM_REDIRECT_URI,
-    }
-
-    auth_url = f"https://app.intercom.com/oauth?{urllib.parse.urlencode(params)}"
-
-    logger.info(f"Generated Intercom OAuth URL for org {current_org.id}")
-
-    return OAuthConnectResponse(auth_url=auth_url, state=state)
-
-
-@router.get("/intercom/oauth/callback")
-def intercom_oauth_callback(
-    code: Optional[str] = Query(None),
-    state: Optional[str] = Query(None),
-    error: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-):
-    """
-    Handle Intercom OAuth callback.
-    Exchanges the authorization code for an access token and creates the integration.
-    Redirects to frontend with success or error.
-    """
-    # Handle errors from Intercom
-    if error:
-        logger.error(f"Intercom OAuth error: {error}")
-        return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings/integrations?oauth_error={urllib.parse.quote(error)}"
-        )
-
-    if not code or not state:
-        return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings/integrations?oauth_error=missing_params"
-        )
-
-    # Validate state (stateless: HMAC-signed, TTL-bounded, fails closed)
-    state_data = verify_oauth_state(state)
-    if not state_data:
-        logger.error(f"Invalid or expired Intercom OAuth state: {state}")
-        return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings/integrations?oauth_error=invalid_state"
-        )
-
-    organization_id = state_data["organization_id"]
-    integration_name = state_data["name"]
-
-    # Exchange code for access token
-    try:
-        with httpx.Client(timeout=30) as client:
-            response = client.post(
-                "https://api.intercom.io/auth/eagle/token",
-                json={
-                    "code": code,
-                    "client_id": INTERCOM_CLIENT_ID,
-                    "client_secret": INTERCOM_CLIENT_SECRET,
-                }
-            )
-            response.raise_for_status()
-            token_data = response.json()
-
-        access_token = token_data.get("token")
-
-        # Fetch workspace info
-        with httpx.Client(timeout=30) as client:
-            me_response = client.get(
-                "https://api.intercom.io/me",
-                headers={"Authorization": f"Bearer {access_token}"},
-            )
-            me_response.raise_for_status()
-            me_data = me_response.json()
-
-        workspace_name = me_data.get("app", {}).get("name", "Unknown Workspace")
-        workspace_id = me_data.get("app", {}).get("id_code", "")
-        admin_id = me_data.get("id", "")
-
-        logger.info(f"Intercom OAuth successful for workspace {workspace_name} ({workspace_id})")
-
-        try:
-            stored_token = encrypt_api_key(access_token)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Cannot store Intercom token: LLM_ENCRYPTION_KEY is not set. "
-                       "Set LLM_ENCRYPTION_KEY in your environment and reconnect.",
-            ) from exc
-
-        # Create integration with OAuth token
-        integration = Integration(
-            organization_id=organization_id,
-            type="intercom",
-            name=integration_name,
-            config={
-                "integration_type": "oauth",
-                "workspace_id": workspace_id,
-                "workspace_name": workspace_name,
-                "admin_id": admin_id,
-            },
-            oauth_access_token=stored_token,
-            triggers=["urgent"],
-            is_active=True,
-        )
-
-        db.add(integration)
-        db.commit()
-        db.refresh(integration)
-
-        logger.info(f"Created Intercom integration {integration.id} for org {organization_id}")
-
-        # Redirect to the new integration page
-        return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings/integrations/{integration.id}?oauth_success=true"
-        )
-
-    except httpx.HTTPError as e:
-        logger.error(f"Intercom OAuth HTTP error: {e}")
-        return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings/integrations?oauth_error=network_error"
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Intercom OAuth unexpected error: {e}")
-        return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings/integrations?oauth_error=unexpected_error"
-        )

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import type { Integration } from '@/lib/integrations';
 
-const GITHUB_URL = 'https://github.com/haqaliz/rereflect';
+const GITHUB_URL = 'https://github.com/Akgithub2028/FeedSignal';
 
 interface IntegrationTileProps {
   integration: Integration;

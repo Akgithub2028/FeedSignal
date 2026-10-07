@@ -12,7 +12,7 @@ This directory has 31 immediate baseline/preparation files, 6 child directories,
 
 - [OWNER_CONFIG.md](<OWNER_CONFIG.md>) — FeedSignal owner configuration: Product name is a working choice, not proof of domain or legal availability. Owner legal name: `UNANSWERED_OWNER_LEGAL_NAME`. Owned repository URL: `UNANSWERED_GITHUB_REPOSITORY_URL`; do…
 - [UNANSWERED_SECRETS.md](<UNANSWERED_SECRETS.md>) — FeedSignal — unanswered configuration and credentials: The working name is selected for this repository. Domain, trademark, and account-name availability are not established. Do not invent an owned domain or a created…
-- [README.md](<README.md>) — FeedSignal: Owner/support/admin: `aayaannkausar@gmail.com` · Akgithub2028 on GitHub. This is the preparation-stage fork of Rereflect. No FeedSignal cloud deployment or live provider connection is claimed. All existing…
+- [README.md](<README.md>) — FeedSignal: Owner/support/admin: `aayaannkausar@gmail.com` · Akgithub2028 on GitHub. Independent FeedSignal fork; owner API/DB/Redis now exist, frontends/worker/connectors remain partial. All existing…
 - [docker-compose.prod.yml](<docker-compose.prod.yml>) — Configuration or structured fixture; inspect named settings and consumers before changing it. Secret values must remain outside tracked configuration.
 - [.env.prod.example](<.env.prod.example>) — Inspect file contents and its consumers; no executable behavior is asserted from the filename.
 - [package.json](<package.json>) — Configuration or structured fixture; inspect named settings and consumers before changing it. Secret values must remain outside tracked configuration.
@@ -24,7 +24,7 @@ This directory has 31 immediate baseline/preparation files, 6 child directories,
 
 Direct children: [.claude](<.claude/directory.md>), [.github](<.github/directory.md>), [docs](<docs/directory.md>), [packages](<packages/directory.md>), [scripts](<scripts/directory.md>), [services](<services/directory.md>).
 
-Document sections to inspect: Applying these decisions; Confirmed decisions; Placeholder convention and resolution procedure; What is Rereflect?; Highlights; Project Overview; Key Features.
+Document sections to inspect: Applying these decisions; Confirmed decisions; Placeholder convention and resolution procedure; Current status; Baseline capabilities; Highlights; Project Overview; Key Features.
 
 ## Inputs, outputs, and change safety
 
@@ -35,3 +35,11 @@ Read callers, environment requirements, and side effects before execution. Keep 
 Check relative links, complete guide coverage, placeholder consistency, and git diff --check. For CI/deployment changes, read service build and environment contracts before attempting execution.
 
 This summary was generated from tracked filenames, source declarations/module documentation, and document headings/prose, then sampled for navigation quality. It is not a full semantic audit or a runtime verification. Read actual files before editing. Missing owner settings and validation evidence remain in [UNANSWERED_SECRETS.md](<UNANSWERED_SECRETS.md>).
+
+## Owner launch update — 6 October
+
+[Cloud setup](docs/LAUNCH_SETUP.md) records confirmed repository/project roots, CLI authentication and unresolved $0 worker/database constraints. Service-level Vercel settings are prepared; runtime ownership and provider replacement remain pending. No full local startup.
+
+## Owner status update — 6 October
+
+Read [README.md](README.md), [current ownership/deployment status](docs/OWNERSHIP_DEPLOYMENT_STATUS.md), [owner configuration](OWNER_CONFIG.md) and [unanswered settings](UNANSWERED_SECRETS.md) first. Owner API/DB/Redis and dashboard project now exist; local branding/security changes are not published. Worker and OAuth installation remain unfinished. Preserve inherited identifiers and license attribution.

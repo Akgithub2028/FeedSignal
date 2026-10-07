@@ -1,6 +1,10 @@
+> **Retired providers:** Salesforce, Intercom and Zendesk connection/OAuth and inbound webhook endpoints are unmounted in the owner baseline. Generic create rejects unsupported providers; updates to historical retired integrations/sources return HTTP 410. Historical records remain readable/deletable under existing authorization. HubSpot and tawk.to are retained. Any legacy provider reference below describes historical contracts only.
+
 # API Reference
 
-Rereflect exposes a REST API under `/api/v1`. When the backend is running, the full
+> FeedSignal fork documentation. Current cloud deployment and connector readiness: [ownership/deployment status](OWNERSHIP_DEPLOYMENT_STATUS.md). Inherited capabilities described below are not evidence of a live configured integration.
+
+FeedSignal exposes a REST API under `/api/v1`. When the backend is running, the full
 interactive OpenAPI/Swagger docs are at **http://localhost:8000/docs** — this page is a
 quick map of the most common endpoints.
 
@@ -102,7 +106,7 @@ DELETE /api/v1/team/{id}             # Remove member
 
 ## Public API (API keys)
 
-In addition to the JWT-authenticated `/api/v1` routes above, Rereflect exposes a
+In addition to the JWT-authenticated `/api/v1` routes above, FeedSignal exposes a
 **public API** under `/api/public/v1` for programmatic access, supporting reading, ingesting,
 and writing (updating/deleting) feedback. Authenticate with an API key (`rrf_…`, created in
 **Settings → API Keys**) instead of a JWT:

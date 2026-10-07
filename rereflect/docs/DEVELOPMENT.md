@@ -1,6 +1,8 @@
 # Development
 
-How to run Rereflect from source for local development. For containerized
+> FeedSignal fork documentation. Current cloud deployment and connector readiness: [ownership/deployment status](OWNERSHIP_DEPLOYMENT_STATUS.md). Inherited capabilities described below are not evidence of a live configured integration.
+
+How to run FeedSignal from source for local development. For containerized
 deployment instead, see [SELF_HOSTING.md](SELF_HOSTING.md).
 
 - [Prerequisites](#prerequisites)
@@ -20,7 +22,7 @@ deployment instead, see [SELF_HOSTING.md](SELF_HOSTING.md).
 
 ## The toolchain & package management
 
-Rereflect is a polyglot monorepo: JavaScript apps share a **pnpm workspace**, while the
+FeedSignal is a polyglot monorepo: JavaScript apps share a **pnpm workspace**, while the
 Python services each manage their own virtualenv.
 
 ### JavaScript (pnpm workspace)

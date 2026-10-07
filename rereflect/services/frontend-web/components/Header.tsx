@@ -22,7 +22,7 @@ export function Header() {
           <Link href="/dashboard" className="flex items-center space-x-3 group">
             <Logo size="xl" />
             <div>
-              <h1 className="text-xl font-bold text-text-primary">Rereflect</h1>
+              <h1 className="text-xl font-bold text-text-primary">FeedSignal</h1>
               <p className="text-xs text-text-tertiary font-mono">Analytics Platform</p>
             </div>
           </Link>

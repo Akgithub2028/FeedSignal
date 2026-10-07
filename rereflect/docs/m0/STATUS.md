@@ -36,6 +36,10 @@ Proceed to M1 correctness, tenant protection, ownership and deployment preparati
 | Two explicit price-specific acceptances | DEFERRED to M2; zero obtained. `UNANSWERED_WILLINGNESS_TO_PAY`. Published competitor prices support hypotheses only. |
 | Paid subscriptions / $1,000 retained MRR | Future commercial milestones; no payment evidence recorded. |
 
-## Unchanged operational boundaries
+## Operational boundaries of the completed research
 
-No product feature or runtime authorization code was changed by this research. No provider account, Git remote, database row or active external connection was transferred or revoked. No outreach, Slack message, email, issue, cloud project or domain was created. Runtime rebranding, secure bootstrap fixes and owner-controlled reconnection remain M1 work. Preserve every existing integration implementation and upstream attribution.
+No product feature or runtime authorization code was changed by this research. No provider account, Git remote, database row or active external connection was transferred or revoked. No outreach, Slack message, email, issue, cloud project or domain was created. Runtime rebranding, secure bootstrap fixes and owner-controlled reconnection remain M1 work. The keep-all integration policy applied to that research snapshot; owner subsequently requested Salesforce removal and Intercom/Zendesk replacement. Preserve upstream attribution.
+
+## Subsequent owner launch decisions — 6 October
+
+Owner GitHub/Vercel/Render access is verified. Separate dashboard project, owner API, fresh PostgreSQL16 and Redis are provisioned; API owner login works, but API source is the older remote revision and the new dashboard has no deployment. Local branding/security work is prepared, provider removal/replacement and worker setup remain unfinished. Core secrets and Resend settings are installed in API cloud settings. Read [current ownership/deployment status](../OWNERSHIP_DEPLOYMENT_STATUS.md), [launch setup](../LAUNCH_SETUP.md) and [launch plan](../BASELINE_LAUNCH_PLAN.md). M0 research conclusions and unverified commercial evidence are unchanged.

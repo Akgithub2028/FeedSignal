@@ -24,7 +24,7 @@ describe('FAQ', () => {
     expect(screen.getByText('Who owns my data?')).toBeInTheDocument();
     expect(screen.getByText('Can I contribute or request features?')).toBeInTheDocument();
     expect(screen.getByText('How does churn prediction work without sending data to a hosted service?')).toBeInTheDocument();
-    expect(screen.getByText('Can Rereflect pull churn labels from my CRM?')).toBeInTheDocument();
+    expect(screen.getByText('Can FeedSignal pull churn labels from my CRM?')).toBeInTheDocument();
     expect(screen.getByText('Can I automate actions based on feedback events?')).toBeInTheDocument();
   });
 
@@ -120,13 +120,14 @@ describe('FAQ', () => {
     expect(screen.getByTestId('faq-answer-4')).toHaveTextContent('MIT');
   });
 
-  it('question "What integrations are included?" lists Zendesk as shipped, not planned', async () => {
+  it('question "What integrations are included?" lists tawk.to and excludes retired providers', async () => {
     const user = userEvent.setup();
     render(<FAQ />);
     const question = screen.getByText('What integrations are included?').closest('button')!;
     await user.click(question);
     const answer = screen.getByTestId('faq-answer-5');
-    expect(answer).toHaveTextContent('Zendesk');
+    expect(answer).toHaveTextContent('tawk.to');
+    expect(answer).not.toHaveTextContent(/Intercom|Zendesk|Salesforce/);
     expect(answer).toHaveTextContent('HubSpot');
     expect(answer).not.toHaveTextContent(/planned/i);
   });

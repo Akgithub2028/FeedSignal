@@ -25,7 +25,7 @@ export async function generateMetadata({
     openGraph: {
       title: post.seoTitle,
       description: post.seoDescription,
-      url: `https://rereflect.ca/blog/${post.slug}`,
+      url: `https://feed-signal-ochre.vercel.app/blog/${post.slug}`,
       type: 'article',
       publishedTime: post.date,
       authors: [post.author],

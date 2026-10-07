@@ -1,24 +1,45 @@
 # FeedSignal owner configuration
 
-Confirmed by the owner on 2026-10-05:
+Confirmed identity and choices, updated **6 October 2026**. For live evidence and remaining work, read [ownership/deployment status](docs/OWNERSHIP_DEPLOYMENT_STATUS.md).
 
-- Product: **FeedSignal**; project slug: **`feedsignal`**.
-- Product description: customer feedback intelligence for tiny SaaS teams.
-- Support and administrative email: **`aayaannkausar@gmail.com`**.
-- Current social link: **[Akgithub2028 on GitHub](https://github.com/Akgithub2028)**. No other social identity was provided.
-- Keep every existing integration implementation. New owner-controlled connections require credentials and authorization; none are claimed connected yet.
-- Keep the baseline PostgreSQL engine, Railway deployment recipes, and Docker Compose fallback. Actual original hosting and database access are unknown.
+| Setting | Confirmed value |
+|---|---|
+| Product / project slug | **FeedSignal** / `feedsignal` |
+| Positioning | Customer feedback intelligence for tiny SaaS teams |
+| Support / administrative email | `aayaannkausar@gmail.com` |
+| Maintainer / only social identity | [Akgithub2028](https://github.com/Akgithub2028) |
+| Owned repository | [Akgithub2028/FeedSignal](https://github.com/Akgithub2028/FeedSignal) |
+| Frontend hosting | Vercel; existing `feed-signal` landing and separate `feedsignal` dashboard |
+| Backend hosting | Render owner project `prj-db1vl0p7lnhs73d2h55g` |
+| Database | Fresh owner PostgreSQL 16; no creator data/tokens reused |
+| Integration changes | Remove Salesforce; replace Intercom/Zendesk with tawk.to. Removal/adapter still pending; retain other connector implementations. |
+| Budget / local runtime | $0; no paid resources authorized; no full application startup on the owner's computer |
 
-Product name is a working choice, not proof of domain or legal availability. Owner legal name: `UNANSWERED_OWNER_LEGAL_NAME`. Owned repository URL: `UNANSWERED_GITHUB_REPOSITORY_URL`; do not assume a `feedsignal` repository already exists.
+## Owner resources
 
-Vercel app project naming basis is `feedsignal`. A separate landing project in the same team may need a distinct name; `feedsignal-landing` is proposed pending account setup. No cloud project has been created. Marketing/API/app domains remain unanswered.
+- Landing: https://feed-signal-ochre.vercel.app; Vercel project `prj_oVq53qCrAcsYhbmwNqmynoIFCrHf`, root `rereflect/services/landing-web`. Existing live version still has upstream branding.
+- Dashboard: https://feedsignal-xi.vercel.app; Vercel project `prj_CLpIHzfOs7tjzWwUUqDEaKVHAO8T`, root `rereflect/services/frontend-web`. Created/configured, no deployment yet.
+- API: https://feedsignal-api.onrender.com; service `srv-db210qh7lnhs73d79kq0`, Singapore, free; initial remote-main revision live. Local owner changes still to publish. Owner login and system-admin role verified against the live API.
+- PostgreSQL: `dpg-db20qap7lnhs73d6ki20-a`; available, migrations observed on initial deploy; expires 2026-11-04 20:48:43 UTC.
+- Redis: `red-db20qb6i0phs73cs1s4g`; free, `noeviction`, no persistence. Worker/Beat not deployed.
+- Render workspace: `tea-danhmfv40ujc73c05hqg`; production environment `evm-db1vl0p7lnhs73d2h560`. Do not modify unrelated projects.
+- Slack: https://feedsignal.slack.com, team `T0C7136FUE8`; authenticated owner workspace verified in Firefox. App `A0C7RSCJ7NU` exists, credentials/configuration/installation incomplete.
+- Linear: owner-confirmed workspace FeedSignal, EU region; app credentials and connection pending.
 
-## Applying these decisions
+Owner CLI access is verified for GitHub, Vercel and Render. Their authorization does not grant Slack/Linear/Jira/Google account access. Provider workspace login does not register the application's OAuth client.
 
-M0 applies the known identity to this preparation documentation and environment templates. [M0 status](docs/m0/STATUS.md) tracks completion. Runtime UI, email-template, default-admin, hardcoded URL, Sentry, and inbound-domain changes belong to the ownership tasks in M1; see the [audit](docs/OWNERSHIP_AND_INTEGRATION_AUDIT.md). They are not implemented merely by selecting a name.
+## Branding and private configuration
 
-Keep internal package identifiers such as `@rereflect/ui`, Docker service names, migrations, and historical attribution intact until a specific technical change requires otherwise. Changing those blindly breaks code and data contracts. Retain `LICENSE` and `NOTICE` and identify this work as derived from [Rereflect](https://github.com/haqaliz/rereflect).
+Local frontends and maintained operational docs use FeedSignal, owner GitHub links and the supplied support/admin address. Shared wordmark, metadata creator fields and footer maintainer link identify the owner. Inherited artwork/screenshots and legacy technical identifiers remain explicitly recorded. See [launch plan](docs/BASELINE_LAUNCH_PLAN.md) for incomplete API/worker text and release work.
 
-Searchable settings and every unresolved credential are in [UNANSWERED_SECRETS.md](UNANSWERED_SECRETS.md). Do not store real secrets there. Unknown optional providers remain unconfigured, while their code stays available.
+Core JWT/admin/encryption values are retained privately in ignored `secrets/core.env` (0600) and installed in API cloud settings. Resend key is in ignored `secrets/providers.env` (0600) and API settings. No Slack or Linear credential has been successfully captured. There is no deployed worker to receive the shared keys yet.
 
-The supplied Gmail address is suitable as a support contact and configured admin identity. It is not proof that Resend can send using `gmail.com`. Automated sender: `UNANSWERED_RESEND_FROM_EMAIL`; receiving domain: `UNANSWERED_INBOUND_EMAIL_DOMAIN`.
+Support Gmail is a contact address. Resend test sender is `onboarding@resend.dev`, restricted to the account owner; general sending requires `UNANSWERED_RESEND_FROM_EMAIL` / owner-domain verification. Receiving requires `UNANSWERED_INBOUND_EMAIL_DOMAIN` and DNS setup. Custom domains remain undecided.
+
+## Compatibility and remaining decisions
+
+Keep `LICENSE`, `NOTICE`, upstream attribution, migration history, internal `@rereflect/ui`/schema identifiers and public protocol headers intact. FeedSignal is independently maintained and no original maintainer account was revoked. Railway/Compose recipes remain optional inherited deployment documentation, not evidence of the selected cloud deployment.
+
+Owner/company legal identity: `UNANSWERED_OWNER_LEGAL_NAME`. Logo/screenshot replacement: `UNANSWERED_LOGO_ASSETS`. Continuous worker/durable production hosting: `UNANSWERED_CLOUD_TOPOLOGY`. Name/domain/legal availability and commercial Vercel plan eligibility remain unanswered. The working name is not a claim of trademark ownership.
+
+All public resolution markers are in [UNANSWERED_SECRETS.md](UNANSWERED_SECRETS.md). Never put real secrets into Markdown or marker substitutions across the repository.

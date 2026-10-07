@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { SCOPE_DESCRIPTIONS, ScopeBadge } from './page';
+import { SCOPE_DESCRIPTIONS, ScopeBadge } from '@/components/settings/ApiKeyScopes';
 
 describe('API key scopes', () => {
   it('has a non-empty description for every scope, including write', () => {

@@ -192,13 +192,6 @@ def list_source_types():
             available=True,
         ),
         SourceTypeInfo(
-            type="intercom",
-            name="Intercom",
-            description="Analyze support conversations with AI",
-            requires_integration=True,
-            available=True,
-        ),
-        SourceTypeInfo(
             type="webhook",
             name="Webhook",
             description="Receive data via HTTP POST requests",
@@ -216,13 +209,6 @@ def list_source_types():
             type="jira",
             name="Jira",
             description="Create feedback from Jira issue comments",
-            requires_integration=False,
-            available=True,
-        ),
-        SourceTypeInfo(
-            type="zendesk",
-            name="Zendesk",
-            description="Turn support tickets into feedback with AI analysis",
             requires_integration=False,
             available=True,
         ),
@@ -313,7 +299,7 @@ def create_feedback_source(
     from src.config.plans import has_feature, get_plan_for_feature
 
     # Validate source type
-    valid_types = ["slack", "intercom", "webhook", "discord", "email", "linear", "jira", "zendesk", "asana"]
+    valid_types = ["slack", "webhook", "discord", "email", "linear", "jira", "asana"]
     if data.source_type not in valid_types:
         raise HTTPException(status_code=400, detail=f"Invalid source type. Must be one of: {valid_types}")
 
@@ -541,6 +527,8 @@ def update_feedback_source(
 ):
     """Update a feedback source."""
     source = _get_source_or_404(db, source_id, current_org.id)
+    if source.source_type in ("salesforce", "intercom", "zendesk"):
+        raise HTTPException(410, "This provider has been retired; history is read-only.")
     if source.source_type == "tawk" and (
         data.provider_config is not None or data.auto_import is False
         or data.triggers is not None or data.field_mapping is not None

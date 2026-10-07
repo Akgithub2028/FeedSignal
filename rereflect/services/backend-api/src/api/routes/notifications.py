@@ -4,7 +4,7 @@ Notification & Alert Preference API routes.
 All endpoints require authentication and are scoped to the current user.
 """
 
-from typing import Optional, List
+from typing import Literal, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field, validator
 from sqlalchemy.orm import Session
@@ -85,7 +85,7 @@ class AlertPreferenceItem(BaseModel):
     channel_email: bool
     channel_slack: bool
     channel_inapp: bool
-    channel_intercom: bool = False
+    channel_intercom: Literal[False] = False
     channel_discord: bool = True
     channel_teams: bool = True
     threshold_value: Optional[float]
@@ -103,7 +103,7 @@ class AlertPreferenceUpdate(BaseModel):
     channel_email: bool
     channel_slack: bool
     channel_inapp: bool
-    channel_intercom: bool = False
+    channel_intercom: Literal[False] = False
     channel_discord: Optional[bool] = None
     channel_teams: Optional[bool] = None
     threshold_value: Optional[float] = None
@@ -361,7 +361,7 @@ def get_preferences(
             channel_email=p.channel_email,
             channel_slack=p.channel_slack,
             channel_inapp=p.channel_inapp,
-            channel_intercom=p.channel_intercom,
+            channel_intercom=False,
             channel_discord=p.channel_discord,
             channel_teams=p.channel_teams,
             threshold_value=p.threshold_value,

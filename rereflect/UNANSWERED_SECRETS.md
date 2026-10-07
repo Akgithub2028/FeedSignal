@@ -12,7 +12,7 @@ Updated: 2026-10-07. This is a **public checklist**, not a secrets vault. Never 
 | Support contact | `aayaannkausar@gmail.com` |
 | Administrative email | `aayaannkausar@gmail.com` |
 | GitHub identity / only current social profile | [Akgithub2028](https://github.com/Akgithub2028) |
-| Current integration scope | Remove Salesforce and replace Intercom/Zendesk with free support ingestion. tawk.to signed ingestion deployed and owner-configured; retired-provider removal remains pending. Other connectors retained. |
+| Current integration scope | Remove Salesforce and replace Intercom/Zendesk with free support ingestion. tawk.to signed ingestion deployed and owner-configured; retired-provider removal implemented/tested locally, awaiting publication. Other connectors retained. |
 | Hosting | Existing Vercel feed-signal landing and created feedsignal dashboard; Render owner API/PostgreSQL/Redis provisioned, no worker. Railway/Compose remain inherited fallback recipes. Full local startup withdrawn. Budget $0; continuous-worker/durable-database topology unresolved. |
 | Database engine | Retain PostgreSQL; production Compose specifies `postgres:16-alpine`. Redis is the job broker/cache, not the customer-feedback database. |
 

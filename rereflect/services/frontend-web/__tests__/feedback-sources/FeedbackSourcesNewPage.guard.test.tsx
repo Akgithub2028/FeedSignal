@@ -78,6 +78,7 @@ vi.mock('@/components/icons/ZendeskIcon', () => ({
 }));
 
 import { feedbackSourcesAPI } from '@/lib/api/feedback-sources';
+import { zendeskAPI } from '@/lib/api/zendesk';
 import NewFeedbackSourcePage from '@/app/(dashboard)/feedback-sources/new/page';
 
 const mockGetTypes = feedbackSourcesAPI.getTypes as ReturnType<typeof vi.fn>;
@@ -144,5 +145,21 @@ describe('NewFeedbackSourcePage — admin role', () => {
     await goToConfirmStep();
 
     expect(screen.getByRole('button', { name: /create source/i })).toBeInTheDocument();
+  });
+});
+
+describe('Retired source onboarding', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({ user: adminUser });
+    mockGetTypes.mockResolvedValue(sourceTypes);
+  });
+
+  it.each(['zendesk', 'intercom', 'salesforce'])('rejects the %s query and avoids retired status requests', async (type) => {
+    mockSearchParams = new URLSearchParams(`type=${type}`);
+    render(<NewFeedbackSourcePage />);
+    await screen.findByText('Webhook');
+    expect(screen.queryByText(/Connect Zendesk/i)).not.toBeInTheDocument();
+    expect(zendeskAPI.getStatus).not.toHaveBeenCalled();
   });
 });

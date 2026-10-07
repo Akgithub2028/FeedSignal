@@ -67,7 +67,7 @@ class GenerateResponseResult(BaseModel):
 
 class SendResponseRequest(BaseModel):
     response_text: str
-    channel: Literal["clipboard", "slack", "intercom", "linear", "email"]
+    channel: Literal["clipboard", "slack", "linear", "email"]
     source: Literal["template", "ai_generated", "manual"]
     template_id: Optional[int] = None
     tone: Optional[str] = None
@@ -307,11 +307,6 @@ async def _dispatch_send(
             return {"success": False, "error": "Slack integration not connected"}
         return await response_sender.send_via_slack(response_text, feedback, org, access_token)
 
-    if channel == "intercom":
-        access_token = _get_integration_token(org.id, "intercom", db)
-        if not access_token:
-            return {"success": False, "error": "Intercom integration not connected"}
-        return await response_sender.send_via_intercom(response_text, feedback, org, access_token)
 
     if channel == "linear":
         from src.models.linear_integration import LinearIntegration

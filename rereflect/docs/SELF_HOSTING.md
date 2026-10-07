@@ -1,6 +1,10 @@
-# Self-Hosting Rereflect
+> **Owner baseline:** Salesforce, Intercom and Zendesk are retired. Their connection/OAuth/webhook routes and scheduled processing are disabled; historical records and migration definitions remain. Use tawk.to for completed chat/new-ticket ingestion and HubSpot for CRM. This guide does not imply a deployed worker or production-ready hosting; see [pending launch work](PENDING_LAUNCH.md).
 
-Rereflect is open source (MIT) and designed to run entirely on your own
+# Self-Hosting FeedSignal
+
+> FeedSignal fork documentation. Current cloud deployment and connector readiness: [ownership/deployment status](OWNERSHIP_DEPLOYMENT_STATUS.md). Inherited capabilities described below are not evidence of a live configured integration.
+
+FeedSignal is open source (MIT) and designed to run entirely on your own
 infrastructure. **All features are unlocked** on a self-hosted instance — there are
 no paid tiers, seat limits, or feedback quotas. The `SELF_HOSTED=true` flag (the
 default) treats every instance as fully featured.
@@ -17,12 +21,9 @@ default) treats every instance as fully featured.
 - [Send product-usage events](#send-product-usage-events)
 - [Public API — bulk feedback writes & taxonomy CRUD](#public-api--bulk-feedback-writes--taxonomy-crud)
 - [Connecting HubSpot CRM enrichment](#connecting-hubspot-crm-enrichment)
-- [Connecting Salesforce CRM enrichment](#connecting-salesforce-crm-enrichment)
 - [CRM churn-label suggestions (opt-in)](#crm-churn-label-suggestions-opt-in)
 - [Connecting tawk.to](#connecting-tawkto)
 - [Connecting Jira](#connecting-jira)
-- [Connecting Zendesk](#connecting-zendesk)
-- [Connecting Intercom](#connecting-intercom)
 - [Connecting Asana](#connecting-asana)
 - [Single Sign-On (OIDC)](#single-sign-on-oidc)
 - [Single Sign-On (SAML 2.0)](#single-sign-on-saml-20)
@@ -78,7 +79,7 @@ annotated list):
 
 > ### ⚠️ `JWT_SECRET` is now required — upgrading installs must set it
 >
-> Rereflect previously fell back to a built-in default when `JWT_SECRET` was
+> FeedSignal previously fell back to a built-in default when `JWT_SECRET` was
 > unset, and `.env.example` shipped the variable commented out. That default
 > string is published in this repository, so on any install that never set the
 > variable, **every authentication token could be forged by anyone** — the same
@@ -120,7 +121,7 @@ annotated list):
 
 ## Running with no API key ($0, fully local)
 
-Out of the box (`ai_analysis_enabled=false`, no LLM key), Rereflect runs the **free
+Out of the box (`ai_analysis_enabled=false`, no LLM key), FeedSignal runs the **free
 local VADER + keyword analysis pipeline**. Sentiment, pain-point, feature-request, and
 heuristic churn detection all work end-to-end with **no external API and no cost**.
 This is the default and recommended starting point. A further, still-local, still-$0,
@@ -130,11 +131,11 @@ below.
 
 ## Telemetry (there isn't any)
 
-Rereflect collects **no telemetry, no usage analytics, and no crash reports**. A default
+FeedSignal collects **no telemetry, no usage analytics, and no crash reports**. A default
 install makes no outbound network calls of its own — nothing is sent to the maintainers
 or to any third party. There is no opt-out to find, because there is nothing running.
 
-The only outbound calls a Rereflect instance ever makes are ones you configure yourself:
+The only outbound calls a FeedSignal instance ever makes are ones you configure yourself:
 
 | Call | When |
 |---|---|
@@ -155,7 +156,7 @@ SENTRY_ENVIRONMENT=production
 SENTRY_TRACES_SAMPLE_RATE=0.1
 ```
 
-When enabled, Rereflect sets `send_default_pii=False`, so the SDK does not attach user
+When enabled, FeedSignal sets `send_default_pii=False`, so the SDK does not attach user
 emails, usernames or IP addresses to events. The same variable controls the backend, the
 Celery worker and the Next.js frontend (the frontend's browser-side reporting reads
 `NEXT_PUBLIC_SENTRY_DSN`, which is baked in at build time — rebuild the frontend image
@@ -165,7 +166,7 @@ after changing it).
 
 You can run **every** AI feature — LLM analysis, the AI Copilot (natural-language
 queries, NL→SQL, analysis, reports) **and** the Copilot's template matching — against a
-local model with **no cloud API key at all**. Point Rereflect at [Ollama](https://ollama.com)
+local model with **no cloud API key at all**. Point FeedSignal at [Ollama](https://ollama.com)
 or any OpenAI-compatible endpoint (vLLM, LM Studio, LocalAI):
 
 1. Run a model and an embedding model locally, e.g.:
@@ -186,7 +187,7 @@ a wrong-but-confident answer.
 
 > Embeddings are provider/dimension-aware: switching the embedding model re-embeds the
 > built-in query templates automatically on the next startup. Vectors from different
-> providers are never mixed. Rereflect also ships an **in-process** embedding option that
+> providers are never mixed. FeedSignal also ships an **in-process** embedding option that
 > needs no separate Ollama/endpoint at all — see
 > [Local embedding model](#local-embedding-model-opt-in-air-gap-capable) below.
 
@@ -241,7 +242,7 @@ ollama pull mxbai-embed-large
 Then select it as the embedding model in **Settings → AI**. Caveat: it's a 1024-dim model,
 so expect higher RAM usage and slower embedding calls than `nomic-embed-text`. `bge-m3` is
 heavier still and slightly worse on recall@1 — not recommended for this use. As with any
-embedding switch, this is safe to change at any time: Rereflect re-embeds the built-in query
+embedding switch, this is safe to change at any time: FeedSignal re-embeds the built-in query
 templates automatically on the next startup, and vectors from different providers/models are
 never mixed (see the callout above).
 
@@ -252,7 +253,7 @@ See [Local embedding model](#local-embedding-model-opt-in-air-gap-capable) below
 
 ## Local transformer sentiment model (opt-in, air-gap capable)
 
-VADER (keyword-based) remains Rereflect's **default** sentiment engine — it's free,
+VADER (keyword-based) remains FeedSignal's **default** sentiment engine — it's free,
 fast, and needs nothing extra. A CPU transformer model
 ([`cardiffnlp/twitter-roberta-base-sentiment-latest`](https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest))
 is available as a **per-organization opt-in** (Settings → AI). This section only
@@ -373,7 +374,7 @@ packages.
 On a committed retrieval eval, candidate `bge-small` beats the `nomic-embed-text` baseline
 (the model the Ollama setup above pulls) by **+0.089 recall@1** (0.178 vs 0.089), with no
 false-match regression on held-out negatives. Read that honestly: **absolute recall@1 is
-still low** at the strict 0.85 match threshold Rereflect's Copilot uses — most held-out
+still low** at the strict 0.85 match threshold FeedSignal's Copilot uses — most held-out
 paraphrases don't clear it and fall through to the LLM path instead of a fast template
 match. That's the **safe** failure mode (a slower, still-correct LLM answer), not a broken
 one. MRR≈0.75 shows the right template usually ranks near the top even on the paraphrases
@@ -383,7 +384,7 @@ that don't clear the threshold. Treat `local` as a measured improvement over the
 
 ## Per-Org Corrections Classifier (M5.2, self-improving)
 
-Rereflect can train small per-organization classifiers — one for **sentiment** and
+FeedSignal can train small per-organization classifiers — one for **sentiment** and
 one for **category** (pain-point / feature-request) — on your own corrections, run
 them locally (CPU-only, offline), and auto-promote each when it measurably beats the
 default analyzer. Both are **off by default** and are controlled **independently** —
@@ -468,7 +469,7 @@ If you enable `auto` mode and the model gets promoted, the card displays a
 
 ### Category classifier (M5.2 v2)
 
-Alongside sentiment, Rereflect trains a per-org **category** classifier on your
+Alongside sentiment, FeedSignal trains a per-org **category** classifier on your
 `category` corrections (when you fix an AI-assigned pain-point or feature-request
 category). It shares the same spine and Settings surface, with a **separate**
 `category_classifier_mode` toggle and its own accuracy card — so you can run
@@ -491,7 +492,7 @@ Two things specific to the category head, both chosen for honesty:
 
 ### Urgency classifier (M5.2 v3)
 
-Rereflect also trains a per-org **urgency** classifier on your `urgency` corrections
+FeedSignal also trains a per-org **urgency** classifier on your `urgency` corrections
 (when you flip a feedback item's urgent flag from the dashboard or the public API).
 It shares the same spine and Settings surface, with its own independent
 `urgency_classifier_mode` toggle (off/shadow/auto) and its own accuracy card.
@@ -527,7 +528,7 @@ feature-request vs urgency) and multi-label items are the v3 follow-on.
 > your churn numbers are byte-identical to before the upgrade. Nothing trains and
 > nothing changes until you flip the mode.
 
-Rereflect can train a per-organization **churn classifier** that upgrades
+FeedSignal can train a per-organization **churn classifier** that upgrades
 `churn_probability` on top of the calibrated-heuristic incumbent — and only where it is
 measurably better, with the heuristic kept as the automatic fallback everywhere else.
 
@@ -591,7 +592,7 @@ a local one, bring your own key:
   and scoped per organization.
 - **From env (single-tenant convenience):** You may also seed an operator key via
   `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_AI_API_KEY` in `.env`. This is
-  treated as **your own key** for your own instance — Rereflect never provides or
+  treated as **your own key** for your own instance — FeedSignal never provides or
   proxies a key.
 
 There is no system/vendor key. If an organization has no key configured, AI features
@@ -608,7 +609,7 @@ with the feedback text seeded into the fields. Draft quality tracks whatever mod
 
 ## Send product-usage events
 
-Rereflect can ingest per-customer product activity and surface it on the Customer 360
+FeedSignal can ingest per-customer product activity and surface it on the Customer 360
 profile — giving you a real engagement signal alongside feedback-based health scores.
 
 ### How it works
@@ -659,7 +660,7 @@ profile — giving you a real engagement signal alongside feedback-based health 
 
 ### Usage trend (decline detection)
 
-Once usage events are flowing, Rereflect tracks the **direction** of a customer's engagement,
+Once usage events are flowing, FeedSignal tracks the **direction** of a customer's engagement,
 not just its current level. The **Usage Activity** card shows a trend state:
 
 - **Stable** — engagement is holding steady (or rising).
@@ -781,7 +782,7 @@ For alerting on an aggregate sentiment shift rather than eyeballing a chart, see
 
 ### Discord alerts
 
-Rereflect can post alerts to a Discord channel. Settings → Integrations → Discord, then
+FeedSignal can post alerts to a Discord channel. Settings → Integrations → Discord, then
 paste an incoming webhook URL from your server (**Server Settings → Integrations →
 Webhooks → New Webhook → Copy Webhook URL**). Both `https://discord.com/api/webhooks/…`
 and the legacy `https://discordapp.com/api/webhooks/…` are accepted; anything else is
@@ -791,7 +792,7 @@ app to create — a Discord webhook carries its own credential in the URL.
 **Why you cannot just point a custom webhook at Discord.** The generic Settings → Webhooks
 feature accepts any `https://` URL, so a Discord URL *saves* there — it just never works.
 Discord's API requires a body containing `content` or `embeds`, and the generic dispatcher
-posts Rereflect's own JSON envelope, so Discord replies `400` and the failure only appears
+posts FeedSignal's own JSON envelope, so Discord replies `400` and the failure only appears
 in the delivery log. Use a Discord *integration*, not a custom webhook.
 
 **What reaches Discord.** The four main alert types — urgent feedback, sentiment spike,
@@ -823,12 +824,12 @@ Two consequences worth knowing:
   **empty**. Only the legacy custom-template path writes those rows, and it is Slack-only.
   This is a pre-existing gap — the Slack health and dispatch paths do not log either.
 - **Rate limiting.** Discord throttles webhooks (roughly 5 requests per 2 seconds) and
-  replies `429`. Rereflect does not currently retry on `429`, exactly as it does not for
+  replies `429`. FeedSignal does not currently retry on `429`, exactly as it does not for
   Slack. In a very high-volume org some alerts may be dropped.
 
 ### Teams alerts
 
-Rereflect can post alerts to a Microsoft Teams channel. Settings → Integrations →
+FeedSignal can post alerts to a Microsoft Teams channel. Settings → Integrations →
 Microsoft Teams, then paste an incoming webhook URL. Two URL shapes are accepted: the
 classic Incoming Webhook connector URL (`https://outlook.office.com/webhook/…`) and a
 Power Automate **Workflows** URL (`https://<your-tenant>.webhook.office.com/webhookb2/…`)
@@ -839,7 +840,7 @@ like Discord.
 **Why you cannot just point a custom webhook at Teams.** The generic Settings → Webhooks
 feature accepts any `https://` URL, so a Teams URL *saves* there — it just never works.
 Teams webhook endpoints accept Microsoft **MessageCard** (or Adaptive Card) JSON only, and
-the generic dispatcher posts Rereflect's own JSON envelope, so Teams rejects it and the
+the generic dispatcher posts FeedSignal's own JSON envelope, so Teams rejects it and the
 failure only appears in the delivery log. Use a Teams *integration*, not a custom webhook.
 
 **What reaches Teams.** The four main alert types — urgent feedback, sentiment spike,
@@ -857,7 +858,7 @@ not deliver anything. Delivery is once per organization per alert — one card t
 active Teams integration, not one per user.
 
 **Message format.** Teams alerts are sent as Microsoft **MessageCards** (title, text,
-summary and Rereflect's `#6264A7` accent as the card color) — not Adaptive Cards. There
+summary and FeedSignal's `#6264A7` accent as the card color) — not Adaptive Cards. There
 is no OAuth, no bot registration, and no per-channel targeting: every active Teams
 integration row receives every org-level Teams alert for the types that are enabled.
 
@@ -931,7 +932,7 @@ you're already over the line before arming it.
 
 ### Usage-decline churn-label suggestions
 
-Building on the trend signal above, Rereflect can turn a **sustained** usage decline into a
+Building on the trend signal above, FeedSignal can turn a **sustained** usage decline into a
 **suggestion** in the same operator-reviewed queue that CRM-sourced (HubSpot/Salesforce) lost
 renewals already use (**Customers → Churn suggestions**). This is aimed at the self-hoster who
 has product telemetry but no CRM connected — otherwise the only way to record a churned
@@ -1097,7 +1098,7 @@ Customer 360 profile page.
 ## Outbound email (Resend)
 
 Customer-facing outreach email — the churn-loop send primitives — is **Resend-only and
-BYO-key**, like the rest of Rereflect's transactional email: set `RESEND_API_KEY` and nothing
+BYO-key**, like the rest of FeedSignal's transactional email: set `RESEND_API_KEY` and nothing
 else. With no key configured, no outreach can be sent, and every send attempt records a loud
 `failed: email not configured` (never a silent success).
 
@@ -1287,15 +1288,15 @@ curl -X DELETE http://localhost:8000/api/public/v1/categories/42 \
 
 ## Connecting HubSpot CRM enrichment
 
-Rereflect can sync contacts and company data from HubSpot to enrich the Customer 360
+FeedSignal can sync contacts and company data from HubSpot to enrich the Customer 360
 profile (company name, lifecycle stage, ARR, renewal date, open deals). You can also
 opt in to push customer health scores back to HubSpot as a custom contact property.
-Only one CRM (HubSpot or Salesforce) can be connected per organization at a time.
+HubSpot is the supported CRM connector in this owner baseline.
 
 ### 1. Create a private-app access token in HubSpot
 
 1. Log in to HubSpot and go to **Settings → Integrations → Private apps**.
-2. Click **Create app**, give it a name (e.g., "Rereflect").
+2. Click **Create app**, give it a name (e.g., "FeedSignal").
 3. Under **Scopes**, enable the following (minimum required for read access):
    - `crm.objects.contacts.read`
    - `crm.objects.companies.read`
@@ -1312,7 +1313,7 @@ stored encrypted per organization. (Encryption uses `LLM_ENCRYPTION_KEY`, which 
 already be set on the backend — see [Adding your own LLM key (BYOK)](#adding-your-own-llm-key-byok).)
 
 Go to **Settings → Integrations → HubSpot** (admin/owner only) and paste the access
-token in the **Access Token** field. Click **Connect**. Rereflect will immediately
+token in the **Access Token** field. Click **Connect**. FeedSignal will immediately
 test the token and start syncing contacts and company data.
 
 ### Verify
@@ -1333,15 +1334,15 @@ To push customer health scores back to HubSpot whenever they change, follow thes
    - Set **Property type** to **Number**.
    - Set an **Internal name** (e.g., `rereflect_health_score`). Note this name — you'll
      need it in the app.
-   - Set the **Label** to something user-friendly (e.g., "Rereflect Health Score").
+   - Set the **Label** to something user-friendly (e.g., "FeedSignal Health Score").
    - Click **Create**.
 
 2. **Grant the write scope:**
-   - Go back to **Settings → Integrations → Private apps** and select the Rereflect app.
+   - Go back to **Settings → Integrations → Private apps** and select the FeedSignal app.
    - Under **Scopes**, enable `crm.objects.contacts.write` and click **Save**.
 
-3. **Enable writeback in Rereflect:**
-   - In Rereflect, go to **Settings → Integrations → HubSpot**.
+3. **Enable writeback in FeedSignal:**
+   - In FeedSignal, go to **Settings → Integrations → HubSpot**.
    - Toggle **Enable health score writeback** on.
    - Enter the **Property name** you created in HubSpot (e.g., `rereflect_health_score`).
    - Click **Validate** to confirm the property exists and is writable.
@@ -1350,90 +1351,6 @@ Health scores are pushed to HubSpot whenever a customer's score changes by 2 or 
 points. When you first enable writeback, scores for all customers are backfilled to
 HubSpot. If the token is missing the `write` scope or the property is deleted in
 HubSpot, writeback will silently pause — the inbound CRM sync remains unaffected.
-
-## Connecting Salesforce CRM enrichment
-
-Rereflect can sync Accounts, Contacts, and Opportunities from Salesforce to
-enrich the Customer 360 profile (company, lifecycle stage, ARR, renewal date,
-open deal). Only one CRM (HubSpot or Salesforce) can be connected per
-organization at a time.
-
-### 1. Create a Connected App in Salesforce
-
-1. In Salesforce Setup, go to **App Manager → New Connected App**.
-2. Enable **OAuth Settings** and set the **Callback URL** to
-   `https://<your-backend-domain>/api/v1/integrations/salesforce/callback`
-   (use `http://localhost:8000/api/v1/integrations/salesforce/callback` for
-   local development).
-3. Add the OAuth scopes: **`refresh_token offline_access api`** (these three
-   are required — no more, no less).
-4. Save, then note the **Consumer Key** (client ID) and **Consumer Secret**
-   (client secret). Salesforce may take a few minutes to activate a new
-   Connected App.
-
-### 2. Configure environment variables
-
-Set these in your backend `.env`:
-
-| Variable | Purpose |
-|----------|---------|
-| `SALESFORCE_CLIENT_ID` | Connected App Consumer Key |
-| `SALESFORCE_CLIENT_SECRET` | Connected App Consumer Secret |
-| `SALESFORCE_REDIRECT_URI` | Must exactly match the Connected App's Callback URL |
-| `SALESFORCE_LOGIN_BASE` | `https://login.salesforce.com` (production/Developer Edition) or `https://test.salesforce.com` (sandbox) |
-| `SALESFORCE_API_VERSION` | Defaults to `v60.0` — bump if you need a newer Salesforce API |
-| `FRONTEND_URL` | Used to build the post-OAuth redirect back to the app |
-
-Restart the backend after setting these so the OAuth routes pick them up.
-
-### 3. Connect from the app
-
-Go to **Settings → Integrations → Salesforce** (admin/owner only) and click
-**Connect with Salesforce**. You'll be redirected to Salesforce to log in and
-approve the requested scopes, then redirected back to Rereflect connected.
-
-### Verify
-
-- **Settings → Integrations → Salesforce** shows instance URL, org ID, and
-  contact sync counts once the first sync completes (daily, or trigger
-  manually via **Test Connection**).
-- A connected customer's **Customer 360** profile shows a **Salesforce** badge
-  on the CRM / Company card.
-
-> **Cross-origin note:** the OAuth flow relies on an HttpOnly cookie to bind
-> the authorization request to your browser session. If your frontend and
-> backend are on different origins, your reverse proxy / CORS config must
-> send `Access-Control-Allow-Credentials: true` with a specific (non-`*`)
-> allowed origin, or the callback will fail to verify.
-
-### Enable writeback (optional)
-
-To push customer health scores back to Salesforce whenever they change, follow these
-steps. (The `api` scope you already granted the Connected App permits field updates —
-no reconnect is needed.)
-
-1. **Create a custom field on the Contact object in Salesforce:**
-   - In Salesforce Setup, go to **Object Manager → Contact → Fields & Relationships**.
-   - Click **New**, choose a **Number** type (Number, Currency, or Percent all work),
-     and finish the wizard.
-   - Note the field's **API name** — Salesforce custom fields end in `__c`
-     (e.g., `Rereflect_Health_Score__c`). You'll need it in the app.
-   - Make sure the field is **writable** for the user whose OAuth connection Rereflect
-     uses (field-level security must not be read-only for that profile).
-
-2. **Enable writeback in Rereflect:**
-   - In Rereflect, go to **Settings → Integrations → Salesforce**.
-   - Toggle **Enable health score writeback** on.
-   - Enter the **field API name** you created (e.g., `Rereflect_Health_Score__c`).
-   - Click **Validate** to confirm the field exists, is a numeric type, and is writable.
-
-Health scores are pushed to the matched Contact (by email) whenever a customer's score
-changes by 2 or more points. When you first enable writeback, scores for all matched
-customers are backfilled. If the field is deleted, made read-only, or the token loses
-write access, writeback silently pauses (status shows the reason) — the inbound CRM sync
-and health scores are unaffected. If a customer's email maps to more than one Salesforce
-Contact, the lowest Contact Id is chosen deterministically and the status notes the
-ambiguity.
 
 ## CRM churn-label suggestions (opt-in)
 
@@ -1462,7 +1379,7 @@ Two more things this feature does **not** do, stated plainly:
 
 Follow [Connecting HubSpot CRM enrichment](#connecting-hubspot-crm-enrichment) or
 [Connecting Salesforce CRM enrichment](#connecting-salesforce-crm-enrichment) first.
-Only one CRM (HubSpot or Salesforce) can be connected per organization at a time.
+HubSpot is the supported CRM connector in this owner baseline.
 No extra scope is needed — the `crm.objects.deals.read` scope (HubSpot) and the `api`
 scope (Salesforce) you already granted are sufficient.
 
@@ -1595,7 +1512,7 @@ counted toward readiness, because a pending suggestion is not a label.
 
 ## Connecting Jira
 
-Rereflect can create Jira issues directly from feedback items, with sentiment and
+FeedSignal can create Jira issues directly from feedback items, with sentiment and
 customer context included automatically. Jira is **not** a CRM — it doesn't enrich
 the Customer 360 profile, and connecting it has no effect on HubSpot/Salesforce.
 
@@ -1607,7 +1524,7 @@ Atlassian API token over Basic auth against the Jira Cloud REST API.
 
 1. Log in to [id.atlassian.com](https://id.atlassian.com) and go to
    **Security → Create and manage API tokens**.
-2. Click **Create API token**, give it a label (e.g., "Rereflect"), and confirm.
+2. Click **Create API token**, give it a label (e.g., "FeedSignal"), and confirm.
 3. Copy the token immediately — Atlassian only shows it once.
 
 ### 2. Connect from the app
@@ -1625,7 +1542,7 @@ Go to **Settings → Integrations → Jira** (admin/owner only) and fill in:
 | Account email | The email address of the Atlassian account that owns the API token |
 | API token | The token you created in step 1 |
 
-Click **Connect**. Rereflect resolves and validates the site URL (rejecting
+Click **Connect**. FeedSignal resolves and validates the site URL (rejecting
 anything that isn't a `*.atlassian.net` host, including private/loopback
 addresses, as an SSRF safeguard), verifies the token against `GET /myself`,
 and encrypts it at rest. The API token is never returned in any API response
@@ -1636,22 +1553,22 @@ or shown again in the UI.
 - **Settings → Integrations → Jira** shows connection status, the connected
   account, and a **Test Connection** action to re-validate the stored token.
 - Any feedback item can create a linked Jira issue via **Create Jira Issue** —
-  pick a project and issue type, and Rereflect creates the issue and keeps a
+  pick a project and issue type, and FeedSignal creates the issue and keeps a
   link back to the originating feedback.
 
 ### Syncing Jira status back to feedback (opt-in)
 
-Once an issue is linked, Rereflect can keep the feedback item's status in step
+Once an issue is linked, FeedSignal can keep the feedback item's status in step
 with the Jira issue — so when an engineer moves the ticket to *In Progress* or
 *Done*, the feedback item follows without anyone updating it by hand.
 
 - **Off by default.** Turn it on under **Settings → Integrations → Jira** with the
-  **"Sync issue status back to Rereflect"** toggle (admin/owner). The tile shows
+  **"Sync issue status back to FeedSignal"** toggle (admin/owner). The tile shows
   the last sync time and any error, plus a **Sync now** button.
 - **Poll-based (works behind a firewall).** A background job checks your linked
   issues every ~15 minutes over the same API token — no public URL or inbound
   webhook required, so it works on a self-hosted box behind NAT.
-- **Category-based mapping.** Rereflect maps Jira's status *category* — not each
+- **Category-based mapping.** FeedSignal maps Jira's status *category* — not each
   custom status name — so it works with any Jira workflow:
   - *To Do* → `new`
   - *In Progress* → `in_review`
@@ -1667,7 +1584,7 @@ with the Jira issue — so when an engineer moves the ticket to *In Progress* or
 ### Real-time webhook (optional)
 
 Status-sync above always works by polling — no public URL required. If your
-Rereflect instance is publicly reachable, you can additionally enable a
+FeedSignal instance is publicly reachable, you can additionally enable a
 real-time inbound webhook so a Jira issue's status change lands on the linked
 feedback item in seconds instead of waiting up to ~15 minutes for the next
 poll:
@@ -1677,12 +1594,12 @@ poll:
    `POST /api/v1/integrations/jira/webhook/enable`, which generates a fresh
    HMAC secret and returns it **once** together with the inbound URL
    (`POST <your-api-base>/api/v1/webhooks/jira/inbound`) — copy both now,
-   Rereflect never shows the secret again (re-enabling rotates it).
+   FeedSignal never shows the secret again (re-enabling rotates it).
 2. In Jira, open **Settings → System → WebHooks** (site-admin) and create a
    webhook pointed at that URL, scoped to **Issue: updated**, with the secret
    from step 1 configured as the webhook's signing secret.
 3. Jira Cloud signs each delivery over the raw request body and sends
-   `X-Hub-Signature: sha256=<hex HMAC-SHA256(secret, raw_body)>`. Rereflect
+   `X-Hub-Signature: sha256=<hex HMAC-SHA256(secret, raw_body)>`. FeedSignal
    verifies every delivery against that header, resolving the org by trying
    each org's configured secret (fail-closed: a missing/invalid signature, or
    no org's secret matching, is rejected with `401` — never processed).
@@ -1699,7 +1616,7 @@ future release.
 
 ### All features unlocked
 
-Because Rereflect is self-hosted and open-source, Jira issue creation and
+Because FeedSignal is self-hosted and open-source, Jira issue creation and
 status-sync have no plan gate, seat limit, or usage cap — they're available to
 every organization running the app.
 
@@ -1720,446 +1637,12 @@ Owner deployment evidence on 7 October: property and signed webhook configured; 
 
 Focused checks: from `services/backend-api`, run `../../.venv/bin/python -m pytest --confcutdir=tests/tawk tests/tawk -q`. The PostgreSQL concurrency case requires an explicitly isolated test database (`TAWK_TEST_DATABASE_URL`); it must not run against application tables. Frontend regressions live in `__tests__/integrations/TawkSettings.test.tsx`. Full backend collection may additionally require the inherited native SAML dependencies.
 
-## Connecting Zendesk
-
-Unlike Jira (which Rereflect writes *out* to), Zendesk is an **inbound feedback
-source**: new support tickets become feedback items, analyzed like any other
-source, and enriched into Customer 360 by the requester's email address.
-
-**Shipped scope for this release:**
-
-- **New tickets only** — tickets created from the moment you connect. There is no
-  historical backfill.
-- **One feedback item per ticket** — the ticket subject and description become the
-  feedback text. Per-comment / conversation-thread ingestion is not included.
-- **Exactly-once** — tickets are de-duplicated by ticket ID across both polling and
-  webhooks, so the same ticket never produces duplicate feedback.
-- **Pull by default, webhook optional** — Rereflect polls for new tickets on a
-  schedule out of the box; a Zendesk trigger/webhook adds real-time delivery.
-- **Basic auth (agent email + API token)** against the Zendesk REST API v2 — there
-  is no OAuth flow, tag/view filtering, or custom-field mapping in this release.
-
-### 1. Create a Zendesk API token
-
-1. In Zendesk, open **Admin Center → Apps and integrations → APIs → Zendesk API**.
-2. Enable **Token access**, then click **Add API token**.
-3. Optionally give it a description (e.g., "Rereflect"), then **copy the token
-   immediately** — Zendesk only shows it once.
-
-### 2. Connect from the app
-
-Like the Jira token, the Zendesk API token is **not** set via an environment
-variable — it is pasted into the app and stored encrypted per organization.
-(Encryption uses `LLM_ENCRYPTION_KEY`, which must already be set on the backend —
-see [Adding your own LLM key (BYOK)](#adding-your-own-llm-key-byok). A missing key
-returns a validation error, never a 500.)
-
-Go to **Settings → Integrations → Zendesk** (admin/owner only) and fill in:
-
-| Field | Format |
-|-------|--------|
-| Subdomain | The `{subdomain}` in `{subdomain}.zendesk.com` (e.g. `acme` for `acme.zendesk.com`) |
-| Agent email | The email address of the Zendesk agent that owns the API token |
-| API token | The token you created in step 1 |
-
-Each org connects its own Zendesk account with its own validated credentials — two
-different Rereflect orgs must not point at the same Zendesk subdomain, or tickets
-from that subdomain would be attributed to both.
-
-Click **Connect**. Rereflect normalizes and validates the subdomain (rejecting
-anything that doesn't resolve to a public `*.zendesk.com` host, including
-loopback/private addresses, as an SSRF safeguard), verifies the credentials against
-`GET /api/v2/users/me.json`, and encrypts the token at rest. The API token is never
-returned in any API response or shown again in the UI.
-
-Connecting also **auto-provisions a Zendesk feedback source** for the org, so new
-tickets start flowing in without a second setup step. Rereflect displays a
-**webhook URL** and a **signing secret** on connect — copy them now if you plan to
-enable real-time delivery in step 3 (the secret is shown once).
-
-### 3. Optional: real-time via webhook
-
-Without a webhook, Rereflect polls Zendesk for new tickets automatically. To get
-tickets delivered the moment they're created, wire a Zendesk webhook:
-
-1. Copy the **webhook URL** (`POST <your-api-base>/api/v1/webhooks/zendesk/events`)
-   and the **signing secret** shown when you connected.
-2. In Zendesk, open **Admin Center → Apps and integrations → Webhooks** and create
-   a webhook pointing at that URL. Use the signing secret so Rereflect can verify
-   deliveries.
-3. Add a **Trigger** on **"Ticket is created"** that notifies the webhook, so each
-   new ticket is posted to Rereflect.
-
-Rereflect verifies every delivery over the **raw request body**. The signature
-scheme is:
-
-```
-X-Zendesk-Webhook-Signature           = base64(HMAC-SHA256(signing_secret, timestamp + raw_body))
-X-Zendesk-Webhook-Signature-Timestamp = timestamp used in the HMAC
-```
-
-Deliveries that fail verification are rejected. Both the pull loop and the webhook
-funnel through the same ingestion path, so exactly-once de-duplication by ticket ID
-holds no matter how a ticket arrives.
-
-**Known limitation:** if you enable BOTH the scheduled pull and the real-time
-webhook, a rare timing overlap (a webhook arriving while the ~15-min pull runs for
-the same brand-new ticket) can create a duplicate feedback item. Sequential
-redelivery and repeated syncs are always de-duplicated by ticket ID.
-
-### Verify
-
-- **Settings → Integrations → Zendesk** shows connection status, the connected
-  agent account, and a **Test Connection** action to re-validate the stored token.
-- New tickets appear as feedback items — analyzed for sentiment and mapped to the
-  requester by email — within minutes. Tickets with no requester email are still
-  ingested (just without a `customer_email`); an unmatched subdomain or missing
-  source is logged rather than silently dropped.
-
-### Syncing Zendesk ticket status back to feedback (opt-in)
-
-Once a support ticket has become a feedback item (via ingestion, above), Rereflect
-can keep that feedback item's status in step with the Zendesk ticket — so when an
-agent marks the ticket *Solved*, the feedback item follows without anyone updating
-it by hand.
-
-- **Off by default.** Turn it on with `PATCH /api/v1/integrations/zendesk/status-sync`
-  (admin/owner-only, JSON body `{"enabled": true}`) — the same endpoint also accepts
-  an optional `status_mapping` override (see below). This surfaces as a toggle on
-  **Settings → Integrations → Zendesk** as the in-app UI for it ships.
-- **Poll is the guaranteed path.** With status-sync on, a background job checks your
-  Zendesk-linked feedback every ~15 minutes over the same API token — no public URL
-  or inbound webhook required, so it works on a self-hosted box behind NAT. This is
-  always active once enabled, independent of whether you also configure the
-  real-time webhook below.
-- **Real-time webhook (additive, optional).** If you've already wired the ingestion
-  webhook (see "Optional: real-time via webhook" above), you can extend it for status
-  changes instead of waiting for the next poll:
-  1. In Zendesk, open **Admin Center → Apps and integrations → Triggers** (or Views →
-     Triggers) and create a **second** trigger — separate from the "Ticket is
-     created" one — that fires on **Ticket updated / Status changed**.
-  2. Point it at the **same webhook URL and signing secret** you already configured
-     (`POST <your-api-base>/api/v1/webhooks/zendesk/events` — the HMAC scheme is
-     identical, since both triggers deliver through the one webhook connection).
-  3. Set the trigger's JSON body to include the anti-spoof discriminator field
-     `"event": "ticket.status_changed"` — **required**, distinct from the ingestion
-     trigger's body — plus the ticket id and Zendesk's `{{ticket.status}}`
-     placeholder:
-     ```json
-     {
-       "event": "ticket.status_changed",
-       "subdomain": "your-subdomain",
-       "ticket": {
-         "id": "{{ticket.id}}",
-         "status": "{{ticket.status}}"
-       }
-     }
-     ```
-     Without the `"event": "ticket.status_changed"` field, Rereflect cannot tell a
-     status-change delivery apart from a ticket-creation one, so this field is what
-     routes the delivery to the status-sync path instead of feedback ingestion.
-  4. Rereflect reconciles that single ticket immediately on a verified delivery — no
-     apply happens if status-sync is off for the org, if the ticket isn't linked to a
-     feedback item, or if this is the first status ever observed for it (that first
-     observation is recorded as a baseline, not applied — see "Non-destructive"
-     below). Every delivery is ACKed 200 regardless, so Zendesk never retries a
-     well-formed, verified request.
-  5. **The 15-minute poll remains the fallback either way** — if the webhook is never
-     configured, misfires, or a delivery is missed, the next poll catches the ticket
-     up. Whichever path (poll or webhook) observes a given status change first
-     applies it; the other is a no-op, so you never get a duplicate status-change
-     event from having both enabled.
-- **Category-based mapping.** Rereflect maps Zendesk's ticket `status` field to a
-  feedback `workflow_status`:
-  - `new` → `new`
-  - `open` / `pending` / `hold` → `in_review`
-  - `solved` → `resolved`
-  - `closed` → `closed`
-  You can override this per-organization via the `status_mapping` field on the same
-  `PATCH .../status-sync` call.
-- **Non-destructive.** Turning it on does not retroactively rewrite the status of
-  feedback you already linked — the first status observed for each ticket (via poll
-  or webhook, whichever happens first) is recorded as a baseline only, and a feedback
-  item's `workflow_status` moves only when the Zendesk ticket's status genuinely
-  *changes* afterward.
-
-### All features unlocked
-
-Because Rereflect is self-hosted and open-source, the Zendesk integration has no
-plan gate, seat limit, or usage cap — polling, webhooks, status-sync, and
-Customer 360 enrichment are available to every organization running the app.
-
-## Connecting Intercom
-
-Intercom is an **inbound feedback source**: new conversations — including replies and
-the satisfaction rating — become feedback items, analyzed like any other source.
-
-**There are two ways to connect. Use the access token.**
-
-| | Access token (recommended) | OAuth |
-|---|---|---|
-| Setup | Paste a token from your own Intercom app | Register an OAuth app, set 3 env vars |
-| Pull sync | Yes — every 15 minutes | No — access-token only |
-| Real-time webhook | Yes, verified against **your** workspace | Yes, verified against a global secret |
-| Suits | Self-hosting | Multi-workspace / legacy installs |
-
-Pull sync runs for access-token connections only: the sync job iterates
-`IntercomIntegration` rows, which the token-paste path provisions. OAuth
-connections have **no pull** — for those, the webhook is the only ingestion
-path (step 5 below).
-
-The access-token path is Intercom's own recommendation for this case: *"An Access
-Token is for if you're using the API to access data in your own Intercom
-workspace, in other words, building a private app."* It matches how you connect
-Zendesk, Jira, Asana and HubSpot. Existing OAuth connections keep working
-unchanged; an organization uses one path or the other, never both.
-
-**Shipped scope:**
-
-- **Pull sync every 15 minutes**, plus an optional webhook for near-instant
-  delivery. Both share one de-duplication path, so a conversation becomes one
-  feedback item however it arrives.
-- Three conversation topics are handled (listed under *Webhooks* below).
-- **Customer email is populated** from the conversation's author when that
-  author is a customer, so Intercom feedback feeds Customer 360, health scores
-  and churn. A reply written by one of your own admins does not overwrite the
-  customer on the item.
-- **Write-back on resolve — opt-in, off by default.** See [Write-back (opt-in)](#write-back-opt-in) below.
-
-### Write-back (opt-in)
-
-When you mark an Intercom-sourced feedback item **resolved**, Rereflect can post a
-note to the linked Intercom conversation and close it, so your support team sees
-the outcome where they work.
-
-- **Off by default, per organization.** Enable it on **Settings → Integrations →
-  Intercom** (the Write-back card). Choose **note + close** (default) or **note
-  only** — `note_only` leaves closing to your support team.
-- **What ships on resolve:** a note containing the resolution note you wrote on the
-  feedback item (or the default *"Marked resolved in Rereflect."*), posted as your
-  Intercom app's admin; then the conversation is closed (unless `note_only`).
-- **Scope requirement.** Your Intercom app must grant **`conversation:write`**.
-  If the token lacks it, every resolve records `missing_write_scope` on the
-  settings page and nothing is sent — the integration stays connected. Rereflect
-  reports the absence; it cannot grant the scope.
-- **Transitions after enable only.** Conversations already resolved before you
-  enable the write-back are never touched — there is no backfill.
-- **`resolved` is the only trigger.** Re-resolving an item after reopening it is a
-  no-op: Rereflect tracks each item it has already written back, so no second note
-  is appended to a closed conversation.
-
-> ### Honest limits
->
-> - The write-back fires only on transitions to `resolved` **after enable** — a
->   backfill is deliberately not offered, because closing a conversation is one-shot
->   and mass-closing would surprise a support team.
-> - `resolved` is the only trigger in v1; there is no configurable target status.
-> - The dispatch is fire-and-forget: the note lands when the background worker picks
->   the task up — no response-time claim.
-> - A crash in the seconds between Intercom accepting the note and Rereflect
->   recording it can duplicate a note on retry (the close itself stays a no-op).
->   Cosmetic and bounded; no action needed.
-> - Scope (`conversation:write`) is a property of your Intercom app. Rereflect
->   reports its absence; it cannot grant it.
-
----
-
-## Connecting Intercom with an access token
-
-### 1. Create a private app
-
-1. In the **Intercom Developer Hub**, create a new app on your workspace.
-2. Open **Configure → Authentication** and copy the **Access Token**.
-3. If you want real-time webhooks, also open **Basic Info** and copy the
-   **Client Secret** — Intercom signs webhook deliveries with it.
-
-### 2. Connect in Rereflect
-
-**Settings → Integrations → Intercom**, paste the Access Token (and the Client
-Secret if you have one), and connect. Rereflect validates the token, resolves
-your workspace, and provisions an Intercom feedback source automatically.
-
-Conversations start arriving within 15 minutes. Nothing else is required.
-
-### 3. Add a webhook (optional)
-
-The pull sync alone is enough. Add a webhook only if you want conversations to
-appear within seconds instead of minutes.
-
-1. In the Developer Hub, open **Configure → Webhooks**.
-2. Set the endpoint to `https://<your-rereflect-host>/api/v1/webhooks/intercom/events`.
-3. Subscribe to `conversation.user.created`, `conversation.user.replied` and
-   `conversation.rating.added`.
-
-> Intercom offers **no API for creating webhook subscriptions** — *"you can only
-> subscribe to webhooks now via your Developer Hub"* — so this step is manual and
-> Rereflect cannot do it for you.
-
-**If you did not store a Client Secret, webhook deliveries are rejected.**
-Verification fails closed by design: with no secret there is nothing to verify
-against, and accepting unsigned deliveries would let anyone who knows the URL
-inject feedback. The 15-minute pull is unaffected. Reconnect with the secret to
-enable webhooks.
-
----
-
-## Connecting Intercom with OAuth (legacy)
-
-Only needed if you already use this path. It requires registering an OAuth app
-and setting `INTERCOM_CLIENT_ID`, `INTERCOM_CLIENT_SECRET` and
-`INTERCOM_REDIRECT_URI`. Webhook deliveries are verified against the single
-global `INTERCOM_CLIENT_SECRET` rather than per workspace.
-
-### 1. Create an Intercom app
-
-1. In the Intercom Developer Hub, create a new app and note the **Client ID**
-   and **Client Secret**.
-2. In the OAuth settings, register the redirect URL — it must **exactly match**
-   the value you will set as `INTERCOM_REDIRECT_URI` in step 2.
-3. Configure your app's permissions in the Developer Hub to allow Rereflect to
-   read conversations and contacts, and to subscribe to conversation webhooks.
-   (Rereflect requests no scopes in the authorize URL — permissions are declared
-   on the app itself.)
-
-### 2. Configure environment variables
-
-Set these in your backend `.env`:
-
-| Variable | Purpose |
-|----------|---------|
-| `INTERCOM_CLIENT_ID` | Intercom app Client ID |
-| `INTERCOM_CLIENT_SECRET` | Intercom app Client Secret. **Also the HMAC secret for webhook verification** (step 5) — required, not optional. |
-| `INTERCOM_REDIRECT_URI` | Must exactly match the redirect URL registered on the Intercom app. **Defaults to `http://localhost:8000/api/v1/integrations/intercom/oauth/callback` — you must override this for any non-localhost deployment.** |
-| `FRONTEND_URL` | Used to build the post-OAuth redirect back to the app |
-
-Restart the backend after setting these so the OAuth routes pick them up.
-
-> **INTERCOM_CLIENT_SECRET is required.** It is the HMAC signing key for incoming
-> webhook deliveries. **If it is unset, every delivery to
-> `/api/v1/webhooks/intercom/events` is rejected with HTTP 401** — signature
-> verification fails closed, so an unconfigured install accepts nothing rather
-> than accepting everything. Set it before exposing the webhook endpoint.
-
-### 3. Connect from the app
-
-Go to **Settings → Integrations**, click **Add Integration**, choose **Intercom**,
-give it a name, and click **Connect to Intercom**. You'll be redirected to Intercom
-to authorize the app, then redirected back to Rereflect connected.
-
-If `INTERCOM_CLIENT_ID` is unset, the OAuth flow returns **HTTP 500 "Intercom
-OAuth is not configured"** — this is a configuration error, not a permissions
-error.
-
-### 4. Create the Intercom feedback source
-
-**This must happen after step 3.** An Intercom feedback source requires an
-`integration_id` from the connected integration. Creating a source before
-completing step 3 returns **HTTP 400 "Intercom sources require an
-integration_id"**.
-
-Go to **Feedback Sources → New Source** and select **Intercom**. The workspace is
-carried over from the integration automatically. Configure the trigger (new
-conversations, replies, ratings, or all), optional keyword filters, and whether
-to auto-import or queue pending review.
-
-### 5. Subscribe the Intercom webhook
-
-**This step is not optional — it is the only ingestion path.** Without a
-subscribed webhook, no Intercom data will ever reach Rereflect.
-
-In your Intercom app's settings, go to **Webhooks** and configure a delivery
-target:
-
-1. **Delivery URL:** `POST <your-api-base>/api/v1/webhooks/intercom/events`
-   (e.g., `https://your-backend.example.com/api/v1/webhooks/intercom/events` for
-   production, or `http://localhost:8000/api/v1/webhooks/intercom/events` for
-   local development).
-2. **Subscribe to exactly these topics:**
-   - `conversation.user.created`
-   - `conversation.user.replied`
-   - `conversation.rating.added`
-
-Any other topics are accepted by Rereflect but ignored. Rereflect verifies each
-delivery by checking the `X-Hub-Signature` header as **HMAC-SHA1** over the raw
-request body, signed with the app's Client Secret (`INTERCOM_CLIENT_SECRET`).
-
-### Verify
-
-- **Settings → Integrations → Intercom** shows connection status and the
-  workspace name once connected.
-> ### ✅ Fixed — Intercom now produces feedback items
->
-> Every release up to and including 1.0.0 received, authenticated and recorded
-> Intercom deliveries but never created a feedback item: a payload-shape mismatch
-> between the webhook route and the Intercom adapter emptied the extracted text
-> first. If you connected Intercom and saw events arriving with no feedback, that
-> was why, and it was not your setup.
->
-> This is fixed. The route now hands the adapter the full event envelope, and the
-> contract between them is pinned by a shared fixture read from both services'
-> test suites so it cannot silently drift again.
-
-> ### Honest limits
->
-> - The pull runs every 15 minutes, so without a webhook a conversation can take
->   that long to appear.
-> - The pull ingests the **full conversation** for anything it re-sees: the first
->   message plus every new reply, merged into the item's text, and the satisfaction
->   rating stored on the item. The webhook is optional — for near-instant delivery
->   of new conversations — and no longer the only way replies or ratings reach an
->   item.
-> - Enrichment applies to conversations the pull **re-sees after this ships** —
->   older conversations stay first-message-only until they get new activity. There
->   is no backfill.
-> - A very large backlog drains over several runs rather than one — each run
->   fetches up to 20 pages and the cursor resumes where it stopped.
-> - After a completed run, the settings page shows **"≈ N conversations left to
->   sync"** — an **estimate** computed from Intercom's `total_count` for that run's
->   sync window, not a queue count: conversations updated during the drain shift
->   later windows, and the boundary conversation re-counts itself. The row appears
->   only when there is something left to show (a non-empty window) and only for
->   token-paste connections — OAuth has no pull, so it never shows there.
-> - The estimate is absent until a completed run, and a failed run **clears it**
->   rather than leaving a stale number.
-> - The drain mechanics (20-page cap, cursor resume) are unchanged — the estimate
->   reports progress, it does not speed it up.
-> - For webhook-wired installs, the webhook's `replied` / `rating.added` events now
->   enrich the conversation's item in **real time** (when the item exists): a reply
->   is merged into the item's text and the rating stored on it — no longer waiting
->   on the pull. The pull remains the guaranteed fallback for every install.
-> - Webhook enrichment applies only to conversations whose items already exist — no
->   backfill (same rule as the pull); a reply on a conversation Rereflect never
->   created stays unseen. Payloads without conversation parts fall back to a
->   `GET /conversations/{id}` detail fetch.
-> - No claim is made about analysis quality beyond: the full thread is now scored
->   instead of the first message. Sentiment, categorization and churn behave
->   exactly as they do for every other source.
-
-- New Intercom conversations appear as feedback items, analyzed for sentiment,
-  within a minute or two — or in the pending-review queue if `auto_import` is off.
-- If nothing arrives, the webhook is the first thing to check: the endpoint must be
-  reachable from the public internet, and the subscription must cover the three
-  topics in step 5. Intercom's own webhook delivery log is the fastest way to see
-  whether deliveries are leaving Intercom and what response they got.
-
-> **Cross-origin note:** the OAuth flow relies on an HttpOnly cookie to bind
-> the authorization request to your browser session. If your frontend and
-> backend are on different origins, your reverse proxy / CORS config must
-> send `Access-Control-Allow-Credentials: true` with a specific (non-`*`)
-> allowed origin, or the callback will fail to verify.
-
-### All features unlocked
-
-Because Rereflect is self-hosted and open-source, the Intercom integration has
-no plan gate, seat limit, or usage cap — webhooks and Customer 360 enrichment
-are available to every organization running the app.
-
 ## Connecting Asana
 
-Like Jira, Rereflect writes *out* to Asana — it creates tasks directly from
+Like Jira, FeedSignal writes *out* to Asana — it creates tasks directly from
 feedback items, with sentiment and customer context included automatically.
 Asana is **not** a CRM and does not enrich the Customer 360 profile. Task
-**creation** is outbound, but Rereflect can optionally sync a linked task's
+**creation** is outbound, but FeedSignal can optionally sync a linked task's
 **completion status** back onto the feedback item (see
 [Syncing Asana status back to feedback](#syncing-asana-status-back-to-feedback-opt-in)
 below). It still does not pull assignees, comments, or due dates back in from
@@ -2169,7 +1652,7 @@ Asana.
 
 1. In Asana, open your profile settings (click your avatar) and go to
    **Apps → Manage Developer Apps**.
-2. Click **Create new token**, give it a name (e.g., "Rereflect"), and confirm.
+2. Click **Create new token**, give it a name (e.g., "FeedSignal"), and confirm.
 3. Copy the token immediately — Asana only shows it once.
 
 ### 2. Connect from the app
@@ -2180,7 +1663,7 @@ app and stored encrypted per organization. (Encryption uses
 [Adding your own LLM key (BYOK)](#adding-your-own-llm-key-byok).)
 
 Go to **Settings → Integrations → Asana** (admin/owner only) and paste the
-personal access token you just created, then click **Connect**. Rereflect
+personal access token you just created, then click **Connect**. FeedSignal
 verifies the token against your Asana account and encrypts it at rest. The
 token is never returned in any API response or shown again in the UI.
 
@@ -2189,13 +1672,13 @@ token is never returned in any API response or shown again in the UI.
 - **Settings → Integrations → Asana** shows connection status, the connected
   account, and a **Test Connection** action to re-validate the stored token.
 - Any feedback item can create a linked Asana task via **Create Asana Task** —
-  pick a workspace and project, and Rereflect creates the task and keeps a
+  pick a workspace and project, and FeedSignal creates the task and keeps a
   link back to the originating feedback. Creating a task twice from the same
   feedback item surfaces the existing linked task instead of duplicating it.
 
 ### Syncing Asana status back to feedback (opt-in)
 
-Once a task is linked, Rereflect can optionally keep the feedback item's
+Once a task is linked, FeedSignal can optionally keep the feedback item's
 status in step with the Asana task — so when the task is marked complete, the
 feedback item follows without anyone updating it by hand.
 
@@ -2207,7 +1690,7 @@ feedback item follows without anyone updating it by hand.
   webhook or public URL required, so it works on a self-hosted box behind
   NAT. This always runs, even if you also enable the real-time webhook below.
 - **Completion-based mapping — Asana has only two states.** An Asana task is
-  either **completed** or **not**, so Rereflect maps:
+  either **completed** or **not**, so FeedSignal maps:
   - not completed → `new`
   - completed → `resolved`
   The default mapping is `{done: resolved, new: new}`. There is **no
@@ -2238,20 +1721,20 @@ planned for a future release.
 ### Real-time webhook (optional)
 
 Status-sync above always works by polling — no public URL required. If your
-Rereflect instance is publicly reachable, you can additionally enable a
+FeedSignal instance is publicly reachable, you can additionally enable a
 real-time inbound webhook so an Asana task's completion change lands on the
 linked feedback item in seconds instead of waiting up to ~15 minutes for the
 next poll.
 
-Unlike Jira/Zendesk (where Rereflect generates its own signing secret
-locally), **Asana requires a handshake**: Rereflect registers the webhook
+Unlike Jira/Zendesk (where FeedSignal generates its own signing secret
+locally), **Asana requires a handshake**: FeedSignal registers the webhook
 directly with Asana's API, and Asana's *first delivery* to that webhook
-carries a fresh secret in an `X-Hook-Secret` header, which Rereflect must
+carries a fresh secret in an `X-Hook-Secret` header, which FeedSignal must
 persist and echo back immediately (HTTP 200, same header, no other work) —
 this is how Asana knows the endpoint is alive. Every delivery after that is
 signed with `X-Hook-Signature: <hex HMAC-SHA256(secret, raw_body)>` (no
 `sha256=` prefix, unlike Jira). You never see or copy a secret yourself —
-Rereflect handles both sides automatically:
+FeedSignal handles both sides automatically:
 
 1. On **Settings → Integrations → Asana**, click **Set up webhook** under
    "Real-time webhook" (admin/owner only), then pick the **workspace and
@@ -2271,7 +1754,7 @@ Rereflect handles both sides automatically:
    handshake itself (secret capture) completes server-side within moments
    of Asana's first delivery, with no further action needed.
 
-Rereflect resolves *which* organization a delivery belongs to from the
+FeedSignal resolves *which* organization a delivery belongs to from the
 unguessable `webhook_url_token` embedded in the URL it registered in step 2
 (rather than matching against every org's secret, as Jira/Zendesk do, or a
 guessable sequential id) — this works even before any secret exists yet,
@@ -2289,7 +1772,7 @@ URL is required — the old URL stops resolving immediately.
 Task completion changes are reconciled through the exact same
 completion-based mapping and race-safe apply as the poll above, so enabling
 the webhook can never cause the two paths to disagree or double-write.
-Clicking **Disable webhook** fully unreaches it: Rereflect clears the stored
+Clicking **Disable webhook** fully unreaches it: FeedSignal clears the stored
 webhook gid, secret, *and* the unguessable URL token, so the old
 `/api/v1/webhooks/asana/inbound/{webhook_url_token}` URL 401s immediately —
 even someone who still holds that URL cannot re-establish a handshake
@@ -2297,7 +1780,7 @@ against a disabled integration — and falls back to poll-only handling.
 
 ### Known limitation: team-scoped projects
 
-Rereflect lists projects with a **flat workspace → project picker**
+FeedSignal lists projects with a **flat workspace → project picker**
 (`GET /api/v1/integrations/asana/projects?workspace_gid=...`). Asana projects
 that are scoped to a specific **team** and not visible at the workspace level
 may not appear in that list, depending on your Asana workspace's permission
@@ -2311,16 +1794,16 @@ follow-up.
 
 ### All features unlocked
 
-Because Rereflect is self-hosted and open-source, Asana task creation and
+Because FeedSignal is self-hosted and open-source, Asana task creation and
 status-sync have no plan gate, seat limit, or usage cap — they're available
 to every organization running the app.
 
 ## Single Sign-On (OIDC)
 
-Rereflect supports OIDC-based single sign-on alongside the existing password and Google
+FeedSignal supports OIDC-based single sign-on alongside the existing password and Google
 login — an operator can wire up their identity provider (Okta, Azure AD, Google
 Workspace, Keycloak, or any standards-compliant OIDC provider) so a team logs in with
-corporate credentials instead of a Rereflect password. Password and Google login are
+corporate credentials instead of a FeedSignal password. Password and Google login are
 unaffected either way. **All features are unlocked** on self-hosted, so SSO carries no
 plan gate.
 
@@ -2338,7 +1821,7 @@ Create an OIDC client/application in your IdP with:
 | Redirect / callback URL | `{BACKEND_URL}/api/v1/auth/oidc/callback` — e.g. `http://localhost:8000/api/v1/auth/oidc/callback` for a local install. **This must match exactly** what you whitelist in the IdP. |
 | Scopes | `openid email profile` |
 | Response type | `code` |
-| PKCE | **S256** (required — Rereflect always sends a PKCE challenge) |
+| PKCE | **S256** (required — FeedSignal always sends a PKCE challenge) |
 
 This works with any IdP that signs ID tokens with RS256, including Okta, Azure AD
 (Entra ID), Google Workspace, and Keycloak in their default configurations.
@@ -2377,7 +1860,7 @@ another is already enabled is rejected.
 
 ### JIT provisioning and account linking
 
-- **New user, no existing Rereflect account:** the first successful SSO login
+- **New user, no existing FeedSignal account:** the first successful SSO login
   auto-creates a `member` in the organization that owns the enabled config. There is no
   invite step.
 - **Existing password or Google account with the same email:** it is linked to the SSO
@@ -2388,7 +1871,7 @@ another is already enabled is rejected.
 ### Known limitation: RS256 only
 
 ID tokens must be **RS256-signed**. This is the default for Okta, Azure AD, Google, and
-Keycloak, so most operators won't notice — but Rereflect does not negotiate signing
+Keycloak, so most operators won't notice — but FeedSignal does not negotiate signing
 algorithms with the IdP, and an issuer that signs only with ES256 or another algorithm
 is currently rejected. Stated here plainly rather than discovered at login time.
 
@@ -2428,12 +1911,12 @@ to the browser.
 
 ### All features unlocked
 
-Because Rereflect is self-hosted and open-source, SSO has no plan gate, seat limit, or
+Because FeedSignal is self-hosted and open-source, SSO has no plan gate, seat limit, or
 usage cap — it's available to every organization running the app.
 
 ## Single Sign-On (SAML 2.0)
 
-Rereflect also supports **SP-initiated SAML 2.0** single sign-on, alongside password,
+FeedSignal also supports **SP-initiated SAML 2.0** single sign-on, alongside password,
 Google, and OIDC login (see [Single Sign-On (OIDC)](#single-sign-on-oidc) above) — none
 of those change. **All features are unlocked** on self-hosted, so SAML carries no plan
 gate. This is a **slice-1** implementation: it covers the common enterprise IdP-login
@@ -2469,16 +1952,16 @@ Debian container image, `1.3.16` on a brew host — but the Python API the code 
 (`onelogin.saml2.*`) is identical either way; you don't need to change any application
 code to develop on macOS.
 
-### 1. Register Rereflect as a SAML SP with your IdP
+### 1. Register FeedSignal as a SAML SP with your IdP
 
 Create a SAML application/client in your IdP with:
 
 | Setting | Value |
 |---------|-------|
 | ACS (Assertion Consumer Service) URL | `{BACKEND_URL}/api/v1/auth/saml/callback` — **HTTP-POST binding** — e.g. `http://localhost:8000/api/v1/auth/saml/callback` for a local install. Must match exactly what you register. |
-| SP Entity ID | `{BACKEND_URL}/api/v1/auth/saml/metadata` — e.g. `http://localhost:8000/api/v1/auth/saml/metadata`. This is an **identifier string only**: Rereflect does **not** serve a metadata document at that URL in this release, so register it as a literal value with your IdP, not as a fetchable link. |
-| NameID format | Any format is accepted. If it's `emailAddress` and contains `@`, Rereflect reads the email straight from the NameID. Otherwise it falls back to an attribute (see the **email attribute** field below, then a default chain of common email-claim names). |
-| Assertion signing | **The IdP must sign the assertion itself** (not just the outer response). Rereflect rejects an unsigned or response-only-signed assertion. |
+| SP Entity ID | `{BACKEND_URL}/api/v1/auth/saml/metadata` — e.g. `http://localhost:8000/api/v1/auth/saml/metadata`. This is an **identifier string only**: FeedSignal does **not** serve a metadata document at that URL in this release, so register it as a literal value with your IdP, not as a fetchable link. |
+| NameID format | Any format is accepted. If it's `emailAddress` and contains `@`, FeedSignal reads the email straight from the NameID. Otherwise it falls back to an attribute (see the **email attribute** field below, then a default chain of common email-claim names). |
+| Assertion signing | **The IdP must sign the assertion itself** (not just the outer response). FeedSignal rejects an unsigned or response-only-signed assertion. |
 
 This works with any IdP that can sign SAML assertions and POST them to an ACS URL —
 Okta, Azure AD (Entra ID), OneLogin, ADFS, Google Workspace, and Keycloak all qualify.
@@ -2489,7 +1972,7 @@ assertion's `SubjectConfirmationData` — standard behavior for any SP-initiated
 exchange, and every IdP listed above does this by default. This is what stops
 assertion-substitution: without it, a validly-signed assertion issued for a *different*
 login attempt (the IdP's or another SP's) could be replayed against this one. Note that
-Rereflect does **not** require `wantMessagesSigned` (signing the outer Response, on top of
+FeedSignal does **not** require `wantMessagesSigned` (signing the outer Response, on top of
 the assertion) — the `InResponseTo` binding lives inside the signed assertion itself, so
 requiring message-level signing too would add no further anti-substitution guarantee for
 mainstream IdPs.
@@ -2517,7 +2000,7 @@ an identity outside the list is rejected with no account created or linked.
 
 ### One SSO protocol per deployment
 
-Rereflect allows **at most one SSO protocol enabled at a time** — SAML and OIDC are
+FeedSignal allows **at most one SSO protocol enabled at a time** — SAML and OIDC are
 mutually exclusive *when enabled*, not mutually exclusive to configure. You may have
 both a SAML config and an OIDC config saved; enabling one while the other is already
 enabled is rejected (422 — "only one SSO protocol may be active per deployment"). Only
@@ -2525,7 +2008,7 @@ one SSO button ever appears on the login page.
 
 ### JIT provisioning and account linking
 
-- **New user, no existing Rereflect account:** the first successful SAML login
+- **New user, no existing FeedSignal account:** the first successful SAML login
   auto-creates a `member` in the organization that owns the enabled config. There is no
   invite step.
 - **Existing password, Google, or OIDC account with the same email:** it is linked to
@@ -2542,13 +2025,13 @@ one SSO button ever appears on the login page.
 - **No Single Logout (SLO).**
 - **No SCIM / directory provisioning** — users are created just-in-time on first login
   only; there is no background directory sync or deprovisioning.
-- **Signed, not encrypted, assertions** — Rereflect requires and validates a signed
+- **Signed, not encrypted, assertions** — FeedSignal requires and validates a signed
   assertion but does not support encrypted assertions.
 - **Single IdP, single signing certificate** per deployment — one SAML config, one cert.
 - **Cert rotation:** because a config holds exactly one certificate, rotate by pasting
   the **new** certificate into `/settings/sso` while the **old** one is still valid and
   configured at the IdP (an overlap window), then cut the IdP over to sign with the new
-  key. There is no dual-cert grace period on the Rereflect side. If a bad rotation locks
+  key. There is no dual-cert grace period on the FeedSignal side. If a bad rotation locks
   out your SSO users, **owner email/password login still works** — that's the
   deliberate fallback, not an oversight.
 
@@ -2586,7 +2069,7 @@ A failed SAML login redirects to `/login?sso_error=<code>`:
 | `recipient` | The assertion's `Recipient`/`Destination` did not match the ACS URL |
 | `expired` | The assertion was outside its validity window (`NotBefore`/`NotOnOrAfter`, ±60 seconds of clock-skew tolerance) |
 | `replay` | This assertion's request ID was already consumed (replay) |
-| `unsolicited` | The assertion's `InResponseTo` didn't match a request Rereflect issued |
+| `unsolicited` | The assertion's `InResponseTo` didn't match a request FeedSignal issued |
 | `unverified` | No usable email was present in the assertion |
 | `domain` | The email's domain is not in `allowed_email_domains` |
 | `token` | The assertion had no subject (`NameID`) — rejected before any identity lookup |
@@ -2597,7 +2080,7 @@ the browser.
 **A note on `InResponseTo`:** your IdP's signed assertion must include a
 `SubjectConfirmationData` element carrying the request's `InResponseTo` attribute —
 standard behavior for SP-initiated SAML — since that's what binds the returned
-assertion to the specific AuthnRequest Rereflect issued. IdPs that only support
+assertion to the specific AuthnRequest FeedSignal issued. IdPs that only support
 IdP-initiated flows (and so never populate `InResponseTo`) are not compatible with this
 slice. Also note the two timestamp checks are held to different tolerances: the
 assertion's `Conditions` window (`NotBefore`/`NotOnOrAfter`) gets a ±60 second clock-skew
@@ -2606,7 +2089,7 @@ tolerance.
 
 ### All features unlocked
 
-Because Rereflect is self-hosted and open-source, SAML has no plan gate, seat limit, or
+Because FeedSignal is self-hosted and open-source, SAML has no plan gate, seat limit, or
 usage cap — it's available to every organization running the app.
 
 ## Production notes

@@ -27,7 +27,7 @@ interface JiraStatusSyncCardProps {
 // Control surface for inbound Jira status sync (Phase 6 of
 // jira-status-sync/inbound-status-sync, extended by the mapping-editor
 // aspect): a toggle, a read-only last-synced indicator, a manual "Sync now"
-// trigger, and a status-category → Rereflect-status mapping editor.
+// trigger, and a status-category → FeedSignal-status mapping editor.
 export function JiraStatusSyncCard({ status, onStatusChange }: JiraStatusSyncCardProps) {
   const [toggling, setToggling] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -151,7 +151,7 @@ export function JiraStatusSyncCard({ status, onStatusChange }: JiraStatusSyncCar
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-semibold text-foreground">Sync issue status back to Rereflect</p>
+            <p className="font-semibold text-foreground">Sync issue status back to FeedSignal</p>
             <p className="text-sm text-muted-foreground">
               Automatically update feedback status when the linked Jira issue&apos;s status changes.
             </p>
@@ -188,7 +188,7 @@ export function JiraStatusSyncCard({ status, onStatusChange }: JiraStatusSyncCar
             foreignKeys={JIRA_STATUS_MAPPING_KEYS}
             currentMapping={status.status_mapping}
             onSave={handleSaveMapping}
-            description="Jira status categories map to Rereflect workflow statuses. This is category-level, not per raw status name."
+            description="Jira status categories map to FeedSignal workflow statuses. This is category-level, not per raw status name."
           />
         </div>
 

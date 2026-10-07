@@ -552,3 +552,5 @@ Summaries describe declaration/document navigation, not executed behavior. Read 
 | `services/worker-service/src/tasks` | 28 | 28 | [directory.md](<../services/worker-service/src/tasks/directory.md>) |
 | `services/worker-service/tests` | 126 | 130 | [directory.md](<../services/worker-service/tests/directory.md>) |
 | `services/worker-service/tests/fixtures` | 4 | 4 | [directory.md](<../services/worker-service/tests/fixtures/directory.md>) |
+
+- [Provider setup](provider-setup/directory.md) — owner OAuth/app registration target configuration; no secrets.

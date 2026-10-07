@@ -14,13 +14,10 @@ from src.api.routes import events_ws
 from src.api.routes import linear_integration, linear_webhook
 from src.api.routes import tawk_integration, tawk_webhook
 from src.api.routes import hubspot_integration as hubspot_integration_router
-from src.api.routes import salesforce_integration as salesforce_integration_router
 from src.api.routes import jira_integration as jira_integration_router
 from src.api.routes import jira_webhook as jira_webhook_router
 from src.api.routes import asana_integration as asana_integration_router
 from src.api.routes import asana_webhook as asana_webhook_router
-from src.api.routes import intercom_integration as intercom_integration_router
-from src.api.routes import zendesk_integration as zendesk_integration_router
 from src.api.routes import response_templates, response_settings, feedback_responses
 from src.api.routes import feedback_issue_draft as feedback_issue_draft_router  # noqa: E402 — ai-drafted-issue-content
 from src.api.routes import webhooks as webhooks_router
@@ -397,8 +394,6 @@ app.include_router(linear_integration.router)
 app.include_router(linear_webhook.router)
 # HubSpot CRM enrichment (hubspot-connection aspect)
 app.include_router(hubspot_integration_router.router)
-# Salesforce CRM enrichment (salesforce-connection aspect)
-app.include_router(salesforce_integration_router.router)
 # Jira Cloud integration (jira-integration backend-connection aspect)
 app.include_router(jira_integration_router.router)
 app.include_router(jira_webhook_router.router)
@@ -407,11 +402,7 @@ app.include_router(asana_integration_router.router)
 app.include_router(tawk_integration.router)
 app.include_router(tawk_webhook.router)
 app.include_router(asana_webhook_router.router)
-# Intercom token-paste connection (intercom-selfhost-ingestion token-paste-connect)
-app.include_router(intercom_integration_router.router)
 
-# Zendesk inbound integration (zendesk-integration backend-connection aspect)
-app.include_router(zendesk_integration_router.router)
 app.include_router(response_templates.router)
 app.include_router(response_settings.router)
 app.include_router(feedback_responses.router)

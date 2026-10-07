@@ -191,10 +191,5 @@ export const integrationsAPI = {
     return response.data;
   },
 
-  getIntercomOAuthUrl: async (name: string): Promise<OAuthConnectResponse> => {
-    const response = await apiClient.get('/api/v1/integrations/intercom/oauth/connect', {
-      params: { name },
-    });
-    return response.data;
-  },
+
 };

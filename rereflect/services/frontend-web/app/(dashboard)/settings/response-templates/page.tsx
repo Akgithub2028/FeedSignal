@@ -340,7 +340,7 @@ export default function ResponseTemplatesPage() {
                   data-testid="product-name-input"
                   value={productName}
                   onChange={e => setProductName(e.target.value)}
-                  placeholder="e.g. Rereflect"
+                  placeholder="e.g. FeedSignal"
                 />
               </div>
               <div className="space-y-1.5">

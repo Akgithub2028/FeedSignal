@@ -90,6 +90,12 @@ describe('NewIntegrationPage - Teams tile selection', () => {
     mockGetTemplateVariables.mockResolvedValue(templateVariablesResponse);
   });
 
+  it('does not offer the retired Intercom connection', async () => {
+    render(<NewIntegrationPage />);
+    await waitFor(() => expect(mockGetTemplateVariables).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: /Intercom/ })).not.toBeInTheDocument();
+  });
+
   it('test_teams_tile_selects_teams_and_hides_connection_method_and_oauth_blocks', async () => {
     const user = userEvent.setup();
     render(<NewIntegrationPage />);

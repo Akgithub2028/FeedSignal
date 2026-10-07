@@ -33,3 +33,7 @@ Inputs are page props, URL state, authenticated API responses, and public build 
 Use the service's current package.json scripts, pnpm workspace installation, relevant Vitest checks, and a production build for UI/config changes. Do not infer tool availability or build success from package metadata.
 
 This summary was generated from tracked filenames, source declarations/module documentation, and document headings/prose, then sampled for navigation quality. It is not a full semantic audit or a runtime verification. Read actual files before editing. Missing owner settings and validation evidence remain in [UNANSWERED_SECRETS.md](<../../../../UNANSWERED_SECRETS.md>).
+
+## Page-helper extraction
+
+[ChurnSuggestionEvidenceCell.tsx](ChurnSuggestionEvidenceCell.tsx) contains evidence rendering and formatting extracted from the churn-suggestions Page; Next.js Page files cannot export arbitrary named helpers. Its source type is lib/api/churn-suggestions.ts; the CRM and usage-decline evidence tests import the component directly.

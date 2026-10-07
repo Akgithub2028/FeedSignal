@@ -6,7 +6,7 @@ import { Plus } from 'lucide-react';
 const faqs = [
   {
     q: 'Is it really free?',
-    a: 'Yes, completely. Rereflect is MIT-licensed open-source software. There are no plans, seats, usage caps, or fees of any kind. You clone the repo, deploy it on your own infrastructure, and run it forever at no cost.',
+    a: 'Yes, completely. FeedSignal is MIT-licensed open-source software. There are no plans, seats, usage caps, or fees of any kind. You clone the repo, deploy it on your own infrastructure, and run it forever at no cost.',
   },
   {
     q: 'How do I self-host it?',
@@ -14,11 +14,11 @@ const faqs = [
   },
   {
     q: 'Do I need an LLM API key?',
-    a: 'No. Rereflect ships with VADER sentiment analysis, which runs entirely locally with no external API calls and no cost. If you want richer AI features — the Copilot, LLM-powered categorization, or churn insights — you can add an OpenAI, Anthropic, or Google API key. Your key, your cost, no markup.',
+    a: 'No. FeedSignal ships with VADER sentiment analysis, which runs entirely locally with no external API calls and no cost. If you want richer AI features — the Copilot, LLM-powered categorization, or churn insights — you can add an OpenAI, Anthropic, or Google API key. Your key, your cost, no markup.',
   },
   {
     q: 'Can I use it without sending any data to an external LLM?',
-    a: 'Yes. With the VADER-only configuration, all processing happens on your own server. No feedback data leaves your infrastructure. You can also run a local LLM (e.g. via Ollama) and point Rereflect at it — see the README for BYOK/local model configuration.',
+    a: 'Yes. With the VADER-only configuration, all processing happens on your own server. No feedback data leaves your infrastructure. You can also run a local LLM (e.g. via Ollama) and point FeedSignal at it — see the README for BYOK/local model configuration.',
   },
   {
     q: 'What is the license?',
@@ -26,7 +26,7 @@ const faqs = [
   },
   {
     q: 'What integrations are included?',
-    a: 'Inbound feedback sources: Slack, Intercom, Zendesk, email forwarding, CSV import, and custom webhooks. Outbound issue trackers: Jira, Linear, and Asana. CRM: HubSpot and Salesforce. Alerts and digests go out via Slack, Discord and Teams — Discord and Teams are available as alert destinations, not yet as feedback sources. All integrations are configured in your self-hosted instance — no hosted service required.',
+    a: 'Inbound feedback sources: Slack, tawk.to, email forwarding, CSV import, and custom webhooks. Outbound issue trackers: Jira, Linear, and Asana. CRM: HubSpot. Alerts and digests go out via Slack, Discord and Teams — Discord and Teams are available as alert destinations, not yet as feedback sources. All integrations are configured in your self-hosted instance — no hosted service required.',
   },
   {
     q: 'Does it support single sign-on (SSO)?',
@@ -34,7 +34,7 @@ const faqs = [
   },
   {
     q: 'Who owns my data?',
-    a: 'You do, entirely. Because Rereflect runs on your infrastructure, your feedback data never leaves your servers (unless you configure an external LLM key). There is no cloud service, no analytics pipeline, and no third party with access to your data.',
+    a: 'You do, entirely. Because FeedSignal runs on your infrastructure, your feedback data never leaves your servers (unless you configure an external LLM key). There is no cloud service, no analytics pipeline, and no third party with access to your data.',
   },
   {
     q: 'Can I contribute or request features?',
@@ -45,8 +45,8 @@ const faqs = [
     a: 'Churn prediction uses a calibrated model trained on your own labeled outcomes — customers you have marked as churned. The model runs in your instance. Each prediction includes a confidence interval so you can see how certain the model is. Org-specific models activate once you have labeled at least 20 customers; before that a global baseline model is used.',
   },
   {
-    q: 'Can Rereflect pull churn labels from my CRM?',
-    a: 'Yes, if you connect HubSpot or Salesforce — and it is opt-in and off by default. Rereflect reads closed-lost deals from the renewal pipelines (or opportunity types) you name and proposes them as churn suggestions; an optional on-demand backfill can cover your closed-lost history. Nothing is applied automatically: every suggestion waits in a review queue for a person to confirm or reject it, because a lost renewal is not always a churn — deals close lost for renegotiations, contract merges, and mis-staging too. Until you name your renewal pipelines, nothing is suggested at all.',
+    q: 'Can FeedSignal pull churn labels from my CRM?',
+    a: 'Yes, if you connect HubSpot — and it is opt-in and off by default. FeedSignal reads closed-lost deals from the renewal pipelines you name and proposes them as churn suggestions; an optional on-demand backfill can cover your closed-lost history. Nothing is applied automatically: every suggestion waits in a review queue for a person to confirm or reject it, because a lost renewal is not always a churn — deals close lost for renegotiations, contract merges, and mis-staging too. Until you name your renewal pipelines, nothing is suggested at all.',
   },
   {
     q: 'Can I automate actions based on feedback events?',

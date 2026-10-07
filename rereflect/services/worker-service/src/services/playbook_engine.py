@@ -20,7 +20,6 @@ from src.models import (
     ChurnPlaybookExecution,
     CustomerHealth,
 )
-from src.tasks.intercom_writeback import push_resolved_writeback
 
 logger = logging.getLogger(__name__)
 
@@ -330,14 +329,6 @@ def _handle_change_status(
 
     old_status = feedback.workflow_status
     feedback.workflow_status = new_status
-    if (
-        new_status == "resolved"
-        and old_status != new_status
-        and feedback.source == "intercom"
-    ):
-        push_resolved_writeback.delay(
-            org_id, [{"id": feedback.id, "resolution_note": None}],
-        )
     return {"ok": True, "result": {"old_status": old_status, "new_status": new_status}}
 
 

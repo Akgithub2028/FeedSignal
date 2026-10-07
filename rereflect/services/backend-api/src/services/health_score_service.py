@@ -359,36 +359,7 @@ def _maybe_enqueue_writeback(
     _dispatch_hubspot()
 
     # --- Salesforce dispatch (parallel check, push-task-trigger Phase 3) ---
-    def _dispatch_salesforce() -> None:
-        try:
-            from src.models.salesforce_integration import SalesforceIntegration
 
-            sf_integ = (
-                db.query(SalesforceIntegration)
-                .filter(
-                    SalesforceIntegration.organization_id == org_id,
-                    SalesforceIntegration.is_active.is_(True),
-                    SalesforceIntegration.writeback_enabled.is_(True),
-                )
-                .first()
-            )
-            if not sf_integ:
-                return
-
-            from src.background.celery_client import get_celery_app
-
-            get_celery_app().send_task(
-                "src.tasks.salesforce_writeback.push_health_to_salesforce",
-                args=[org_id, customer_email],
-            )
-        except Exception as exc:
-            logger.warning(
-                "health_score_service: failed to enqueue Salesforce writeback for "
-                "org=%s email=%s: %s",
-                org_id, customer_email, exc,
-            )
-
-    _dispatch_salesforce()
 
 
 def resolve_segment(

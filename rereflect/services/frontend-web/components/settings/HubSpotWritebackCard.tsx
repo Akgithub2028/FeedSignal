@@ -124,7 +124,7 @@ export function HubSpotWritebackCard({ status, onStatusChange }: HubSpotWritebac
       <CardHeader>
         <CardTitle>Health-Score Writeback</CardTitle>
         <CardDescription>
-          Push each customer&apos;s Rereflect health score back into HubSpot as a custom contact property.
+          Push each customer&apos;s FeedSignal health score back into HubSpot as a custom contact property.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -25,6 +25,8 @@ Direct declarations (navigation cues, not execution results): notification_dispa
 
 ## Inputs, outputs, and change safety
 
+Owner launch change (2026-10-06): `seed.py` requires explicit `ADMIN_EMAIL` and `ADMIN_PASSWORD` only when the users table is empty. Organization and owner creation share one transaction; configured existing users are never promoted or reset. Nine focused real-database tests pass in `tests/test_owner_bootstrap.py`. Other owner defaults and runtime branding still require the launch audit.
+
 Inputs include validated API/task payloads, organization-scoped database rows, and configured providers; outputs include records, normalized analysis, scheduled work, or responses. Verify organization identity in query, cache, job, and webhook paths. Preserve transactions, retry/idempotency contracts, and encrypted credential handling; workers must not assume backend imports exist.
 
 ## Verification and limits
@@ -32,3 +34,5 @@ Inputs include validated API/task payloads, organization-scoped database rows, a
 Use focused backend pytest checks for changed contracts; use real PostgreSQL for migration, transaction visibility, and database timeout behavior. CI also checks a clean migration and a single Alembic head.
 
 This summary was generated from tracked filenames, source declarations/module documentation, and document headings/prose, then sampled for navigation quality. It is not a full semantic audit or a runtime verification. Read actual files before editing. Missing owner settings and validation evidence remain in [UNANSWERED_SECRETS.md](<../../../UNANSWERED_SECRETS.md>).
+
+Owner launch: dedicated Salesforce/Intercom/Zendesk connection and webhook routers are unmounted. Generic historical records cannot be enabled (410); Intercom notifications/responses/writeback are disabled. Historical models and migration tables are retained. tawk.to signed ingestion is active and organization-scoped.

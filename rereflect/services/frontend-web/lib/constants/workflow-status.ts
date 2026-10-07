@@ -1,5 +1,5 @@
 /**
- * Rereflect's canonical feedback workflow statuses — the mapping *target*
+ * FeedSignal's canonical feedback workflow statuses — the mapping *target*
  * shared by every inbound status-sync integration (Linear, Jira, Asana,
  * Zendesk). Relocated out of `lib/api/linear.ts` (mapping-editor aspect,
  * status-sync-realtime-mapping PRD) so non-Linear status-mapping editors can

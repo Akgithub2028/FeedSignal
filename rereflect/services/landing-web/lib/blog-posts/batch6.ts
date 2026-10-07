@@ -10,9 +10,9 @@ export const batch6: BlogPost[] = [
     date: '2026-12-01',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Product Strategy', 'Roadmap', 'Prioritization', 'Customer Feedback', 'RICE'],
-    seoTitle: 'Prioritize Your Roadmap With Customer Feedback and RICE Scoring | Rereflect',
+    seoTitle: 'Prioritize Your Roadmap With Customer Feedback and RICE Scoring | FeedSignal',
     seoDescription:
       'Learn how to combine RICE scoring with analyzed customer feedback to make roadmap prioritization decisions that are evidence-based rather than opinion-driven.',
     sections: [
@@ -67,9 +67,9 @@ export const batch6: BlogPost[] = [
         ],
       },
       {
-        heading: 'Where Rereflect fits in',
+        heading: 'Where FeedSignal fits in',
         content: [
-          'Rereflect is a self-hosted, open-source tool that analyzes customer feedback and surfaces themes, pain points, feature requests, and urgency signals. Because it is self-hosted and BYOK, your feedback stays on your infrastructure — you are not sending customer verbatims to a third-party service for processing.',
+          'FeedSignal is a self-hosted, open-source tool that analyzes customer feedback and surfaces themes, pain points, feature requests, and urgency signals. Because it is self-hosted and BYOK, your feedback stays on your infrastructure — you are not sending customer verbatims to a third-party service for processing.',
           'For RICE scoring specifically, the most useful outputs are the pain point and feature request extractions (which give you a structured theme list to map to roadmap candidates) and the mention counts by theme (which give you the Reach anchor). The urgency flagging also helps with Impact — items consistently flagged as urgent across multiple pieces of feedback are a signal that impact is higher than it might appear from neutral language.',
           'The tool does not produce RICE scores itself — that judgment still belongs to your team. What it does is reduce the time it takes to gather the evidence that makes those scores honest.',
         ],
@@ -84,9 +84,9 @@ export const batch6: BlogPost[] = [
     date: '2026-12-03',
     status: 'scheduled',
     readTime: '10 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Voice of Customer', 'Customer Feedback', 'Product Strategy', 'VoC', 'Customer Research'],
-    seoTitle: 'How to Build a Voice of Customer Program That Gets Used | Rereflect',
+    seoTitle: 'How to Build a Voice of Customer Program That Gets Used | FeedSignal',
     seoDescription:
       'A practical guide to designing a VoC program that collects from the right channels, synthesizes feedback efficiently, and actually influences roadmap and strategy decisions.',
     sections: [
@@ -140,7 +140,7 @@ export const batch6: BlogPost[] = [
           'A VoC program that produces insights but cannot get them in front of decision-makers is not a VoC program — it is a research exercise. The distribution problem is as important as the synthesis problem.',
           'Different stakeholders need different formats. Engineering and product want specific, evidence-backed pain points and feature requests with mention counts and severity. Leadership wants trend summaries and risk signals. Sales and CS want per-account health signals and common objections. Trying to write one report that serves all of these usually serves none of them well.',
           'The most durable VoC programs embed customer evidence into existing workflows rather than creating new reporting artifacts. That means putting pain point summaries into sprint planning, putting sentiment trends into the monthly business review, and putting account-level signals into CSM handoffs — rather than asking stakeholders to go read a separate document.',
-          'Rereflect is self-hosted and open-source, which means the data stays in your infrastructure and you can integrate the outputs with whatever tools your team already uses. There is no platform lock-in, and the structured outputs from analysis — pain points, feature requests, urgency signals — can feed into whatever workflow your team runs for planning and reporting.',
+          'FeedSignal is self-hosted and open-source, which means the data stays in your infrastructure and you can integrate the outputs with whatever tools your team already uses. There is no platform lock-in, and the structured outputs from analysis — pain points, feature requests, urgency signals — can feed into whatever workflow your team runs for planning and reporting.',
         ],
       },
     ],
@@ -153,9 +153,9 @@ export const batch6: BlogPost[] = [
     date: '2026-12-05',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Product Strategy', 'Roadmap', 'Customer Feedback', 'Workflow', 'Product Management'],
-    seoTitle: 'Feedback-to-Roadmap Workflow for Small Product Teams | Rereflect',
+    seoTitle: 'Feedback-to-Roadmap Workflow for Small Product Teams | FeedSignal',
     seoDescription:
       'A lightweight, practical workflow for turning customer feedback into roadmap input without a dedicated research team. Covers collection, synthesis, and handoff to planning.',
     sections: [
@@ -201,7 +201,7 @@ export const batch6: BlogPost[] = [
         content: [
           'The final step is the one that makes the process real. When a feedback theme is relevant to a roadmap discussion, bring the specific evidence — the number of mentions, the severity signals, the customer segments affected — rather than "I have been hearing a lot about X lately."',
           'The difference matters because it changes the nature of the conversation. Opinions are debatable; evidence is discussable. You can argue about whether X is important, but if you can show that twelve enterprise accounts mentioned it in the past six weeks and three of them used language suggesting they would consider alternatives, that is a different kind of input.',
-          'This is also where tools like Rereflect add practical value. Because Rereflect is self-hosted and runs your feedback through an AI analysis pipeline on your own infrastructure, you can pull structured extractions — pain points, feature requests, urgency flags — and share them directly in planning without sending customer data through a third-party service. The open-source nature means the outputs are yours to use however the team finds most helpful.',
+          'This is also where tools like FeedSignal add practical value. Because FeedSignal is self-hosted and runs your feedback through an AI analysis pipeline on your own infrastructure, you can pull structured extractions — pain points, feature requests, urgency flags — and share them directly in planning without sending customer data through a third-party service. The open-source nature means the outputs are yours to use however the team finds most helpful.',
         ],
       },
     ],
@@ -214,9 +214,9 @@ export const batch6: BlogPost[] = [
     date: '2026-12-08',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['NPS', 'CSAT', 'CES', 'Customer Feedback', 'Metrics'],
-    seoTitle: 'NPS vs CSAT vs CES: Which Metric Matters for SaaS? | Rereflect',
+    seoTitle: 'NPS vs CSAT vs CES: Which Metric Matters for SaaS? | FeedSignal',
     seoDescription:
       'A clear explanation of NPS, CSAT, and CES for SaaS teams — what each metric measures, when to use it, what it misses, and how to combine them with qualitative feedback.',
     sections: [
@@ -275,7 +275,7 @@ export const batch6: BlogPost[] = [
           'The honest answer is that most mature SaaS teams use all three — but at different moments and for different purposes. NPS is the relationship-level check-in, CSAT is the transactional quality signal, and CES is the friction detector.',
           'None of them replace qualitative feedback. A score tells you the magnitude of a problem; it does not tell you what the problem is. The verbatim comments, support tickets, in-app feedback messages, and interview notes are what give the scores meaning. A quarterly NPS decline is a warning sign; the verbatims from Detractors are the diagnosis.',
           'For teams that are resource-constrained and need to pick one: if you are focused on retention and account health, start with NPS and actually read the verbatims. If you are focused on improving specific product experiences, start with CSAT or CES at the touchpoints you most want to improve.',
-          'Rereflect analyzes the qualitative layer — the verbatims, support tickets, and in-app feedback — and surfaces the themes, pain points, and urgency signals that the scores alone will not reveal. Because it is self-hosted, the analysis runs on your infrastructure without sending customer text to a third-party service.',
+          'FeedSignal analyzes the qualitative layer — the verbatims, support tickets, and in-app feedback — and surfaces the themes, pain points, and urgency signals that the scores alone will not reveal. Because it is self-hosted, the analysis runs on your infrastructure without sending customer text to a third-party service.',
         ],
       },
     ],
@@ -288,9 +288,9 @@ export const batch6: BlogPost[] = [
     date: '2026-12-10',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Customer Feedback', 'Leadership', 'Reporting', 'Product Strategy', 'VoC'],
-    seoTitle: 'How to Report Customer Feedback to Leadership Without Losing the Signal | Rereflect',
+    seoTitle: 'How to Report Customer Feedback to Leadership Without Losing the Signal | FeedSignal',
     seoDescription:
       'Learn how to structure customer feedback reports for leadership that are honest and actionable — not sanitized. Covers format, cadence, and how to make the signal land.',
     sections: [
@@ -339,7 +339,7 @@ export const batch6: BlogPost[] = [
           'Leadership will only act on feedback data if they trust it. Trust erodes when summaries are visibly curated, when the data contradicts what leadership already knows from customer conversations, or when the methodology is opaque.',
           'The most important thing you can do to build trust in feedback reporting is to be honest about bad news. If the data shows that a recently shipped feature is generating significant negative feedback, say so clearly, with evidence, before framing what to do about it. If you consistently sanitize the signal, leadership will learn to discount the reports.',
           'Transparency about methodology also helps. Noting that the summary is based on a specific number of feedback items over a specific period, from specific channels, and that it may not represent the full customer base — these caveats are not weaknesses. They are signs of analytical rigor that make the report more credible, not less.',
-          'Rereflect surfaces the structured extractions — tagged pain points, feature requests, urgency signals — that make this kind of honest reporting faster to produce. Because the tool runs on your own infrastructure, the raw feedback does not leave your systems, which matters for teams operating under data governance constraints.',
+          'FeedSignal surfaces the structured extractions — tagged pain points, feature requests, urgency signals — that make this kind of honest reporting faster to produce. Because the tool runs on your own infrastructure, the raw feedback does not leave your systems, which matters for teams operating under data governance constraints.',
         ],
       },
     ],
@@ -352,9 +352,9 @@ export const batch6: BlogPost[] = [
     date: '2026-12-12',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Product Discovery', 'Customer Feedback', 'Product Strategy', 'User Research', 'Jobs to Be Done'],
-    seoTitle: 'Using Customer Feedback for Product Discovery: What to Look For | Rereflect',
+    seoTitle: 'Using Customer Feedback for Product Discovery: What to Look For | FeedSignal',
     seoDescription:
       'How to use customer feedback as a product discovery input — reading for underlying problems, not feature requests, and turning passive feedback into active discovery signal.',
     sections: [
@@ -396,7 +396,7 @@ export const batch6: BlogPost[] = [
           'Those questions then drive the next phase of discovery — whether that is customer interviews, session recordings, data analysis, or a prototype. The feedback is the starting point; it should not be the ending point.',
         ],
         content2: [
-          'Rereflect extracts pain points and feature requests from incoming feedback and groups them by theme, which can significantly compress the time it takes to move from "we have a lot of feedback" to "here are the three problems worth investigating this quarter." Because the tool is self-hosted, the analysis runs on your own infrastructure — the raw customer text does not pass through a third-party service.',
+          'FeedSignal extracts pain points and feature requests from incoming feedback and groups them by theme, which can significantly compress the time it takes to move from "we have a lot of feedback" to "here are the three problems worth investigating this quarter." Because the tool is self-hosted, the analysis runs on your own infrastructure — the raw customer text does not pass through a third-party service.',
         ],
       },
       {
@@ -411,24 +411,24 @@ export const batch6: BlogPost[] = [
   },
   {
     slug: 'rereflect-vs-savio',
-    title: 'Rereflect vs Savio: Choosing a Feedback Tool When You Own Your Data',
+    title: 'FeedSignal vs Savio: Choosing a Feedback Tool When You Own Your Data',
     excerpt:
-      'Savio is a well-regarded product feedback management tool with a focus on feature request aggregation and roadmap voting. Rereflect takes a different approach: self-hosted, open-source, BYOK AI analysis. Here is an honest comparison to help you decide which fits your situation.',
+      'Savio is a well-regarded product feedback management tool with a focus on feature request aggregation and roadmap voting. FeedSignal takes a different approach: self-hosted, open-source, BYOK AI analysis. Here is an honest comparison to help you decide which fits your situation.',
     date: '2026-12-15',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Comparison', 'Product Feedback', 'Self-Hosting', 'Open Source', 'Savio'],
-    seoTitle: 'Rereflect vs Savio: Self-Hosted Feedback Analysis vs SaaS Feedback Management | Rereflect',
+    seoTitle: 'FeedSignal vs Savio: Self-Hosted Feedback Analysis vs SaaS Feedback Management | FeedSignal',
     seoDescription:
-      'An honest comparison of Rereflect and Savio for customer feedback management. Covers approach differences, data ownership, AI analysis, pricing models, and which tool fits which team.',
+      'An honest comparison of FeedSignal and Savio for customer feedback management. Covers approach differences, data ownership, AI analysis, pricing models, and which tool fits which team.',
     sections: [
       {
         heading: 'What Savio does well',
         content: [
           'Savio is purpose-built for feature request aggregation and customer feedback management in B2B SaaS companies. It does several things well that are worth acknowledging directly.',
           'Its core workflow — capturing feature requests from multiple sources (Intercom, Slack, Salesforce, email, and others), tagging them to customers and accounts, and surfacing which features have the most customer demand — is thoughtfully designed. For a product team that wants to build a scalable system for tracking "who asked for what," Savio provides a structured workflow that would otherwise require significant manual effort.',
-          'Savio also has roadmap sharing features that let you publish your roadmap to customers and collect votes, which creates a feedback loop that Rereflect does not replicate. If customer-facing roadmap voting is important to your process, that is a genuine differentiator for Savio.',
+          'Savio also has roadmap sharing features that let you publish your roadmap to customers and collect votes, which creates a feedback loop that FeedSignal does not replicate. If customer-facing roadmap voting is important to your process, that is a genuine differentiator for Savio.',
           'The hosted SaaS model means there is no infrastructure to manage — you sign up and start connecting integrations. For teams that want to move quickly without ops overhead, that has real value.',
         ],
       },
@@ -436,9 +436,9 @@ export const batch6: BlogPost[] = [
         heading: 'Where the two tools diverge',
         content: [
           'The most fundamental difference is the deployment model and data ownership story. Savio is a hosted SaaS product — your customer feedback data lives on Savio\'s infrastructure. For many teams that is completely fine. For teams operating under data residency requirements, strict security policies, or a preference to keep customer verbatims on their own systems, it is a constraint.',
-          'Rereflect is self-hosted and open source under the MIT license. You run it on your own infrastructure. Your customers\' feedback does not leave your systems. There is no per-seat or per-feedback billing from Rereflect — you bring your own AI key (or run a local model) and pay that provider directly, or use the built-in VADER fallback at no AI cost.',
-          'The second divergence is analysis approach. Savio is primarily organized around feature requests — it is optimized for capturing, tagging, and counting requests, and showing you which features have the most customer interest. Rereflect focuses on AI-driven analysis of the full feedback text: sentiment, pain point extraction, feature request extraction, urgency detection, and topic clustering across all feedback types, not just requests that were explicitly tagged by a human.',
-          'Neither approach is wrong — they are solving adjacent problems. Savio answers "what are customers asking for and how much." Rereflect answers "what is happening in my customer feedback, across all channels, without requiring a human to tag everything."',
+          'FeedSignal is self-hosted and open source under the MIT license. You run it on your own infrastructure. Your customers\' feedback does not leave your systems. There is no per-seat or per-feedback billing from FeedSignal — you bring your own AI key (or run a local model) and pay that provider directly, or use the built-in VADER fallback at no AI cost.',
+          'The second divergence is analysis approach. Savio is primarily organized around feature requests — it is optimized for capturing, tagging, and counting requests, and showing you which features have the most customer interest. FeedSignal focuses on AI-driven analysis of the full feedback text: sentiment, pain point extraction, feature request extraction, urgency detection, and topic clustering across all feedback types, not just requests that were explicitly tagged by a human.',
+          'Neither approach is wrong — they are solving adjacent problems. Savio answers "what are customers asking for and how much." FeedSignal answers "what is happening in my customer feedback, across all channels, without requiring a human to tag everything."',
         ],
       },
       {
@@ -446,18 +446,18 @@ export const batch6: BlogPost[] = [
         content: [
           'For some teams, the data ownership question is the deciding factor. If your customers are healthcare providers, financial institutions, or enterprises with strict data handling requirements, the question of where their verbatim feedback is processed and stored matters. A hosted SaaS tool processes that data on the vendor\'s infrastructure; a self-hosted tool keeps it on yours.',
           'This is not a criticism of Savio specifically — it is a property of hosted SaaS tools generally. Savio presumably has appropriate security controls and compliance certifications, and for most companies those are sufficient. For teams where data residency is a hard requirement, self-hosting is the only path that meets the constraint.',
-          'BYOK (bring your own key) is another dimension of this. With Rereflect, when you configure an AI provider, you are using your own account with that provider. The AI calls go from your infrastructure to the AI provider directly — Rereflect never sees your AI credentials or the API responses. With a hosted SaaS tool that provides AI analysis as part of the product, the AI calls typically go through the vendor\'s infrastructure.',
+          'BYOK (bring your own key) is another dimension of this. With FeedSignal, when you configure an AI provider, you are using your own account with that provider. The AI calls go from your infrastructure to the AI provider directly — FeedSignal never sees your AI credentials or the API responses. With a hosted SaaS tool that provides AI analysis as part of the product, the AI calls typically go through the vendor\'s infrastructure.',
         ],
       },
       {
         heading: 'Pricing models compared',
         content: [
           'We are not going to reproduce Savio\'s current pricing here because pricing pages change and we would rather you check directly. In general terms: Savio is a commercial SaaS product with subscription pricing, typically per-seat or per-plan tiers.',
-          'Rereflect is free and open source under the MIT license. There is no subscription and no usage billing from Rereflect. You pay for the infrastructure you run it on (a small VPS is sufficient for most teams) and for whatever AI provider you connect to, at that provider\'s standard rates. The VADER fallback has no AI cost at all.',
-          'For small teams, the all-in cost of self-hosting Rereflect will typically be lower than a SaaS subscription. For larger teams, the comparison depends on what features you need and how much you value the managed service versus the control of self-hosting.',
+          'FeedSignal is free and open source under the MIT license. There is no subscription and no usage billing from FeedSignal. You pay for the infrastructure you run it on (a small VPS is sufficient for most teams) and for whatever AI provider you connect to, at that provider\'s standard rates. The VADER fallback has no AI cost at all.',
+          'For small teams, the all-in cost of self-hosting FeedSignal will typically be lower than a SaaS subscription. For larger teams, the comparison depends on what features you need and how much you value the managed service versus the control of self-hosting.',
         ],
         table: {
-          headers: ['Dimension', 'Rereflect', 'Savio'],
+          headers: ['Dimension', 'FeedSignal', 'Savio'],
           rows: [
             ['Deployment', 'Self-hosted (your infrastructure)', 'Hosted SaaS'],
             ['License', 'Open source (MIT)', 'Commercial'],
@@ -474,26 +474,26 @@ export const batch6: BlogPost[] = [
         heading: 'Which tool fits which situation',
         content: [
           'Savio is likely a better fit if: you want a managed service with no ops overhead, your core use case is structured feature request management with customer tagging, customer-facing roadmap voting is part of your process, or your team has no interest in managing infrastructure.',
-          'Rereflect is likely a better fit if: data ownership is a hard requirement, you want AI-driven analysis of all feedback types (not just explicit feature requests), you are running under cost constraints and want to avoid per-seat pricing, you prefer open-source software you can inspect and modify, or you want to run the AI analysis with your own provider or a local model.',
-          'There is also a genuine case for using both: Savio for structured feature request tracking and customer-facing roadmap communication, and Rereflect for the broader AI analysis of support tickets, in-app feedback, and qualitative feedback that does not arrive as a structured feature request. They are not perfectly overlapping tools.',
-          'We built Rereflect because we believed there was a gap in the market for a self-hosted, open-source AI feedback analysis tool. We are not trying to be everything to everyone. If Savio\'s approach fits your workflow better, it is a solid product — use the right tool for your situation.',
+          'FeedSignal is likely a better fit if: data ownership is a hard requirement, you want AI-driven analysis of all feedback types (not just explicit feature requests), you are running under cost constraints and want to avoid per-seat pricing, you prefer open-source software you can inspect and modify, or you want to run the AI analysis with your own provider or a local model.',
+          'There is also a genuine case for using both: Savio for structured feature request tracking and customer-facing roadmap communication, and FeedSignal for the broader AI analysis of support tickets, in-app feedback, and qualitative feedback that does not arrive as a structured feature request. They are not perfectly overlapping tools.',
+          'We built FeedSignal because we believed there was a gap in the market for a self-hosted, open-source AI feedback analysis tool. We are not trying to be everything to everyone. If Savio\'s approach fits your workflow better, it is a solid product — use the right tool for your situation.',
         ],
       },
     ],
   },
   {
     slug: 'rereflect-vs-sprig',
-    title: 'Rereflect vs Sprig: In-Product Research vs Self-Hosted Feedback Analysis',
+    title: 'FeedSignal vs Sprig: In-Product Research vs Self-Hosted Feedback Analysis',
     excerpt:
-      'Sprig is a powerful in-product research platform. Rereflect is a self-hosted AI analysis tool for customer feedback. They are solving related but different problems — here is an honest breakdown of where they overlap and where they diverge.',
+      'Sprig is a powerful in-product research platform. FeedSignal is a self-hosted AI analysis tool for customer feedback. They are solving related but different problems — here is an honest breakdown of where they overlap and where they diverge.',
     date: '2026-12-18',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Comparison', 'Product Research', 'Self-Hosting', 'Open Source', 'Sprig'],
-    seoTitle: 'Rereflect vs Sprig: In-Product Research vs Self-Hosted Feedback Analysis | Rereflect',
+    seoTitle: 'FeedSignal vs Sprig: In-Product Research vs Self-Hosted Feedback Analysis | FeedSignal',
     seoDescription:
-      'A fair comparison of Rereflect and Sprig. Covers what each tool is built for, how they handle AI analysis, data ownership, pricing models, and which fits which team.',
+      'A fair comparison of FeedSignal and Sprig. Covers what each tool is built for, how they handle AI analysis, data ownership, pricing models, and which fits which team.',
     sections: [
       {
         heading: 'What Sprig does well',
@@ -506,9 +506,9 @@ export const batch6: BlogPost[] = [
       {
         heading: 'What makes them different tools',
         content: [
-          'The most important distinction is what each tool is optimized for. Sprig is a research tool: it is designed to help you ask structured questions to the right users at the right moment and analyze the results. Rereflect is an analysis tool for existing feedback: it is designed to process the feedback your customers are already generating — support tickets, in-app messages, NPS verbatims, CSV imports — and surface what is in it.',
-          'This distinction matters practically. Sprig requires you to design surveys and set up triggering logic; the value comes from the intentional research you do. Rereflect requires no survey design; the value comes from analyzing the passive feedback stream that exists regardless of whether you set anything up.',
-          'The deployment model is the second major divergence. Sprig is a hosted SaaS product — your user data, session context, and survey responses live on Sprig\'s infrastructure. Rereflect is self-hosted and open source under the MIT license. Your feedback stays on your infrastructure; the AI analysis runs there too, either with your own API key, a local model, or the built-in VADER fallback.',
+          'The most important distinction is what each tool is optimized for. Sprig is a research tool: it is designed to help you ask structured questions to the right users at the right moment and analyze the results. FeedSignal is an analysis tool for existing feedback: it is designed to process the feedback your customers are already generating — support tickets, in-app messages, NPS verbatims, CSV imports — and surface what is in it.',
+          'This distinction matters practically. Sprig requires you to design surveys and set up triggering logic; the value comes from the intentional research you do. FeedSignal requires no survey design; the value comes from analyzing the passive feedback stream that exists regardless of whether you set anything up.',
+          'The deployment model is the second major divergence. Sprig is a hosted SaaS product — your user data, session context, and survey responses live on Sprig\'s infrastructure. FeedSignal is self-hosted and open source under the MIT license. Your feedback stays on your infrastructure; the AI analysis runs there too, either with your own API key, a local model, or the built-in VADER fallback.',
           'For teams where the research vs. analysis distinction is meaningful, they solve genuinely different problems. For teams looking for any tool to help them understand customer feedback better, the choice depends on how actively you want to run research versus how much passive feedback you need to analyze.',
         ],
       },
@@ -517,24 +517,24 @@ export const batch6: BlogPost[] = [
         content: [
           'Both tools use AI to help make sense of feedback at scale. The difference is in how that AI is provisioned and where the computation happens.',
           'Sprig\'s AI is part of the product — it is a hosted feature that runs on Sprig\'s infrastructure with a model they manage. This means you do not need to configure anything to get AI analysis, but it also means the analysis of your users\' verbatims happens on a third-party\'s systems.',
-          'Rereflect is BYOK (bring your own key). When you configure AI analysis in Rereflect, you supply your own API key to the AI provider of your choice — OpenAI, Anthropic, Google, or any OpenAI-compatible provider. The AI calls go from your infrastructure directly to the provider; Rereflect never processes the calls in the middle. You can also run a local model (via Ollama or similar) at no API cost, or skip AI entirely and use the built-in VADER sentiment fallback. All of these options keep your users\' text on your own systems.',
+          'FeedSignal is BYOK (bring your own key). When you configure AI analysis in FeedSignal, you supply your own API key to the AI provider of your choice — OpenAI, Anthropic, Google, or any OpenAI-compatible provider. The AI calls go from your infrastructure directly to the provider; FeedSignal never processes the calls in the middle. You can also run a local model (via Ollama or similar) at no API cost, or skip AI entirely and use the built-in VADER sentiment fallback. All of these options keep your users\' text on your own systems.',
         ],
         listItems: [
           'Sprig AI: managed by Sprig, runs on Sprig infrastructure, no configuration needed.',
-          'Rereflect BYOK: your key, your provider, AI calls go from your server to the provider directly.',
-          'Rereflect local model: runs entirely on your hardware, no API costs, no external calls.',
-          'Rereflect VADER fallback: built-in, free, fully local, no model required.',
+          'FeedSignal BYOK: your key, your provider, AI calls go from your server to the provider directly.',
+          'FeedSignal local model: runs entirely on your hardware, no API costs, no external calls.',
+          'FeedSignal VADER fallback: built-in, free, fully local, no model required.',
         ],
       },
       {
         heading: 'Pricing structure and cost considerations',
         content: [
           'Sprig is a commercial SaaS product. We are not going to reproduce their current pricing here — check sprig.com directly — but in general it is structured as a subscription with tiers based on usage and features. Research platforms at this level of capability tend to be priced for product and UX research teams at growth-stage and enterprise companies.',
-          'Rereflect is free and open-source under the MIT license. There is no subscription, no seat cost, and no usage billing from Rereflect itself. Your costs are infrastructure (a small VPS is enough for most teams) and AI provider costs if you use a hosted model. Many teams start with the VADER fallback at zero AI cost.',
+          'FeedSignal is free and open-source under the MIT license. There is no subscription, no seat cost, and no usage billing from FeedSignal itself. Your costs are infrastructure (a small VPS is enough for most teams) and AI provider costs if you use a hosted model. Many teams start with the VADER fallback at zero AI cost.',
           'For small teams or startups cost-constrained on tooling budgets, the cost difference is significant. For teams where budget is not the constraint and managed research infrastructure is the priority, cost comparison is less relevant than feature fit.',
         ],
         table: {
-          headers: ['Dimension', 'Rereflect', 'Sprig'],
+          headers: ['Dimension', 'FeedSignal', 'Sprig'],
           rows: [
             ['Primary use case', 'Analyze existing feedback (passive stream)', 'Run structured in-product research'],
             ['Deployment', 'Self-hosted (your infrastructure)', 'Hosted SaaS'],
@@ -551,9 +551,9 @@ export const batch6: BlogPost[] = [
         heading: 'Which tool fits which situation',
         content: [
           'Sprig is likely a better fit if: you want to run structured research with in-product event-triggered surveys, you need behavioral targeting to reach specific user segments, you want a managed platform with no infrastructure to operate, or AI-assisted research synthesis is a core part of your workflow.',
-          'Rereflect is likely a better fit if: you have a large volume of existing feedback that is not being systematically analyzed, data ownership and self-hosting are requirements, you want to analyze passive feedback (support tickets, in-app messages, NPS verbatims) without running surveys, cost is a meaningful constraint, or you prefer open-source software you can modify and audit.',
-          'The tools are not mutually exclusive. A team that uses Sprig for structured in-product research might also use Rereflect to analyze the broader passive feedback stream — support tickets, in-app free-text, and CSV imports from other channels — that Sprig surveys do not cover. The research platform and the feedback analysis tool serve different parts of the customer understanding workflow.',
-          'We built Rereflect because we thought the self-hosted, open-source, BYOK model was under-served for teams that need to analyze feedback without sending customer text to a third-party service. If Sprig\'s research-first approach fits your needs, it is a capable product — choose based on what you actually need to accomplish.',
+          'FeedSignal is likely a better fit if: you have a large volume of existing feedback that is not being systematically analyzed, data ownership and self-hosting are requirements, you want to analyze passive feedback (support tickets, in-app messages, NPS verbatims) without running surveys, cost is a meaningful constraint, or you prefer open-source software you can modify and audit.',
+          'The tools are not mutually exclusive. A team that uses Sprig for structured in-product research might also use FeedSignal to analyze the broader passive feedback stream — support tickets, in-app free-text, and CSV imports from other channels — that Sprig surveys do not cover. The research platform and the feedback analysis tool serve different parts of the customer understanding workflow.',
+          'We built FeedSignal because we thought the self-hosted, open-source, BYOK model was under-served for teams that need to analyze feedback without sending customer text to a third-party service. If Sprig\'s research-first approach fits your needs, it is a capable product — choose based on what you actually need to accomplish.',
         ],
       },
     ],
@@ -566,9 +566,9 @@ export const batch6: BlogPost[] = [
     date: '2026-12-23',
     status: 'scheduled',
     readTime: '10 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Customer Feedback', 'Product Strategy', 'Quarterly Review', 'VoC', 'Product Management'],
-    seoTitle: 'How to Run a Quarterly Customer Feedback Review That Drives Decisions | Rereflect',
+    seoTitle: 'How to Run a Quarterly Customer Feedback Review That Drives Decisions | FeedSignal',
     seoDescription:
       'A step-by-step guide to running a quarterly customer feedback review — how to prepare the data, structure the session, involve stakeholders, and turn findings into decisions.',
     sections: [
@@ -619,7 +619,7 @@ export const batch6: BlogPost[] = [
           'A quarterly review that ends without commitments is a review that will not be taken seriously the next time around. The most important output is a short list of decisions that were made — not "we should think about X" but "we are going to do X by Y date, owned by Z."',
           'Not every theme requires a roadmap commitment. Some themes are acknowledged as known trade-offs. Some are assigned to a future review cycle for further monitoring. Some generate immediate escalations to customer success. The point is that every top theme leaves the room with a clear disposition — what we are going to do about it and who is responsible.',
           'A shared document with the review findings, the decisions made, and the commitments with owners and timelines is the artifact that creates accountability between quarters. Review it at the start of the next quarterly session to close the loop.',
-          'Rereflect can significantly reduce the preparation time for this process. Because it analyzes incoming feedback continuously and surfaces structured extractions — pain points by theme, feature requests by volume, urgency flags — the summary document that drives the quarterly review is mostly assembled rather than written from scratch. The open-source, self-hosted model means the data is on your own infrastructure and the outputs belong to you to use however your team finds most helpful.',
+          'FeedSignal can significantly reduce the preparation time for this process. Because it analyzes incoming feedback continuously and surfaces structured extractions — pain points by theme, feature requests by volume, urgency flags — the summary document that drives the quarterly review is mostly assembled rather than written from scratch. The open-source, self-hosted model means the data is on your own infrastructure and the outputs belong to you to use however your team finds most helpful.',
         ],
       },
     ],

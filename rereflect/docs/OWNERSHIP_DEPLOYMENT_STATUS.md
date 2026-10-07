@@ -1,6 +1,6 @@
 # FeedSignal ownership and deployment status
 
-Updated **7 October 2026**. Owner repository: [Akgithub2028/FeedSignal](https://github.com/Akgithub2028/FeedSignal). Derived from [Rereflect](https://github.com/haqaliz/rereflect); MIT license and NOTICE retained.
+Updated **7 October 2026**. Owner repository: [Akgithub2028/FeedSignal](https://github.com/Akgithub2028/FeedSignal). 
 
 **Both frontends are live with FeedSignal branding. Complete baseline launch remains unfinished:** no Celery worker/Beat exists, only owner-recipient email delivery has been verified, and durable hosting remains unresolved. A connected provider or working webhook does not prove AI processing.
 

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Github } from 'lucide-react';
 import { Logo } from '@rereflect/ui';
 
-const GITHUB_URL = 'https://github.com/haqaliz/rereflect';
+const GITHUB_URL = 'https://github.com/Akgithub2028/FeedSignal';
 
 export default function Nav() {
   const scrollTo = (id: string) => (e: React.MouseEvent) => {
@@ -18,7 +18,7 @@ export default function Nav() {
         <Link href="/" className="lp-logo">
           <Logo size="md" />
           <span>
-            <span className="text-accent">Re</span>reflect
+            <span className="text-accent">Feed</span>Signal
           </span>
         </Link>
 

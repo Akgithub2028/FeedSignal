@@ -5,8 +5,8 @@ import { Github, ArrowRight } from 'lucide-react';
 import { useGSAP } from '@/lib/landing/gsap';
 import { revealOnScroll } from '@/lib/landing/motion';
 
-const GITHUB_URL = 'https://github.com/haqaliz/rereflect';
-const SELFHOST_URL = 'https://github.com/haqaliz/rereflect#self-hosting';
+const GITHUB_URL = 'https://github.com/Akgithub2028/FeedSignal';
+const SELFHOST_URL = 'https://github.com/Akgithub2028/FeedSignal/blob/main/rereflect/docs/SELF_HOSTING.md';
 
 const STEPS = [
   ['01', 'git clone', 'Pull the monorepo and copy .env.example.'],

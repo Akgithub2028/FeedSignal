@@ -9,14 +9,14 @@ import RevealGrid from '@/components/landing/RevealGrid';
 import SubpageCTA from '@/components/landing/SubpageCTA';
 
 export const metadata: Metadata = {
-  title: 'Blog | Rereflect',
+  title: 'Blog | FeedSignal',
   description:
     'Insights on customer feedback analysis, sentiment detection, and product management for SaaS teams.',
   openGraph: {
-    title: 'Blog | Rereflect',
+    title: 'Blog | FeedSignal',
     description:
       'Insights on customer feedback analysis, sentiment detection, and product management for SaaS teams.',
-    url: 'https://rereflect.ca/blog',
+    url: 'https://feed-signal-ochre.vercel.app/blog',
   },
 };
 

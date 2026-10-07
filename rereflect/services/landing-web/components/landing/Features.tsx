@@ -6,11 +6,9 @@ import { revealOnScroll, fillMeters, countUp, revealGroup } from '@/lib/landing/
 import { gsap } from '@/lib/landing/gsap';
 
 const INTEGRATIONS = [
-  'Intercom',
-  'Zendesk',
+  'tawk.to',
   'Jira',
   'Linear',
-  'Salesforce',
   'HubSpot',
   'Asana',
   'Slack',

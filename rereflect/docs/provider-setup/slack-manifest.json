@@ -1,0 +1,44 @@
+{
+  "display_information": {
+    "name": "FeedSignal",
+    "description": "Customer feedback intelligence for tiny SaaS teams",
+    "background_color": "#f97316"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "FeedSignal",
+      "always_online": false
+    }
+  },
+  "oauth_config": {
+    "pkce_enabled": false,
+    "redirect_urls": [
+      "https://feedsignal-api.onrender.com/api/v1/integrations/slack/oauth/callback"
+    ],
+    "scopes": {
+      "bot": [
+        "chat:write",
+        "channels:read",
+        "groups:read",
+        "channels:history",
+        "groups:history",
+        "incoming-webhook"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "request_url": "https://feedsignal-api.onrender.com/api/v1/webhooks/slack/events",
+      "bot_events": [
+        "message.channels",
+        "message.groups"
+      ]
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false,
+    "incoming_webhooks": {
+      "incoming_webhooks_enabled": true
+    }
+  }
+}

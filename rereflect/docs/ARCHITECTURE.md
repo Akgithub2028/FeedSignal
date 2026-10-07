@@ -1,5 +1,7 @@
 # Architecture
 
+> FeedSignal fork documentation. Current cloud deployment and connector readiness: [ownership/deployment status](OWNERSHIP_DEPLOYMENT_STATUS.md). Inherited capabilities described below are not evidence of a live configured integration.
+
 ```
 ┌─────────────────┐
 │  frontend-web   │  Next.js 16 + TypeScript + TailwindCSS

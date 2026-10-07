@@ -56,7 +56,7 @@ export default function IntegrationsPage() {
             eyebrow="Integrations"
             title="Feedback from"
             gradient="every channel"
-            sub="Connect Slack, Intercom, email, and more. Rereflect pulls in customer feedback from your existing tools and turns it into actionable insights."
+            sub="Connect Slack, tawk.to, email, and more. FeedSignal pulls in customer feedback from your existing tools and turns it into actionable insights."
           />
 
           <div className="lp-section-block">

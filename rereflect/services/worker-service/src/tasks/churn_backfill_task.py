@@ -189,8 +189,6 @@ def _backfill_body(
 
     if provider == "hubspot":
         model = HubSpotIntegration
-    elif provider == "salesforce":
-        model = SalesforceIntegration
     else:
         return {"status": "error", "reason": "unknown_provider"}
 

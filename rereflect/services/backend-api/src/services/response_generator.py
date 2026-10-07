@@ -66,7 +66,7 @@ def resolve_variables(
     )
     sentiment = feedback.sentiment_label or ""
     source = feedback.source or ""
-    product_name = (org.product_name_display if org else None) or "Rereflect"
+    product_name = (org.product_name_display if org else None) or "FeedSignal"
     agent_name = f"{user.name}" if (user and hasattr(user, "name") and user.name) else (user.email.split("@")[0] if user else "")
     support_email = (org.support_email_display if org else None) or ""
     health_score = str(feedback.churn_risk_score) if feedback.churn_risk_score is not None else ""
@@ -137,7 +137,7 @@ async def generate_response(
     Raises RuntimeError on LLM failure (caller should handle).
     """
     resolved_tone = tone or (org.default_tone if org else None) or "professional"
-    product_name = (org.product_name_display if org else None) or "Rereflect"
+    product_name = (org.product_name_display if org else None) or "FeedSignal"
     source_meta = feedback.source_metadata or {}
     customer_name = source_meta.get("author_name") or source_meta.get("customer_name") or "there"
     customer_email = feedback.customer_email or "unknown"

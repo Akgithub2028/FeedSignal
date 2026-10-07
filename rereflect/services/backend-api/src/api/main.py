@@ -12,14 +12,12 @@ from src.api.routes import conversation_folders, conversations, copilot_ws, copi
 from src.api.routes import copilot_actions  # noqa: E402 — copilot-suggested-actions: action-registry
 from src.api.routes import events_ws
 from src.api.routes import linear_integration, linear_webhook
+from src.api.routes import tawk_integration, tawk_webhook
 from src.api.routes import hubspot_integration as hubspot_integration_router
-from src.api.routes import salesforce_integration as salesforce_integration_router
 from src.api.routes import jira_integration as jira_integration_router
 from src.api.routes import jira_webhook as jira_webhook_router
 from src.api.routes import asana_integration as asana_integration_router
 from src.api.routes import asana_webhook as asana_webhook_router
-from src.api.routes import intercom_integration as intercom_integration_router
-from src.api.routes import zendesk_integration as zendesk_integration_router
 from src.api.routes import response_templates, response_settings, feedback_responses
 from src.api.routes import feedback_issue_draft as feedback_issue_draft_router  # noqa: E402 — ai-drafted-issue-content
 from src.api.routes import webhooks as webhooks_router
@@ -282,7 +280,7 @@ async def lifespan(app: FastAPI):
 root_path = os.getenv("ROOT_PATH", "")
 
 app = FastAPI(
-    title="Rereflect API",
+    title="FeedSignal API",
     version="1.0.0",
     description="Multi-tenant SaaS API for customer feedback analysis",
     lifespan=lifespan,
@@ -396,19 +394,15 @@ app.include_router(linear_integration.router)
 app.include_router(linear_webhook.router)
 # HubSpot CRM enrichment (hubspot-connection aspect)
 app.include_router(hubspot_integration_router.router)
-# Salesforce CRM enrichment (salesforce-connection aspect)
-app.include_router(salesforce_integration_router.router)
 # Jira Cloud integration (jira-integration backend-connection aspect)
 app.include_router(jira_integration_router.router)
 app.include_router(jira_webhook_router.router)
 # Asana integration (asana-integration backend-connection aspect)
 app.include_router(asana_integration_router.router)
+app.include_router(tawk_integration.router)
+app.include_router(tawk_webhook.router)
 app.include_router(asana_webhook_router.router)
-# Intercom token-paste connection (intercom-selfhost-ingestion token-paste-connect)
-app.include_router(intercom_integration_router.router)
 
-# Zendesk inbound integration (zendesk-integration backend-connection aspect)
-app.include_router(zendesk_integration_router.router)
 app.include_router(response_templates.router)
 app.include_router(response_settings.router)
 app.include_router(feedback_responses.router)
@@ -444,7 +438,7 @@ app.include_router(public_api_router.router)
 @app.get("/")
 async def root():
     return {
-        "message": "Rereflect API",
+        "message": "FeedSignal API",
         "version": "1.0.0",
         "status": "running"
     }

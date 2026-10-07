@@ -942,7 +942,7 @@ class AutomationEngine:
             .filter(Organization.id == rule.organization_id)
             .first()
         )
-        product_name = (org.product_name_display if org else None) or "Rereflect"
+        product_name = (org.product_name_display if org else None) or "FeedSignal"
         customer_name = (health.customer_name if health else "") or ""
 
         tpl = OUTREACH_TEMPLATES[template_key]

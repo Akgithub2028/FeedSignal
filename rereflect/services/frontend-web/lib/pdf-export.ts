@@ -96,7 +96,7 @@ export async function exportAnalyticsPDF(
   // Footer
   pdf.setFontSize(8);
   pdf.setTextColor(theme.footerColor[0], theme.footerColor[1], theme.footerColor[2]);
-  pdf.text('Powered by Rereflect', pageWidth / 2, pageHeight - 5, { align: 'center' });
+  pdf.text('Powered by FeedSignal', pageWidth / 2, pageHeight - 5, { align: 'center' });
 
   pdf.save(`analytics-${options.dateRange}-${new Date().toISOString().slice(0, 10)}.pdf`);
 }

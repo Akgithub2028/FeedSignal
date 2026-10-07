@@ -29,7 +29,7 @@ interface AsanaStatusSyncCardProps {
 // Control surface for inbound Asana status sync (asana-status-sync,
 // mirroring jira-status-sync/inbound-status-sync; extended by the
 // mapping-editor aspect): a toggle, a read-only last-synced indicator, a
-// manual "Sync now" trigger, and a completion → Rereflect-status mapping
+// manual "Sync now" trigger, and a completion → FeedSignal-status mapping
 // editor.
 export function AsanaStatusSyncCard({ status, onStatusChange }: AsanaStatusSyncCardProps) {
   const [toggling, setToggling] = useState(false);
@@ -186,7 +186,7 @@ export function AsanaStatusSyncCard({ status, onStatusChange }: AsanaStatusSyncC
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-semibold text-foreground">Sync task status back to Rereflect</p>
+            <p className="font-semibold text-foreground">Sync task status back to FeedSignal</p>
             <p className="text-sm text-muted-foreground">
               Automatically update feedback status when the linked Asana task is completed.
             </p>
@@ -223,7 +223,7 @@ export function AsanaStatusSyncCard({ status, onStatusChange }: AsanaStatusSyncC
             foreignKeys={ASANA_STATUS_MAPPING_KEYS}
             currentMapping={status.status_mapping}
             onSave={handleSaveMapping}
-            description="Asana task completion maps to Rereflect workflow statuses."
+            description="Asana task completion maps to FeedSignal workflow statuses."
           />
         </div>
 

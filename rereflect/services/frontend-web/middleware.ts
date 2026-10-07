@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const MARKETING_DOMAIN = 'https://rereflect.ca';
+const MARKETING_DOMAIN = process.env.MARKETING_URL || process.env.NEXT_PUBLIC_MARKETING_URL || 'https://feed-signal-ochre.vercel.app';
 const landingRoutes = ['/privacy', '/terms', '/changelog'];
 
 export function middleware(request: NextRequest) {
@@ -17,8 +17,8 @@ export function middleware(request: NextRequest) {
   }
 
   // Redirect landing routes to marketing domain
-  if (landingRoutes.some(route => pathname.startsWith(route))) {
-    return NextResponse.redirect(new URL(pathname, MARKETING_DOMAIN));
+  if (landingRoutes.some(route => pathname === route || pathname.startsWith(`${route}/`))) {
+    return NextResponse.redirect(new URL(`${pathname}${request.nextUrl.search}`, MARKETING_DOMAIN));
   }
 
   // Redirect root to dashboard

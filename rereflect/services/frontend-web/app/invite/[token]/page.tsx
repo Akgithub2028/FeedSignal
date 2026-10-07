@@ -189,7 +189,7 @@ export default function InvitePage() {
               <Logo size="sm" className="text-white [&_path]:fill-white" />
             </div>
             <span className="text-xl font-bold">
-              <span className="opacity-80">Re</span>reflect
+              <span className="opacity-80">Feed</span>Signal
             </span>
           </div>
           <h1 className="text-xl font-semibold">You&apos;ve been invited!</h1>

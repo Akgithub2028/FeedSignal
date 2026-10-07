@@ -20,31 +20,35 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://rereflect.ca"),
-  title: "Rereflect - Open-Source Customer Feedback Analysis",
+  applicationName: "FeedSignal",
+  verification: { google: "G8VZIRu29qZMEn4SmQ7e9C6bQgRMIpA-cY3dJJM_xPw" },
+  creator: "Akgithub2028",
+  authors: [{ name: "Akgithub2028", url: "https://github.com/Akgithub2028" }],
+  metadataBase: new URL("https://feed-signal-ochre.vercel.app"),
+  title: "FeedSignal - Open-Source Customer Feedback Analysis",
   description: "Self-hosted, MIT-licensed AI feedback analysis. Sentiment, pain points, feature requests, churn prediction, and 6+ integrations — fully unlocked, no vendor lock-in. Bring your own LLM key or run free on VADER.",
   keywords: ["open source", "self-hosted", "customer feedback", "sentiment analysis", "AI analysis", "feedback management", "customer insights", "BYOK", "MIT license"],
   openGraph: {
-    title: "Rereflect - Open-Source Customer Feedback Analysis",
-    description: "Self-host Rereflect on your own infrastructure. Every feature unlocked, MIT licensed, no tiers, no seats, no vendor lock-in.",
-    url: "https://rereflect.ca",
-    siteName: "Rereflect",
+    title: "FeedSignal - Open-Source Customer Feedback Analysis",
+    description: "Self-host FeedSignal on your own infrastructure. Every feature unlocked, MIT licensed, no tiers, no seats, no vendor lock-in.",
+    url: "https://feed-signal-ochre.vercel.app",
+    siteName: "FeedSignal",
     type: "website",
     images: [
       {
         url: "/images/logo.png",
         width: 1200,
         height: 630,
-        alt: "Rereflect - Open-Source Customer Feedback Analysis",
+        alt: "FeedSignal - Open-Source Customer Feedback Analysis",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Rereflect - Open-Source Customer Feedback Analysis",
-    description: "Self-host Rereflect on your own infrastructure. Every feature unlocked, MIT licensed, no tiers, no seats, no vendor lock-in.",
+    title: "FeedSignal - Open-Source Customer Feedback Analysis",
+    description: "Self-host FeedSignal on your own infrastructure. Every feature unlocked, MIT licensed, no tiers, no seats, no vendor lock-in.",
     images: ["/images/logo.png"],
-    creator: "@rereflectapp",
+
   },
 };
 

@@ -1,0 +1,49 @@
+# API PREVIEW ONLY. This is not a complete SaaS deployment.
+# Blueprint path from Git repository root: rereflect/render.api-preview.yaml
+# No database, worker or paid service is provisioned by this file.
+# Before applying, select the owner's existing Render project and configure
+# an authorized PostgreSQL database and Redis broker. Runtime/build unverified.
+services:
+  - type: web
+    name: feedsignal-api-preview
+    runtime: docker
+    plan: free
+    repo: https://github.com/Akgithub2028/FeedSignal
+    branch: feedsignal/owner-launch
+    dockerfilePath: rereflect/services/backend-api/Dockerfile
+    dockerContext: rereflect/services
+    autoDeployTrigger: "off"
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: LLM_ENCRYPTION_KEY
+        sync: false
+      - key: ADMIN_EMAIL
+        value: aayaannkausar@gmail.com
+      - key: SUPER_ADMIN_EMAIL
+        value: aayaannkausar@gmail.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        value: "6379"
+      - key: REDIS_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: BACKEND_URL
+        sync: false
+      - key: FROM_NAME
+        value: FeedSignal
+      - key: SELF_HOSTED
+        value: "true"
+      - key: ai_analysis_enabled
+        value: "false"

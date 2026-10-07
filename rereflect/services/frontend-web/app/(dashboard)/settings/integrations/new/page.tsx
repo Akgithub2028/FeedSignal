@@ -31,12 +31,12 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { SlackIcon } from '@/components/icons/SlackIcon';
-import { IntercomIcon } from '@/components/icons/IntercomIcon';
+
 import { DiscordIcon } from '@/components/icons/DiscordIcon';
 import { TeamsIcon } from '@/components/icons/TeamsIcon';
 import { useAuth } from '@/contexts/AuthContext';
 
-type IntegrationType = 'slack' | 'intercom' | 'discord' | 'teams';
+type IntegrationType = 'slack' | 'discord' | 'teams';
 type ConnectionMethod = 'oauth' | 'webhook';
 
 // Discord is webhook-only — the backend validator accepts only these two hosts
@@ -145,23 +145,7 @@ function NewIntegrationContent() {
     }
   };
 
-  const handleIntercomOAuth = async () => {
-    if (!form.name.trim()) {
-      setError('Please enter a name for the integration');
-      return;
-    }
 
-    setError(null);
-    setOauthLoading(true);
-
-    try {
-      const { auth_url } = await integrationsAPI.getIntercomOAuthUrl(form.name.trim());
-      window.location.href = auth_url;
-    } catch (err: any) {
-      setError(err.response?.data?.detail?.message || err.response?.data?.detail || 'Failed to start Intercom OAuth');
-      setOauthLoading(false);
-    }
-  };
 
   const handleWebhookSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -235,17 +219,13 @@ function NewIntegrationContent() {
   }
 
   const headerIconBg =
-    integrationType === 'intercom'
-      ? 'bg-[#1F8DED]/10'
-      : integrationType === 'discord'
+    integrationType === 'discord'
       ? 'bg-[#5865F2]/10'
       : integrationType === 'teams'
       ? 'bg-[#6264A7]/10'
       : 'bg-secondary';
   const headerIcon =
-    integrationType === 'intercom' ? (
-      <IntercomIcon className="w-8 h-8" />
-    ) : integrationType === 'discord' ? (
+    integrationType === 'discord' ? (
       <DiscordIcon className="w-8 h-8" />
     ) : integrationType === 'teams' ? (
       <TeamsIcon className="w-8 h-8" />
@@ -253,21 +233,17 @@ function NewIntegrationContent() {
       <SlackIcon className="w-8 h-8" />
     );
   const headerTitle =
-    integrationType === 'intercom'
-      ? 'New Intercom Integration'
-      : integrationType === 'discord'
+    integrationType === 'discord'
       ? 'New Discord Integration'
       : integrationType === 'teams'
       ? 'New Teams Integration'
       : 'New Slack Integration';
   const headerDescription =
-    integrationType === 'intercom'
-      ? 'Connect Rereflect to your Intercom workspace'
-      : integrationType === 'discord'
-      ? 'Connect Rereflect to a Discord channel via webhook'
+    integrationType === 'discord'
+      ? 'Connect FeedSignal to a Discord channel via webhook'
       : integrationType === 'teams'
-      ? 'Connect Rereflect to a Teams channel via webhook'
-      : 'Connect Rereflect to a Slack channel';
+      ? 'Connect FeedSignal to a Teams channel via webhook'
+      : 'Connect FeedSignal to a Slack channel';
 
   return (
     <div className="min-h-screen pattern-bg">
@@ -320,25 +296,7 @@ function NewIntegrationContent() {
                 </div>
               </button>
 
-              <button
-                type="button"
-                onClick={() => { setIntegrationType('intercom'); setConnectionMethod('oauth'); setError(null); }}
-                className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  integrationType === 'intercom'
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-primary/50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${integrationType === 'intercom' ? 'bg-[#1F8DED]/10' : 'bg-secondary'}`}>
-                    <IntercomIcon className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">Intercom</h4>
-                    <p className="text-xs text-muted-foreground">Analyze support conversations with AI</p>
-                  </div>
-                </div>
-              </button>
+
 
               <button
                 type="button"
@@ -467,7 +425,7 @@ function NewIntegrationContent() {
             <CardHeader>
               <CardTitle>Connect to Slack</CardTitle>
               <CardDescription>
-                Click the button below to authorize Rereflect to post messages to your Slack workspace
+                Click the button below to authorize FeedSignal to post messages to your Slack workspace
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -504,46 +462,7 @@ function NewIntegrationContent() {
         )}
 
         {/* Intercom OAuth Flow */}
-        {integrationType === 'intercom' && (
-          <Card className="animate-slide-up stagger-1">
-            <CardHeader>
-              <CardTitle>Connect to Intercom</CardTitle>
-              <CardDescription>
-                Click the button below to authorize Rereflect to access your Intercom conversations
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-muted/50 rounded-lg border border-border">
-                <h4 className="font-medium mb-2">What happens next:</h4>
-                <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                  <li>You&apos;ll be redirected to Intercom to authorize access</li>
-                  <li>Grant Rereflect permission to read your conversations</li>
-                  <li>You&apos;ll be redirected back and the integration will be created</li>
-                </ol>
-              </div>
 
-              <Button
-                onClick={handleIntercomOAuth}
-                disabled={oauthLoading || !form.name}
-                className="w-full"
-                size="lg"
-              >
-                {oauthLoading ? (
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                ) : (
-                  <IntercomIcon className="w-5 h-5 mr-2" />
-                )}
-                Connect to Intercom
-              </Button>
-
-              {!form.name && (
-                <p className="text-sm text-muted-foreground text-center">
-                  Enter an integration name above to continue
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
         {/* Webhook Flow (Slack webhook, Discord, or Teams — both are webhook-only) */}
         {((integrationType === 'slack' && connectionMethod === 'webhook') || integrationType === 'discord' || integrationType === 'teams') && (

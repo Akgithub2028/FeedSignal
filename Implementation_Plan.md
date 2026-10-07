@@ -1,11 +1,12 @@
-
 # FeedSignal: implementation plan toward $1,000 MRR
+
+> Current deployment evidence: `rereflect/docs/OWNERSHIP_DEPLOYMENT_STATUS.md` from the Git root. Owner frontends/API and tawk.to signed ingestion are deployed; worker/Beat, actual tawk.to delivery, remaining source publication and release checks remain open. Milestone completion is not inferred from hosting setup.
 
 **Planning date:** 5 October 2026; public-research M0 completed 6 October 2026  
 **Upstream repository:** [github.com/haqaliz/rereflect](https://github.com/haqaliz/rereflect), cloned locally in `rereflect/`.
 **Owner:** [Akgithub2028](https://github.com/Akgithub2028); support/admin: `aayaannkausar@gmail.com`.
-**Project slug:** `feedsignal`; actual owned repository URL: `UNANSWERED_GITHUB_REPOSITORY_URL`.
-**Configuration ledger:** `rereflect/UNANSWERED_SECRETS.md` in this workspace, or `UNANSWERED_SECRETS.md` from the repository root. Never store actual secrets in the plan or ledger.
+**Project slug:** `feedsignal`; owned repository: [Akgithub2028/FeedSignal](https://github.com/Akgithub2028/FeedSignal).
+**Configuration ledger:** `rereflect/UNANSWERED_SECRETS.md` in this workspace, or `UNANSWERED_SECRETS.md` from the pnpm workspace root. Never store actual secrets in the plan or ledger.
 **Audited revision:** `93359c4a2bf20310f98e42d570de50a1586812d8`  
 **Target:** B2B SaaS teams with approximately 2–10 employees, including suitable early YC startups.  
 **Commercial objective:** At least $1,000 in recurring monthly subscription revenue.
@@ -13,11 +14,11 @@
 
 ## Owner configuration and unresolved launch settings
 
-FeedSignal uses the known support/admin email and GitHub identity above. Domains are undecided (`UNANSWERED_MARKETING_ORIGIN`, `UNANSWERED_APP_ORIGIN`, `UNANSWERED_API_ORIGIN`). The original hosted backend/database account is not known; preserve Railway and Compose recipes until owner-controlled hosting is selected. Retain PostgreSQL as the engine; database access and retention are separate unanswered decisions.
+FeedSignal uses the support/admin email and GitHub identity above. Assigned marketing/dashboard/API origins are recorded in the current ownership status; custom domains/DNS remain undecided. Owner Vercel landing/dashboard projects, Render API, fresh PostgreSQL16 and Redis are provisioned. Both owner-branded frontends and API are live; Google owner login, Slack posting and Linear/Jira/Asana signed status round trips are verified. HubSpot required reads and owner-only welcome email pass. Worker/Beat, full AI processing and remaining release checks are unfinished. Railway/Compose remain inherited fallback recipes. Budget $0; continuous-worker/durable-database hosting unresolved. Full local startup withdrawn. See the launch setup and baseline launch plan in rereflect/docs/.
 
-All current Slack, Jira, Linear, Intercom, Zendesk, Asana, HubSpot, Salesforce, Discord, Teams, generic webhook, email, Google login, and SSO implementations stay available. Simplifying onboarding means guiding users through their selected sources, not deleting other connectors. Live integrations remain unverified until credentials and provider authorization are supplied. Credentials are indexed in `UNANSWERED_SECRETS.md`; do not put secret values in this document.
+Owner scope changed on 6 October: remove Salesforce and replace Intercom/Zendesk with free tawk.to ingestion (signed adapter/configuration deployed; retired-provider removal pending). Retain Slack, Jira, Linear, Asana, HubSpot, Discord, Teams, generic webhook, email, Google login and SSO. tawk.to owner property/webhook and a controlled signed live fixture are verified; actual provider-originated delivery is unverified because public chat is blocked. Other remaining limitations are recorded in the ownership status. Credentials are indexed in `UNANSWERED_SECRETS.md`; do not put secret values in this document.
 
-The canonical repository copy is `docs/IMPLEMENTATION_PLAN.md`; the workspace copy `../Implementation_Plan.md` is synchronized at M0. Future changes should update the canonical copy and any maintained workspace copy together.
+The canonical repository copy is `docs/IMPLEMENTATION_PLAN.md`; the Git-root copy `Implementation_Plan.md` is synchronized at M0. Future changes should update the canonical copy and any maintained workspace copy together.
 
 ## 1\. Recommended product direction
 
@@ -181,7 +182,7 @@ Sources: [training path](<https://github.com/haqaliz/rereflect/blob/93359c4a2bf2
 
 ### A. Fast capture
 
-Launch with CSV, forwarded email, and selected Slack channels. Reuse existing ingestion. Prioritize improvements to existing Intercom support when pilots require it.
+Launch with CSV, forwarded email, and selected Slack channels. Reuse existing ingestion. Implement the selected tawk.to replacement; revisit paid support connectors only if future pilots justify them.
 
 Every ingested record should preserve:
 
@@ -291,7 +292,7 @@ Follow-up delivery must include approval, recipient preview, unsubscribe handlin
 
 - [x] Verify local clone at the audited baseline revision.
 - [x] Select **FeedSignal**, project slug `feedsignal`, owner GitHub `Akgithub2028`, support/admin `aayaannkausar@gmail.com`.
-- [x] Retain all existing integration implementations. Missing credentials do not justify removing a connector.
+- [x] Record initial retention policy. Superseded on 6 October by owner-requested Salesforce removal and Intercom/Zendesk replacement; runtime work remains pending.
 - [x] Audit original-owner references and configuration; create `docs/OWNERSHIP_AND_INTEGRATION_AUDIT.md` and `OWNER_CONFIG.md`.
 - [x] Record every unknown account/domain/credential/data-retention choice in `UNANSWERED_SECRETS.md`, with `UNANSWERED_<ID>` markers and secure destinations.
 - [x] Update example environments with confirmed identity, development-only URLs, and empty secrets. These examples are not deployable production settings.
@@ -312,7 +313,7 @@ Follow-up delivery must include approval, recipient preview, unsubscribe handlin
 
 M0 permits M1 reliability/ownership work and a bounded M2 prototype/pilot. It does not validate product-market fit. No real team commitment, FeedSignal price acceptance or payment was obtained. During M2, use permissioned onboarding artifacts and asynchronous/in-product responses; scheduled interviews are optional. Require three qualified continued-use commitments and two explicit price-specific acceptances before expanding M3–M6, retaining the three-recurring-paid-pilot target. If evidence is weak, revise the segment/offer rather than building the full roadmap.
 
-`docs/m0/STATUS.md` is the completion and scope-change ledger. Runtime rebranding, secure bootstrap changes, hosted provisioning and live reconnection remain M1 tasks; preserve every existing integration capability. Missing provider credentials still block their deployment, independently of completed research.
+`docs/m0/STATUS.md` is the completion and scope-change ledger. Runtime rebranding, secure bootstrap changes, hosted provisioning and live reconnection remain M1 tasks; apply the revised owner integration scope. Missing provider credentials still block their deployment, independently of completed research.
 
 ### M1 — Establish a trustworthy managed baseline
 
@@ -328,7 +329,7 @@ M0 permits M1 reliability/ownership work and a bounded M2 prototype/pilot. It do
 - Audit inherited integrations for managed multi-tenant use.
 - Apply the confirmed FeedSignal identity to runtime UI/templates and GitHub-only social presence. Preserve upstream MIT/NOTICE attribution and internal package/data contracts.
 - Replace original-owner bootstrap defaults and embedded password; test new versus existing-database behavior. Make original-domain redirects, senders, inbound addresses, and Sentry targets configurable using confirmed owner settings.
-- Preserve all connector implementations. Wire missing OAuth/email/public-URL variables into Compose; authorize owner-controlled workspaces only after credentials are securely provisioned.
+- Retire Salesforce/Intercom/Zendesk active paths and implement tawk.to ingestion; preserve other connectors. Follow docs/BASELINE_LAUNCH_PLAN.md. Wire owner OAuth/email/public URLs into the chosen runtime before authorizing workspaces.
 - Resolve only required entries from `UNANSWERED_SECRETS.md` before enabling a provider. Never use placeholder strings as credentials or overwrite an existing encryption key without migrating data.
 - Deploy API, worker, scheduler, frontend, PostgreSQL, and Redis.
 - Keep databases private; configure backups and test restoration.

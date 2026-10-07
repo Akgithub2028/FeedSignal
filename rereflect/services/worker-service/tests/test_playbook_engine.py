@@ -404,7 +404,7 @@ def test_send_email_renders_template_with_customer_and_product_names(db, monkeyp
 
 
 def test_send_email_renders_fallbacks_name_and_product(db, monkeypatch):
-    """AC3: customer_name null → email local-part; product_name_display unset → Rereflect."""
+    """AC3: customer_name null → email local-part; product_name_display unset → FeedSignal."""
     fake_send, calls = _fake_sender({"ok": True, "status": "sent", "reason": ""})
     monkeypatch.setattr(
         "src.services.outreach_sender.send_outreach_email", fake_send
@@ -416,8 +416,8 @@ def test_send_email_renders_fallbacks_name_and_product(db, monkeypatch):
 
     assert len(calls) == 1
     assert "Hi customer," in calls[0]["body"]
-    assert "used Rereflect" in calls[0]["body"]
-    assert calls[0]["product_name"] == "Rereflect"
+    assert "used FeedSignal" in calls[0]["body"]
+    assert calls[0]["product_name"] == "FeedSignal"
 
 
 def test_send_email_unknown_template_key_is_loud_failure(db, monkeypatch):

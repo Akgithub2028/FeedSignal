@@ -187,6 +187,8 @@ def _find_matching_sources(
     provider_context: Dict[str, Any],
 ) -> List:
     """Find FeedbackSource configurations that match the event."""
+    if source_type in ("salesforce", "intercom", "zendesk"):
+        return []
     from sqlalchemy import or_
 
     from src.models import (
@@ -348,6 +350,8 @@ def _process_event_for_source(
     every caller dispatches analyze_single_feedback for "feedback_created"
     results strictly AFTER the commit that makes the row visible.
     """
+    if source.source_type in ("salesforce", "intercom", "zendesk"):
+        return {"source_id": source.id, "status": "provider_retired"}
     from src.models import FeedbackSourceEvent, FeedbackItem, PendingFeedback, Integration
 
     source_id = source.id

@@ -59,14 +59,8 @@ celery_app = Celery(
         "src.tasks.segments",
         "src.tasks.hubspot_sync",
         "src.tasks.hubspot_writeback",
-        "src.tasks.salesforce_sync",
-        "src.tasks.salesforce_writeback",
         "src.tasks.churn_backfill_task",
-        "src.tasks.intercom_sync",
-        "src.tasks.intercom_writeback",
-        "src.tasks.zendesk_sync",
         "src.tasks.jira_sync",
-        "src.tasks.zendesk_status_sync",
         "src.tasks.asana_sync",
         "src.tasks.outreach",
         "src.tasks.scheduled_reports",
@@ -269,45 +263,10 @@ celery_app.conf.beat_schedule = {
         "task": "src.tasks.hubspot_sync.sync_all_hubspot",
         "schedule": crontab(hour=3, minute=15),
     },
-    # Sync Salesforce CRM data daily at 03:45 UTC — avoids 03:00 (global
-    # calibration) and 03:15 (hubspot sync).
-    "sync-salesforce-daily": {
-        "task": "src.tasks.salesforce_sync.sync_all_salesforce",
-        "schedule": crontab(hour=3, minute=45),
-    },
-    # Poll Intercom conversations every 15 minutes (intercom-selfhost-ingestion
-    # pull-sync aspect). Same fixed-interval cadence as the Zendesk pull below.
-    # This is the path that makes "feedback flows in automatically" true for
-    # Intercom -- before it, Intercom had no pull at all.
-    "sync-intercom-every-15-min": {
-        "task": "src.tasks.intercom_sync.sync_all_intercom",
-        "schedule": 900.0,  # every 15 minutes
-    },
-    # Poll Zendesk incremental tickets every 15 minutes (ingestion-pull
-    # aspect — see docs/planning/zendesk-integration/ingestion-pull/plan_20260705.md
-    # Phase 5). Fixed-interval cadence (not a specific wall-clock crontab
-    # time), same style as process-unanalyzed-feedback's 30.0.
-    "sync-zendesk-every-15-min": {
-        "task": "src.tasks.zendesk_sync.sync_all_zendesk",
-        "schedule": 900.0,  # every 15 minutes
-    },
-    # Poll Jira issue status every 15 minutes (jira-status-sync/inbound-status-sync
-    # aspect — see docs/planning/jira-status-sync/inbound-status-sync/plan_20260711.md
-    # Phase 4). Fixed-interval cadence, same style as sync-zendesk-every-15-min.
     "sync-jira-status-every-15-min": {
         "task": "src.tasks.jira_sync.sync_all_jira",
         "schedule": 900.0,  # every 15 minutes
     },
-    # Poll Zendesk ticket status every 15 minutes (zendesk-status-sync/poll-task
-    # aspect — see docs/planning/zendesk-status-sync/poll-task/plan_20260712.md
-    # Phase 4). Fixed-interval cadence, same style as sync-jira-status-every-15-min.
-    "sync-zendesk-status-every-15-min": {
-        "task": "src.tasks.zendesk_status_sync.sync_all_zendesk_status",
-        "schedule": 900.0,  # every 15 minutes
-    },
-    # Poll Asana task completion every 15 minutes (asana-status-sync/worker-sync-task
-    # aspect — see docs/planning/asana-status-sync/worker-sync-task/plan_20260712.md).
-    # Fixed-interval cadence, same style as sync-jira-status-every-15-min.
     "sync-asana-status-every-15-min": {
         "task": "src.tasks.asana_sync.sync_all_asana",
         "schedule": 900.0,  # every 15 minutes

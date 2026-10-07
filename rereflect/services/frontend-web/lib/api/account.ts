@@ -16,7 +16,7 @@ export const accountAPI = {
 
     // Try to read filename from Content-Disposition header
     const disposition = response.headers['content-disposition'] as string | undefined;
-    let filename = 'rereflect-export.zip';
+    let filename = 'feedsignal-export.zip';
     if (disposition) {
       const match = disposition.match(/filename="?([^"]+)"?/);
       if (match) filename = match[1];

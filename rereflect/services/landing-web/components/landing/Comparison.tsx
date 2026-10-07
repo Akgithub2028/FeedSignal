@@ -61,7 +61,7 @@ export default function Comparison() {
       </div>
 
       <div className="lp-compare-col lp-compare-col--ours border-t border-[var(--stroke-secondary)]" data-reveal>
-        <span className="lp-label text-accent">Rereflect</span>
+        <span className="lp-label text-accent">FeedSignal</span>
         <h3 className="lp-display-3 lp-compare-title">Both, on hardware you own</h3>
         <div className="lp-compare-list max-w-[80ch]">
           <p className="lp-compare-item">

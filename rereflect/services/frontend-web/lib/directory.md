@@ -35,3 +35,7 @@ Inputs are page props, URL state, authenticated API responses, and public build 
 Use the service's current package.json scripts, pnpm workspace installation, relevant Vitest checks, and a production build for UI/config changes. Do not infer tool availability or build success from package metadata.
 
 This summary was generated from tracked filenames, source declarations/module documentation, and document headings/prose, then sampled for navigation quality. It is not a full semantic audit or a runtime verification. Read actual files before editing. Missing owner settings and validation evidence remain in [UNANSWERED_SECRETS.md](<../../../UNANSWERED_SECRETS.md>).
+
+## Login-helper extraction
+
+[ssoErrorMessage.ts](ssoErrorMessage.ts) contains `resolveSsoErrorMessage`, extracted from app/login/page.tsx for Next.js Page-export validity. It uses the existing OIDC/SAML error maps; behavior is unchanged.

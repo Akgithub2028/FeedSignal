@@ -41,7 +41,7 @@ import Nav from '@/components/landing/Nav';
 import Footer from '@/components/landing/Footer';
 import SubpageCTA from '@/components/landing/SubpageCTA';
 
-const GITHUB_URL = 'https://github.com/haqaliz/rereflect';
+const GITHUB_URL = 'https://github.com/Akgithub2028/FeedSignal';
 
 const ICONS: Record<string, LucideIcon> = {
   AlertTriangle,
@@ -104,7 +104,7 @@ export default function IntegrationPage({ slug }: { slug: string }) {
               {integration.name} integration
             </span>
             <h1 data-ih className="lp-display-1 lp-page-hero-title">
-              {integration.name} <span className="text-accent">+</span> Rereflect
+              {integration.name} <span className="text-accent">+</span> FeedSignal
             </h1>
             <p data-ih className="lp-lede lp-page-hero-sub">
               {integration.heroMessage}
@@ -186,12 +186,13 @@ export default function IntegrationPage({ slug }: { slug: string }) {
             <div className="lp-section-block">
               <div className="lp-section-head">
                 <span data-reveal className="lp-fig">
-                  Fig. 03 — Use cases
+                  Fig. 03 — Example use cases
                 </span>
                 <h2 data-reveal className="lp-display-2 mt-6 max-w-[20ch] text-raise">
-                  Who it helps.
+                  Who it can help.
                 </h2>
               </div>
+              <p className="mb-6 text-sm text-muted-foreground">Illustrative scenarios from the baseline; these are not verified FeedSignal customer testimonials.</p>
               <div className="lp-tile-grid">
                 {integration.useCases.map((useCase) => (
                   <div key={useCase.persona} data-reveal className="lp-tile">

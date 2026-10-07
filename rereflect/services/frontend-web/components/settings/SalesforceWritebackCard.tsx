@@ -129,7 +129,7 @@ export function SalesforceWritebackCard({ status, onStatusChange }: SalesforceWr
       <CardHeader>
         <CardTitle>Health-Score Writeback</CardTitle>
         <CardDescription>
-          Push each customer&apos;s Rereflect health score back into Salesforce as a custom Contact field.
+          Push each customer&apos;s FeedSignal health score back into Salesforce as a custom Contact field.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

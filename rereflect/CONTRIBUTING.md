@@ -1,6 +1,8 @@
-# Contributing to Rereflect
+# Contributing to FeedSignal
 
-Thanks for your interest in contributing! Rereflect is open source under the
+> FeedSignal fork documentation. Current cloud deployment and connector readiness: [ownership/deployment status](docs/OWNERSHIP_DEPLOYMENT_STATUS.md). Inherited capabilities described below are not evidence of a live configured integration.
+
+Thanks for your interest in contributing! FeedSignal is open source under the
 MIT License, and we welcome bug reports, features, docs, and tests.
 
 ## Code of Conduct

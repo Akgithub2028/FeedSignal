@@ -39,8 +39,16 @@ from src.models.user import User
 from src.services.linear_client import LinearClient
 from src.services.oauth_state import sign_oauth_state, verify_oauth_state
 from src.utils.encryption import encrypt_api_key
+from src.services.linear_tokens import get_linear_access_token, store_linear_tokens, LinearTokenError
 
 logger = logging.getLogger(__name__)
+
+
+async def _usable_linear_token(db: Session, integration_id: int) -> str:
+    try:
+        return await get_linear_access_token(db, integration_id)
+    except LinearTokenError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from None
 
 router = APIRouter(prefix="/api/v1/integrations/linear", tags=["linear"])
 
@@ -322,7 +330,8 @@ def linear_oauth_connect(
         "client_id": LINEAR_CLIENT_ID,
         "redirect_uri": LINEAR_REDIRECT_URI,
         "response_type": "code",
-        "scope": "read,write",
+        # The callback creates a workspace webhook; Linear requires admin scope.
+        "scope": "read,write,admin",
         "state": state,
         "prompt": "consent",
     }
@@ -420,7 +429,7 @@ async def linear_oauth_callback(
             .first()
         )
         if existing:
-            existing.access_token = access_token
+            store_linear_tokens(existing, token_data)
             existing.linear_org_id = org_info["id"]
             existing.linear_org_name = org_info["name"]
             existing.connected_by_user_id = user_id
@@ -433,7 +442,6 @@ async def linear_oauth_callback(
         else:
             integration = LinearIntegration(
                 organization_id=organization_id,
-                access_token=access_token,
                 linear_org_id=org_info["id"],
                 linear_org_name=org_info["name"],
                 connected_by_user_id=user_id,
@@ -441,6 +449,7 @@ async def linear_oauth_callback(
                 webhook_secret=stored_secret,
                 webhook_id=webhook_id,
             )
+            store_linear_tokens(integration, token_data)
             db.add(integration)
 
         db.flush()
@@ -504,7 +513,7 @@ async def linear_disconnect(
     # Attempt to delete the webhook (best effort)
     if integration.webhook_id:
         try:
-            linear_client = LinearClient(access_token=integration.access_token)
+            linear_client = LinearClient(access_token=await _usable_linear_token(db, integration.id))
             await linear_client.delete_webhook(webhook_id=integration.webhook_id)
         except Exception as exc:
             logger.warning(f"Failed to delete Linear webhook: {exc}")
@@ -637,7 +646,7 @@ async def test_linear_connection(
     """Test the Linear integration by verifying the API connection."""
     integration = _require_active_integration(current_org.id, db)
     try:
-        linear_client = LinearClient(access_token=integration.access_token)
+        linear_client = LinearClient(access_token=await _usable_linear_token(db, integration.id))
         org_info = await linear_client.get_organization()
         return {
             "success": True,
@@ -754,7 +763,7 @@ async def create_linear_issue(
         issue_input["labelIds"] = data.label_ids
 
     # Create issue via Linear API
-    linear_client = LinearClient(access_token=integration.access_token)
+    linear_client = LinearClient(access_token=await _usable_linear_token(db, integration.id))
     created_issue = await linear_client.create_issue(input=issue_input)
 
     # Store the link
@@ -843,7 +852,7 @@ async def get_linear_teams(
 ):
     """Fetch teams from the connected Linear organization."""
     integration = _require_active_integration(current_org.id, db)
-    linear_client = LinearClient(access_token=integration.access_token)
+    linear_client = LinearClient(access_token=await _usable_linear_token(db, integration.id))
     return await linear_client.get_teams()
 
 
@@ -858,7 +867,7 @@ async def get_linear_projects(
 ):
     """Fetch projects for a team from the connected Linear organization."""
     integration = _require_active_integration(current_org.id, db)
-    linear_client = LinearClient(access_token=integration.access_token)
+    linear_client = LinearClient(access_token=await _usable_linear_token(db, integration.id))
     return await linear_client.get_projects(team_id=team_id)
 
 
@@ -872,7 +881,7 @@ async def get_linear_labels(
 ):
     """Fetch all issue labels from the connected Linear organization."""
     integration = _require_active_integration(current_org.id, db)
-    linear_client = LinearClient(access_token=integration.access_token)
+    linear_client = LinearClient(access_token=await _usable_linear_token(db, integration.id))
     return await linear_client.get_labels()
 
 

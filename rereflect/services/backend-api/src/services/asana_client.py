@@ -317,9 +317,17 @@ class AsanaClient:
             AsanaTransientError: on 429 or 5xx.
         """
         payload = {"data": {"resource": resource_gid, "target": target_url}}
-        resp = self._post("/webhooks", json=payload)
-        data = resp.json().get("data", {})
-        return {"gid": data.get("gid")}
+        try:
+            resp = self._post("/webhooks", json=payload)
+            data = resp.json().get("data", {})
+            gid = data.get("gid")
+            if not isinstance(gid, str) or not gid.strip():
+                raise ValueError("Missing webhook identifier")
+        except (httpx.HTTPStatusError, httpx.RequestError, ValueError, AttributeError, TypeError) as exc:
+            # A rejected handshake is HTTP 400; never expose response bodies
+            # or the private callback URL through an uncaught provider error.
+            raise AsanaTransientError("Asana webhook registration failed") from exc
+        return {"gid": gid}
 
     def delete_webhook(self, webhook_gid: str) -> None:
         """

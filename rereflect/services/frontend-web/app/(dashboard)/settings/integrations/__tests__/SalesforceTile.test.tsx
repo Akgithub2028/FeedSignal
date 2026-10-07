@@ -119,42 +119,12 @@ describe('IntegrationsPage — Salesforce tile', () => {
     (asanaAPI.getStatus as any).mockResolvedValue({ connected: false });
   });
 
-  it('shows an Available Salesforce tile linking to the detail page when disconnected', async () => {
+  it.each([false, true])('does not offer Salesforce for legacy connected=%s', async (connected) => {
     (hubspotAPI.getStatus as any).mockResolvedValue({ connected: false });
-    (salesforceAPI.getStatus as any).mockResolvedValue({ connected: false });
-
+    (salesforceAPI.getStatus as any).mockResolvedValue({ connected });
     render(<IntegrationsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Salesforce/i)).toBeInTheDocument();
-    });
-
-    const link = screen.getByText(/Salesforce/i).closest('a');
-    expect(link).toHaveAttribute('href', '/settings/integrations/salesforce');
-  });
-
-  it('shows a Connected Salesforce card when connected, and hides the Available tile', async () => {
-    (hubspotAPI.getStatus as any).mockResolvedValue({ connected: false });
-    (salesforceAPI.getStatus as any).mockResolvedValue({
-      connected: true,
-      instance_url: 'https://acme.my.salesforce.com',
-      sf_org_id: '00D000000000EXAMPLE',
-      contacts_synced: 42,
-      contacts_matched: 30,
-      connected_at: '2026-06-01T00:00:00Z',
-    });
-
-    render(<IntegrationsPage />);
-
-    await waitFor(() => {
-      expect(screen.getAllByText(/Connected/i).length).toBeGreaterThan(0);
-    });
-
-    // The "Available" Salesforce tile (badge text "Available" next to the
-    // Salesforce label) must not render once connected — only one
-    // Salesforce link (the active card) should point at the detail page.
-    const links = screen.getAllByText('Salesforce').map((el) => el.closest('a'));
-    const hrefs = links.filter(Boolean).map((a) => a!.getAttribute('href'));
-    expect(hrefs.filter((h) => h === '/settings/integrations/salesforce')).toHaveLength(1);
+    await waitFor(() => expect(integrationsAPI.list).toHaveBeenCalled());
+    expect(screen.queryByText(/Salesforce/i)).not.toBeInTheDocument();
+    expect(salesforceAPI.getStatus).not.toHaveBeenCalled();
   });
 });

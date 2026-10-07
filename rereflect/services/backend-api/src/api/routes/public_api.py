@@ -1397,10 +1397,10 @@ def public_openapi(request: Request) -> JSONResponse:
     spec = {
         "openapi": full.get("openapi", "3.1.0"),
         "info": {
-            "title": "Rereflect Public API",
+            "title": "FeedSignal Public API",
             "version": "1.0.0",
             "description": (
-                "Public REST API for Rereflect. Authenticate every request with an API key:\n\n"
+                "Public REST API for FeedSignal. Authenticate every request with an API key:\n\n"
                 "`Authorization: Bearer rrf_...`\n\n"
                 "Keys carry scopes: **read** (GET endpoints, incl. `GET /categories`), "
                 "**ingest** (POST /feedback), and **write** (`PATCH /feedback/{id}` — "
@@ -1422,5 +1422,5 @@ def public_docs() -> HTMLResponse:
     """Swagger UI for the public API surface."""
     return get_swagger_ui_html(
         openapi_url="/api/public/v1/openapi.json",
-        title="Rereflect Public API — Docs",
+        title="FeedSignal Public API — Docs",
     )

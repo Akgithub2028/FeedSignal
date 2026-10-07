@@ -170,10 +170,10 @@ export default function SharedAnalyticsPage() {
           <h1 className="text-xl font-semibold">Link Unavailable</h1>
           <p className="text-muted-foreground max-w-md">{error}</p>
           <a
-            href="https://rereflect.ca"
+            href="https://feed-signal-ochre.vercel.app"
             className="inline-block text-sm text-primary hover:underline mt-4"
           >
-            Learn more about Rereflect
+            Learn more about FeedSignal
           </a>
         </div>
       </div>
@@ -428,8 +428,8 @@ export default function SharedAnalyticsPage() {
         <div className="text-center py-6 border-t border-border">
           <p className="text-xs text-muted-foreground">
             Powered by{' '}
-            <a href="https://rereflect.ca" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
-              Rereflect
+            <a href="https://feed-signal-ochre.vercel.app" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+              FeedSignal
             </a>
           </p>
         </div>

@@ -1,7 +1,6 @@
 """
 Team Management API routes for managing organization members.
 """
-import os
 from typing import Optional
 from datetime import datetime, timedelta
 import secrets
@@ -32,9 +31,6 @@ from src.services.email_service import (
 
 
 router = APIRouter()
-
-# Super admin email that can invite owners
-SUPER_ADMIN_EMAIL = os.getenv("SUPER_ADMIN_EMAIL", "support@rereflect.ca")
 
 
 # ============================================================================
@@ -507,10 +503,10 @@ def create_invite(
     - Owner/Admin only
     - Validates email doesn't exist
     - Admin cannot invite as 'owner' or 'admin'
-    - Only super admin (support@rereflect.ca) can invite owners
+    - Only a persisted system admin can invite owners
     - Creates a TeamInvite with pending status
     """
-    is_super_admin = current_user.email == SUPER_ADMIN_EMAIL
+    is_super_admin = bool(current_user.is_system_admin)
 
     # Validate role
     valid_roles = ['admin', 'member']
@@ -614,7 +610,7 @@ def invite_member_legacy(
     """
     from src.api.auth import hash_password
 
-    is_super_admin = current_user.email == SUPER_ADMIN_EMAIL
+    is_super_admin = bool(current_user.is_system_admin)
 
     # Validate role
     valid_roles = ['admin', 'member']

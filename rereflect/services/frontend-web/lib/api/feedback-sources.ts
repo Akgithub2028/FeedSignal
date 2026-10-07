@@ -28,7 +28,7 @@ export interface FeedbackSource {
   id: number;
   organization_id: number;
   integration_id: number | null;
-  source_type: 'slack' | 'intercom' | 'webhook' | 'discord' | 'email' | 'linear' | 'zendesk';
+  source_type: 'slack' | 'intercom' | 'webhook' | 'discord' | 'email' | 'linear' | 'zendesk' | 'tawk';
   name: string | null;
   provider_config: Record<string, any>;
   triggers: TriggerConfig;
@@ -242,7 +242,7 @@ export const TRIGGER_OPTIONS: Record<string, { key: string; label: string; descr
   slack: [
     { key: 'all_messages', label: 'All Messages', description: 'Capture every message posted' },
     { key: 'reactions', label: 'Emoji Reactions', description: 'Messages with specific reactions', hasValues: true },
-    { key: 'mentions.bot', label: 'Bot Mentions', description: 'When @Rereflect is mentioned' },
+    { key: 'mentions.bot', label: 'Bot Mentions', description: 'When @FeedSignal is mentioned' },
     { key: 'mentions.users', label: 'User Mentions', description: 'When specific users are mentioned', hasValues: true },
     { key: 'keywords', label: 'Keywords', description: 'Messages containing keywords', hasValues: true },
   ],

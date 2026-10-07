@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import IntegrationPage from '@/components/landing/IntegrationPage';
 
 export const metadata: Metadata = {
-  title: 'Microsoft Teams Integration | Rereflect',
+  title: 'Microsoft Teams Integration | FeedSignal',
   description:
-    'Connect Microsoft Teams to Rereflect and get urgent feedback, health-drop and automation alerts delivered as message cards to the channel your team watches.',
+    'Connect Microsoft Teams to FeedSignal and get urgent feedback, health-drop and automation alerts delivered as message cards to the channel your team watches.',
 };
 
 export default function TeamsIntegrationPage() {

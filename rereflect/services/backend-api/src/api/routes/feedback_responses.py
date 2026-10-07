@@ -67,7 +67,7 @@ class GenerateResponseResult(BaseModel):
 
 class SendResponseRequest(BaseModel):
     response_text: str
-    channel: Literal["clipboard", "slack", "intercom", "linear", "email"]
+    channel: Literal["clipboard", "slack", "linear", "email"]
     source: Literal["template", "ai_generated", "manual"]
     template_id: Optional[int] = None
     tone: Optional[str] = None
@@ -302,21 +302,26 @@ async def _dispatch_send(
 
     if channel == "slack":
         # Look up the org's Slack integration token
-        access_token = _get_integration_token(org.id, "slack", db)
+        access_token = _get_integration_token(org.id, "slack", db, source_id=feedback.source_id)
         if not access_token:
             return {"success": False, "error": "Slack integration not connected"}
         return await response_sender.send_via_slack(response_text, feedback, org, access_token)
 
-    if channel == "intercom":
-        access_token = _get_integration_token(org.id, "intercom", db)
-        if not access_token:
-            return {"success": False, "error": "Intercom integration not connected"}
-        return await response_sender.send_via_intercom(response_text, feedback, org, access_token)
 
     if channel == "linear":
-        access_token = _get_integration_token(org.id, "linear", db)
-        if not access_token:
+        from src.models.linear_integration import LinearIntegration
+        from src.services.linear_tokens import get_linear_access_token, LinearTokenError
+
+        integration = db.query(LinearIntegration).filter(
+            LinearIntegration.organization_id == org.id,
+            LinearIntegration.is_active.is_(True),
+        ).first()
+        if integration is None:
             return {"success": False, "error": "Linear integration not connected"}
+        try:
+            access_token = await get_linear_access_token(db, integration.id)
+        except LinearTokenError as exc:
+            return {"success": False, "error": str(exc)}
         return await response_sender.send_via_linear(response_text, feedback, org, access_token)
 
     if channel == "email":
@@ -328,42 +333,40 @@ async def _dispatch_send(
     return {"success": False, "error": f"Unknown channel: {channel}"}
 
 
-def _get_integration_token(org_id: int, provider: str, db: Session) -> Optional[str]:
+def _get_integration_token(org_id: int, provider: str, db: Session, source_id: Optional[int] = None) -> Optional[str]:
     """
     Retrieve the active access token for an integration provider.
-    Supports: slack, intercom, linear.
+    Supports: slack, intercom. Linear uses the renewable-token service.
     """
-    if provider == "linear":
-        try:
-            from src.models.linear_integration import LinearIntegration
-            integration = (
-                db.query(LinearIntegration)
-                .filter(
-                    LinearIntegration.organization_id == org_id,
-                    LinearIntegration.is_active.is_(True),
-                )
-                .first()
-            )
-            return integration.access_token if integration else None
-        except Exception:
-            return None
-
     # For Slack and Intercom, use the generic Integration model
     try:
         from src.models.integration import Integration
-        integration = (
+        query = (
             db.query(Integration)
             .filter(
                 Integration.organization_id == org_id,
-                Integration.provider == provider,
+                Integration.type == provider,
                 Integration.is_active.is_(True),
             )
-            .first()
         )
+        if source_id is not None:
+            from src.models.feedback_source import FeedbackSource
+            source = db.query(FeedbackSource).filter(
+                FeedbackSource.id == source_id,
+                FeedbackSource.organization_id == org_id,
+            ).first()
+            if source is None or not source.integration_id:
+                return None
+            integration = query.filter(Integration.id == source.integration_id).first()
+        else:
+            candidates = query.limit(2).all()
+            # Legacy/manual feedback cannot safely select among workspaces.
+            integration = candidates[0] if len(candidates) == 1 else None
         if integration is None:
             return None
-        # Access token may be stored in config JSON
-        config = integration.config or {}
-        return config.get("access_token") or getattr(integration, "access_token", None)
+        if not integration.oauth_access_token:
+            return None
+        from src.utils.encryption import decrypt_api_key
+        return decrypt_api_key(integration.oauth_access_token)
     except Exception:
         return None

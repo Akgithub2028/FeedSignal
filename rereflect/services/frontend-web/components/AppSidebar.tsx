@@ -220,7 +220,7 @@ export function AppSidebar() {
             <Logo size="md" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-sidebar-foreground">Rereflect</h1>
+            <h1 className="text-lg font-bold text-sidebar-foreground">FeedSignal</h1>
           </div>
         </Link>
       </SidebarHeader>

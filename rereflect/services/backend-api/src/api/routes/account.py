@@ -195,7 +195,7 @@ def export_my_data(
         zf.writestr("reports.json", json.dumps(reports_data, indent=2))
 
     buf.seek(0)
-    filename = f"rereflect-export-{current_user.id}.zip"
+    filename = f"feedsignal-export-{current_user.id}.zip"
     return StreamingResponse(
         buf,
         media_type="application/zip",

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Logo } from '@rereflect/ui';
 
-const GITHUB_URL = 'https://github.com/haqaliz/rereflect';
+const GITHUB_URL = 'https://github.com/Akgithub2028/FeedSignal';
 
 export default function Footer() {
   return (
@@ -11,27 +11,13 @@ export default function Footer() {
           <Link href="/" className="lp-logo">
             <Logo size="md" />
             <span>
-              <span className="text-accent">Re</span>reflect
+              <span className="text-accent">Feed</span>Signal
             </span>
           </Link>
           <p className="lp-footer-tag">
             Customer feedback, analyzed. Open source, self-hosted, and yours.
           </p>
-          <div className="mt-6">
-            <a
-              href="https://www.producthunt.com/products/rereflect?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-rereflect"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Rereflect on Product Hunt"
-            >
-              <img
-                alt="Rereflect - AI-powered customer feedback analysis for SaaS teams | Product Hunt"
-                width="200"
-                height="43"
-                src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1073104&theme=dark&t=1770240628252"
-              />
-            </a>
-          </div>
+          <a className="mt-6 inline-block" href="mailto:aayaannkausar@gmail.com">Contact support</a>
         </div>
 
         <div className="lp-footer-col">
@@ -46,7 +32,7 @@ export default function Footer() {
           <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
             GitHub
           </a>
-          <a href={`${GITHUB_URL}#self-hosting`} target="_blank" rel="noopener noreferrer">
+          <a href={`${GITHUB_URL}/blob/main/rereflect/docs/SELF_HOSTING.md`} target="_blank" rel="noopener noreferrer">
             Self-host guide
           </a>
           <Link href="/privacy">Privacy</Link>
@@ -62,7 +48,7 @@ export default function Footer() {
       </div>
 
       <div className="lp-footer-bottom">
-        <span>© {new Date().getFullYear()} Rereflect</span>
+        <span>© {new Date().getFullYear()} FeedSignal · Maintained by <a href="https://github.com/Akgithub2028" target="_blank" rel="noopener noreferrer">Akgithub2028</a></span>
         <span>MIT licensed · self-hosted</span>
       </div>
     </footer>

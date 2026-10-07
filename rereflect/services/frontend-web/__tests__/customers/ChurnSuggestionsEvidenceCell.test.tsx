@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
-import { EvidenceCell } from '../../app/(dashboard)/customers/churn-suggestions/page';
+import { EvidenceCell } from '../../components/customers/ChurnSuggestionEvidenceCell';
 
 // CHARACTERIZATION (non-negotiable, per plan): EvidenceCell is a shared
 // component read by every provider's row. This test locks in today's CRM

@@ -487,4 +487,4 @@ class TestSendAutomationEmailTask:
         ) as mock_send:
             _get_tasks().send_automation_email(delivery.id)
 
-        assert mock_send.call_args.kwargs["product_name"] == "Rereflect"
+        assert mock_send.call_args.kwargs["product_name"] == "FeedSignal"

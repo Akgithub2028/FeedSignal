@@ -61,7 +61,7 @@ ORG_WIDE_IDENTITY = "__org__"
 
 VALID_RECIPIENTS = ("customer", "cs_assignee")
 
-DEFAULT_PRODUCT_NAME = "Rereflect"
+DEFAULT_PRODUCT_NAME = "FeedSignal"
 
 
 # ---------------------------------------------------------------------------

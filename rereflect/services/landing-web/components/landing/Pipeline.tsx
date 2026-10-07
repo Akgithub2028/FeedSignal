@@ -8,7 +8,7 @@ const STAGES = [
   {
     id: '01',
     name: 'Ingest',
-    body: 'Slack, Intercom, Zendesk, email, CSV or webhook. Everything lands in one queue with its source, customer and timestamp intact.',
+    body: 'Slack, tawk.to, email, CSV or webhook. Everything lands in one queue with its source, customer and timestamp intact.',
     io: 'in: raw text',
   },
   {

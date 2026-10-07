@@ -9,6 +9,9 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     globals: true,
     css: false,
+    // Bound workers on development/CI machines: the full suite otherwise
+    // saturates CPU and turns interactive tests into false timeout failures.
+    maxWorkers: 2,
   },
   resolve: {
     alias: {

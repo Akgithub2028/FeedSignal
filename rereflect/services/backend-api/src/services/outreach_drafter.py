@@ -59,7 +59,7 @@ def _build_messages(
     cohort_context: Optional[dict],
 ) -> list:
     """Build the chat messages; only trusted/derived inputs reach the model."""
-    product_name = (org.product_name_display if org else None) or "Rereflect"
+    product_name = (org.product_name_display if org else None) or "FeedSignal"
 
     # E2: brand voice is data, not instructions — delimited block, explicit
     # label (issue_drafter hardening).

@@ -72,7 +72,7 @@ export interface ResponseModalProps {
   open: boolean;
   onClose: () => void;
   feedback: FeedbackForModal;
-  connectedChannels: Array<'slack' | 'intercom' | 'linear' | 'email'>;
+  connectedChannels: Array<'slack' | 'linear' | 'email'>;
   defaultTone?: ToneOption;
 }
 
@@ -82,7 +82,6 @@ type ModalView = 'main' | 'browse';
 
 const CHANNEL_LABELS: Record<string, string> = {
   slack: 'Slack',
-  intercom: 'Intercom',
   linear: 'Linear',
   email: 'Email',
 };
@@ -183,7 +182,7 @@ export function ResponseModal({
     }
   }, [responseText, feedback.id, onClose]);
 
-  const handleSendVia = useCallback(async (channel: 'slack' | 'intercom' | 'linear' | 'email') => {
+  const handleSendVia = useCallback(async (channel: 'slack' | 'linear' | 'email') => {
     setSending(true);
     try {
       const result = await responsesAPI.sendResponse(feedback.id, {

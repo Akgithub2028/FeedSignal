@@ -212,7 +212,7 @@ function SignupPageContent() {
               <Logo size="md" className="text-white [&_path]:fill-white" />
             </div>
             <span className="text-2xl font-bold text-white">
-              <span className="text-white/70">Re</span>reflect
+              <span className="text-white/70">Feed</span>Signal
             </span>
           </Link>
 
@@ -264,7 +264,7 @@ function SignupPageContent() {
           </div>
 
           <p className="brand-footer text-white/60 text-sm">
-            2025 Rereflect. All rights reserved.
+            2025 FeedSignal. All rights reserved.
           </p>
         </div>
       </div>
@@ -282,8 +282,8 @@ function SignupPageContent() {
               <Logo size="md" className="text-white [&_path]:fill-white" />
             </div>
             <span className="text-2xl font-bold">
-              <span className="text-muted-foreground">Re</span>
-              <span className="text-foreground">reflect</span>
+              <span className="text-muted-foreground">Feed</span>
+              <span className="text-foreground">Signal</span>
             </span>
           </div>
 

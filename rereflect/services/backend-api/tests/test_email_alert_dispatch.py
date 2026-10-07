@@ -13,6 +13,12 @@ from src.models.user_alert_preference import UserAlertPreference
 from src.api.auth import hash_password
 
 
+@pytest.fixture(autouse=True)
+def configured_owner_sender(monkeypatch):
+    monkeypatch.setattr('src.services.email_service.FROM_EMAIL', 'alerts@example.com')
+    monkeypatch.setattr('src.services.email_service.ALERT_FROM_EMAIL', 'FeedSignal Alerts <alerts@example.com>')
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _seed_pref(db: Session, user_id: int, alert_type: str, is_enabled: bool = True,
@@ -57,8 +63,8 @@ class TestSendAlertEmail:
             assert result is True
             mock_send.assert_called_once()
             call_args = mock_send.call_args
-            assert call_args[1]["from_email"] == "Rereflect Alerts <alerts@rereflect.ca>"
-            assert "[Rereflect] Urgent feedback detected" in call_args[1]["subject"]
+            assert call_args[1]["from_email"] == "FeedSignal Alerts <alerts@example.com>"
+            assert "[FeedSignal] Urgent feedback detected" in call_args[1]["subject"]
 
     def test_sends_email_for_sentiment_spike(self):
         """send_alert_email should use correct subject for sentiment_spike."""
@@ -78,7 +84,7 @@ class TestSendAlertEmail:
 
             assert result is True
             call_args = mock_send.call_args
-            assert "[Rereflect] Sentiment spike alert" in call_args[1]["subject"]
+            assert "[FeedSignal] Sentiment spike alert" in call_args[1]["subject"]
 
     def test_sends_email_for_churn_risk(self):
         """send_alert_email should use correct subject for churn_risk."""
@@ -98,7 +104,7 @@ class TestSendAlertEmail:
 
             assert result is True
             call_args = mock_send.call_args
-            assert "[Rereflect] Churn risk detected" in call_args[1]["subject"]
+            assert "[FeedSignal] Churn risk detected" in call_args[1]["subject"]
 
     def test_sends_email_for_volume_spike(self):
         """send_alert_email should use correct subject for volume_spike."""
@@ -118,7 +124,7 @@ class TestSendAlertEmail:
 
             assert result is True
             call_args = mock_send.call_args
-            assert "[Rereflect] Feedback volume spike" in call_args[1]["subject"]
+            assert "[FeedSignal] Feedback volume spike" in call_args[1]["subject"]
 
     def test_returns_false_when_api_key_not_configured(self):
         """send_alert_email should return False when RESEND_API_KEY is not set."""

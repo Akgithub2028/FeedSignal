@@ -4,22 +4,22 @@ import type { BlogPost } from '../blog';
 export const batch4: BlogPost[] = [
   {
     slug: 'self-host-rereflect-docker-compose',
-    title: 'Self-Hosting Rereflect With Docker Compose',
+    title: 'Self-Hosting FeedSignal With Docker Compose',
     excerpt:
-      'Rereflect ships as a set of Docker images that run together under a single docker-compose.yml. This guide walks through the full setup: cloning the repo, writing your .env file, starting the stack, and confirming everything is healthy — no cloud accounts required.',
+      'FeedSignal ships as a set of Docker images that run together under a single docker-compose.yml. This guide walks through the full setup: cloning the repo, writing your .env file, starting the stack, and confirming everything is healthy — no cloud accounts required.',
     date: '2026-10-01',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Self-Hosting', 'Docker', 'DevOps', 'Open Source', 'Getting Started'],
-    seoTitle: 'Self-Hosting Rereflect With Docker Compose | Rereflect',
+    seoTitle: 'Self-Hosting FeedSignal With Docker Compose | FeedSignal',
     seoDescription:
-      'Step-by-step guide to self-hosting Rereflect using Docker Compose. Covers cloning, environment variables, starting the stack, and verifying a healthy deployment — no cloud accounts needed.',
+      'Step-by-step guide to self-hosting FeedSignal using Docker Compose. Covers cloning, environment variables, starting the stack, and verifying a healthy deployment — no cloud accounts needed.',
     sections: [
       {
         heading: 'What you are actually running',
         content: [
-          'Rereflect is made up of four services that cooperate through a shared network: the Next.js frontend, the FastAPI backend, a Celery worker that processes background jobs, and a Redis broker that connects them. PostgreSQL stores everything durable. All five pieces are described in a single docker-compose.yml that ships with the repository.',
+          'FeedSignal is made up of four services that cooperate through a shared network: the Next.js frontend, the FastAPI backend, a Celery worker that processes background jobs, and a Redis broker that connects them. PostgreSQL stores everything durable. All five pieces are described in a single docker-compose.yml that ships with the repository.',
           'Docker Compose handles starting these in the right order, wiring the internal DNS so they can reach each other by name, and giving you a single command to bring the whole stack up or down. If you have Docker Desktop or the Docker Engine plus the Compose plugin installed, you already have everything you need.',
         ],
         listItems: [
@@ -34,7 +34,7 @@ export const batch4: BlogPost[] = [
         heading: 'Environment variables you need to set',
         content: [
           'Before starting the stack you need a .env file. The repository includes a .env.example with every supported variable and a comment describing each one. The mandatory ones for a minimal deployment are small in number.',
-          'The two most important values are SECRET_KEY and LLM_ENCRYPTION_KEY. SECRET_KEY signs JWT tokens for your users — generate it with a secure random generator and keep it secret. LLM_ENCRYPTION_KEY encrypts any LLM API keys your users store in the app — it must be exactly 32 bytes encoded as URL-safe base64. Set SELF_HOSTED=true so the app does not try to call Rereflect\'s own backend for licence checks.',
+          'The two most important values are SECRET_KEY and LLM_ENCRYPTION_KEY. SECRET_KEY signs JWT tokens for your users — generate it with a secure random generator and keep it secret. LLM_ENCRYPTION_KEY encrypts any LLM API keys your users store in the app — it must be exactly 32 bytes encoded as URL-safe base64. Set SELF_HOSTED=true so the app does not try to call FeedSignal\'s own backend for licence checks.',
         ],
         listItems: [
           'SECRET_KEY — random string used to sign JWT sessions. Generate with: python -c "import secrets; print(secrets.token_hex(32))"',
@@ -44,13 +44,13 @@ export const batch4: BlogPost[] = [
           'REDIS_URL — Redis connection string. Defaults to the bundled Redis container; override for an external broker.',
         ],
         content2: [
-          'LLM configuration is optional at this stage. Without it, Rereflect uses VADER for local sentiment analysis. You can add an LLM key later through the settings UI once the stack is running.',
+          'LLM configuration is optional at this stage. Without it, FeedSignal uses VADER for local sentiment analysis. You can add an LLM key later through the settings UI once the stack is running.',
         ],
       },
       {
         heading: 'Starting the stack',
         content: [
-          'Once your .env file is in place, bringing up Rereflect is a single command from the repository root. Docker Compose will pull the images on first run, then start each service in dependency order.',
+          'Once your .env file is in place, bringing up FeedSignal is a single command from the repository root. Docker Compose will pull the images on first run, then start each service in dependency order.',
           'A few things to watch for on first start: the backend runs Alembic migrations automatically before accepting traffic, so there will be a brief pause before the API responds. The Celery worker waits for Redis to be ready before it starts consuming jobs, which Compose handles through a health check in the compose file. If either service logs a connectivity error in the first ten seconds, that is normal startup sequencing — wait for everything to settle.',
         ],
         listItems: [
@@ -61,11 +61,11 @@ export const batch4: BlogPost[] = [
           'docker compose down -v — stops everything and deletes volumes (full reset, data is gone).',
         ],
         content2: [
-          'After the stack is healthy, open http://localhost:3000 in a browser. You should see the Rereflect signup page. Create your first account — the first registered user becomes the owner of the initial organization.',
+          'After the stack is healthy, open http://localhost:3000 in a browser. You should see the FeedSignal signup page. Create your first account — the first registered user becomes the owner of the initial organization.',
         ],
       },
       {
-        heading: 'Exposing Rereflect to the internet',
+        heading: 'Exposing FeedSignal to the internet',
         content: [
           'By default the stack only binds to localhost. To reach it from other machines — or to serve it publicly — you need a reverse proxy in front of the frontend and API. Nginx, Caddy, and Traefik all work well. The key points: proxy :3000 for the frontend, proxy :8000 for the API (or configure the API_URL environment variable in the frontend to point directly at a public API address), and terminate TLS at the proxy layer.',
           'If you are running on a server with a domain, Caddy handles TLS certificate provisioning automatically with a minimal configuration. Nginx is a reasonable choice if you are comfortable writing server blocks. The compose file does not force either choice — pick whichever fits your existing infrastructure.',
@@ -79,7 +79,7 @@ export const batch4: BlogPost[] = [
       {
         heading: 'Keeping the stack updated',
         content: [
-          'Rereflect is open source and ships new versions as tagged Docker images. To update, pull the new images and restart the stack. Alembic migrations run automatically on restart, so schema changes apply without a manual step.',
+          'FeedSignal is open source and ships new versions as tagged Docker images. To update, pull the new images and restart the stack. Alembic migrations run automatically on restart, so schema changes apply without a manual step.',
           'The safe update sequence is: pull new images, stop the stack, bring it back up. Because Alembic migrations are transactional, an interrupted update leaves the database in its previous valid state. Read the release notes before updating if a release includes a note about breaking migrations or required manual steps.',
           'Pinning image tags in your compose file (rather than using latest) gives you explicit control over when you take updates and lets you roll back by editing a single line.',
         ],
@@ -94,11 +94,11 @@ export const batch4: BlogPost[] = [
     date: '2026-10-04',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Data Privacy', 'Self-Hosting', 'Open Source', 'Compliance'],
-    seoTitle: 'Why Owning Your Customer Feedback Data Actually Matters | Rereflect',
+    seoTitle: 'Why Owning Your Customer Feedback Data Actually Matters | FeedSignal',
     seoDescription:
-      'Customer feedback data is sensitive. Understand the practical difference between SaaS data custody and true data ownership with a self-hosted tool like Rereflect.',
+      'Customer feedback data is sensitive. Understand the practical difference between SaaS data custody and true data ownership with a self-hosted tool like FeedSignal.',
     sections: [
       {
         heading: 'What customers write in feedback forms',
@@ -118,7 +118,7 @@ export const batch4: BlogPost[] = [
       {
         heading: 'What self-hosting actually changes',
         content: [
-          'When you self-host Rereflect, the feedback text stays in your PostgreSQL database, on your infrastructure, in whatever region you choose. The analysis that Rereflect runs — sentiment scoring, pain point detection, urgency flagging — runs against a model you configure, using credentials you own. Nothing flows to a Rereflect server.',
+          'When you self-host FeedSignal, the feedback text stays in your PostgreSQL database, on your infrastructure, in whatever region you choose. The analysis that FeedSignal runs — sentiment scoring, pain point detection, urgency flagging — runs against a model you configure, using credentials you own. Nothing flows to a FeedSignal server.',
           'If you use a hosted LLM key (OpenAI, Anthropic, etc.), the feedback text does flow to that provider when it is analyzed. If you use a local model via Ollama or another OpenAI-compatible runtime, even that is eliminated. The VADER fallback removes the LLM call entirely for sentiment analysis.',
           'The practical result is that you can draw a clear, honest line in your privacy policy: "Customer feedback is stored on our own infrastructure and processed locally." That is a statement many SaaS tools cannot truthfully make.',
         ],
@@ -127,7 +127,7 @@ export const batch4: BlogPost[] = [
         heading: 'Ownership is also about access and deletion',
         content: [
           'Data ownership is not only about where data is stored. It is also about whether you can access it, query it freely, and delete it completely. With a SaaS tool, deletion is typically "submit a request and we will process it within N days." Export is typically "download a CSV of what we decide to expose in our export UI."',
-          'With a self-hosted Rereflect, your PostgreSQL database is your database. You can run any query, export in any format, and delete individual records or the entire dataset whenever you want. There is no intermediary to ask permission from, and no retention window you have to wait out.',
+          'With a self-hosted FeedSignal, your PostgreSQL database is your database. You can run any query, export in any format, and delete individual records or the entire dataset whenever you want. There is no intermediary to ask permission from, and no retention window you have to wait out.',
           'For teams operating under GDPR, CCPA, or contractual data processing agreements with enterprise customers, this is not a nice-to-have. It is the difference between being able to honour a deletion request and having to explain to a customer why their data is still sitting in a third-party system.',
         ],
       },
@@ -136,48 +136,48 @@ export const batch4: BlogPost[] = [
         content: [
           'Self-hosting means you are responsible for the infrastructure: backups, uptime, upgrades, and security configuration. A managed SaaS tool handles those things for you in exchange for custody of your data. That is a legitimate trade-off, and different teams will land in different places.',
           'What matters is that the choice is explicit. If you have decided a managed tool is fine and you have read and understood its data handling terms, that is a reasonable decision. What is harder to justify is choosing a managed tool without having thought through what happens to the feedback data that flows through it.',
-          'Rereflect is open source and MIT-licensed. You can read every line of code that processes your feedback. If you decide to self-host, the full deployment tooling is in the repository. If you decide a managed setup fits your situation better, you have made that decision with eyes open.',
+          'FeedSignal is open source and MIT-licensed. You can read every line of code that processes your feedback. If you decide to self-host, the full deployment tooling is in the repository. If you decide a managed setup fits your situation better, you have made that decision with eyes open.',
         ],
       },
     ],
   },
   {
     slug: 'air-gapped-feedback-analysis-private',
-    title: 'Running Rereflect in a Fully Air-Gapped Environment',
+    title: 'Running FeedSignal in a Fully Air-Gapped Environment',
     excerpt:
-      'Some teams cannot allow any outbound traffic from their analysis infrastructure — regulated industries, government contractors, or high-security environments. Rereflect can run completely air-gapped using the built-in VADER analyzer or a locally hosted model. Here is how to set it up.',
+      'Some teams cannot allow any outbound traffic from their analysis infrastructure — regulated industries, government contractors, or high-security environments. FeedSignal can run completely air-gapped using the built-in VADER analyzer or a locally hosted model. Here is how to set it up.',
     date: '2026-10-07',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Air-Gapped', 'Privacy', 'Self-Hosting', 'Security', 'Compliance'],
-    seoTitle: 'Running Rereflect in a Fully Air-Gapped Environment | Rereflect',
+    seoTitle: 'Running FeedSignal in a Fully Air-Gapped Environment | FeedSignal',
     seoDescription:
-      'Deploy Rereflect with zero outbound network traffic. Use the built-in VADER fallback or a local LLM to analyze customer feedback in a fully air-gapped or network-restricted environment.',
+      'Deploy FeedSignal with zero outbound network traffic. Use the built-in VADER fallback or a local LLM to analyze customer feedback in a fully air-gapped or network-restricted environment.',
     sections: [
       {
         heading: 'When air-gapped actually means air-gapped',
         content: [
           'Some security environments enforce strict outbound network controls — no traffic to external APIs, no calls to CDN-hosted dependencies, no model inference shipped off-box. This is common in government, defence, and heavily regulated industries such as healthcare or finance where data classification rules prohibit sending any customer-derived text to a public cloud endpoint.',
-          'Most AI feedback tools are not compatible with this requirement because they are architecturally dependent on calling a third-party LLM API. Rereflect is different because the LLM step is optional. The product can run its entire analysis pipeline locally, with no outbound calls beyond what you explicitly configure.',
+          'Most AI feedback tools are not compatible with this requirement because they are architecturally dependent on calling a third-party LLM API. FeedSignal is different because the LLM step is optional. The product can run its entire analysis pipeline locally, with no outbound calls beyond what you explicitly configure.',
         ],
       },
       {
         heading: 'What generates outbound traffic in a default setup',
         content: [
-          'Before you can lock things down, it helps to know what would call home in a permissive configuration. In a default Rereflect self-hosted deployment, there are three potential sources of outbound traffic: the Docker image pulls during initial setup, the LLM API calls if you have configured a hosted provider, and any telemetry or update-check calls if a tool in the stack makes them.',
-          'The first — image pulls — is a one-time setup step you can handle by pre-pulling images on a networked machine and saving them as archives, then loading them on the air-gapped host. The second is the important one: if you configure an LLM API key pointing at a hosted provider, every piece of feedback that runs through the LLM step generates an outbound HTTPS request. The third is not a concern — Rereflect does not phone home and does not bundle any telemetry.',
+          'Before you can lock things down, it helps to know what would call home in a permissive configuration. In a default FeedSignal self-hosted deployment, there are three potential sources of outbound traffic: the Docker image pulls during initial setup, the LLM API calls if you have configured a hosted provider, and any telemetry or update-check calls if a tool in the stack makes them.',
+          'The first — image pulls — is a one-time setup step you can handle by pre-pulling images on a networked machine and saving them as archives, then loading them on the air-gapped host. The second is the important one: if you configure an LLM API key pointing at a hosted provider, every piece of feedback that runs through the LLM step generates an outbound HTTPS request. The third is not a concern — FeedSignal does not phone home and does not bundle any telemetry.',
         ],
         listItems: [
           'Docker image pulls — handle with docker save / docker load on the target host.',
           'LLM API calls — eliminated by using a local model or the VADER fallback.',
-          'Rereflect telemetry — does not exist; the app makes no calls back to Rereflect servers.',
+          'FeedSignal telemetry — does not exist; the app makes no calls back to FeedSignal servers.',
         ],
       },
       {
         heading: 'Option 1: VADER-only mode (fully local, zero model dependencies)',
         content: [
-          'The simplest air-gapped configuration is to not configure an LLM at all. When no LLM_BASE_URL is set in your environment, Rereflect automatically uses the VADER sentiment analyzer for all feedback. VADER is a lexicon-based analyzer that runs in-process — it has no GPU requirements, no model files to download, and generates no network traffic.',
+          'The simplest air-gapped configuration is to not configure an LLM at all. When no LLM_BASE_URL is set in your environment, FeedSignal automatically uses the VADER sentiment analyzer for all feedback. VADER is a lexicon-based analyzer that runs in-process — it has no GPU requirements, no model files to download, and generates no network traffic.',
           'In VADER-only mode you get reliable sentiment scoring (positive, neutral, negative) on every piece of feedback. The LLM-driven steps — nuanced pain point categorisation, feature request extraction, urgency reasoning — are not available in their full form. For teams whose primary need is understanding sentiment distribution across large feedback volumes, VADER-only is often sufficient and gets to a working deployment in minutes.',
         ],
         listItems: [
@@ -190,8 +190,8 @@ export const batch4: BlogPost[] = [
       {
         heading: 'Option 2: Local LLM via Ollama or a compatible server',
         content: [
-          'If you need the full LLM-driven analysis pipeline in an air-gapped environment, the path is to run a model locally alongside Rereflect using a server that exposes an OpenAI-compatible API. Ollama is the most common choice; llama.cpp server and LM Studio are alternatives that expose the same interface.',
-          'The workflow for an air-gapped host: pull the model weights and the Ollama binary on a networked machine, transfer them to the air-gapped host (or mount from internal storage), start Ollama, and set LLM_BASE_URL in Rereflect\'s environment to point at the local Ollama endpoint. Because the endpoint is OpenAI-compatible and local, no API key is needed.',
+          'If you need the full LLM-driven analysis pipeline in an air-gapped environment, the path is to run a model locally alongside FeedSignal using a server that exposes an OpenAI-compatible API. Ollama is the most common choice; llama.cpp server and LM Studio are alternatives that expose the same interface.',
+          'The workflow for an air-gapped host: pull the model weights and the Ollama binary on a networked machine, transfer them to the air-gapped host (or mount from internal storage), start Ollama, and set LLM_BASE_URL in FeedSignal\'s environment to point at the local Ollama endpoint. Because the endpoint is OpenAI-compatible and local, no API key is needed.',
           'The choice of model affects analysis quality. A 7B-parameter model running on a CPU will be slower and less accurate than a 70B model on a machine with GPU. In practice, for routine sentiment and category classification on short feedback texts, a capable 7B model performs well enough for most production use cases.',
         ],
         listItems: [
@@ -205,45 +205,45 @@ export const batch4: BlogPost[] = [
       {
         heading: 'Network policy recommendations',
         content: [
-          'Even if you intend to run fully locally, defence-in-depth suggests enforcing the restriction at the network layer rather than relying on configuration alone. Running Rereflect in a network namespace with no default route, or behind a firewall rule that blocks all outbound traffic from the container network, ensures that a misconfiguration cannot silently start sending feedback to an external API.',
-          'The specific egress rules depend on your environment. At minimum, block all traffic from the Rereflect containers to the public internet. If you allow internal-network traffic, restrict Rereflect to only the hosts it legitimately needs to reach: your PostgreSQL instance, your Redis instance, and your local LLM server if you are running one.',
-          'Rereflect logs every LLM call — base URL, model, and completion status — at debug level. Review those logs periodically to confirm traffic is going where you expect.',
+          'Even if you intend to run fully locally, defence-in-depth suggests enforcing the restriction at the network layer rather than relying on configuration alone. Running FeedSignal in a network namespace with no default route, or behind a firewall rule that blocks all outbound traffic from the container network, ensures that a misconfiguration cannot silently start sending feedback to an external API.',
+          'The specific egress rules depend on your environment. At minimum, block all traffic from the FeedSignal containers to the public internet. If you allow internal-network traffic, restrict FeedSignal to only the hosts it legitimately needs to reach: your PostgreSQL instance, your Redis instance, and your local LLM server if you are running one.',
+          'FeedSignal logs every LLM call — base URL, model, and completion status — at debug level. Review those logs periodically to confirm traffic is going where you expect.',
         ],
       },
     ],
   },
   {
     slug: 'byok-llm-keys-explained',
-    title: 'BYOK Explained: How Rereflect Uses Your LLM Keys',
+    title: 'BYOK Explained: How FeedSignal Uses Your LLM Keys',
     excerpt:
-      'BYOK — bring your own key — is a simple idea: you supply the API credential, you pay the provider directly, and no AI markup goes through Rereflect. This post explains exactly how Rereflect stores and uses your LLM key, which providers work, and what happens when no key is configured.',
+      'BYOK — bring your own key — is a simple idea: you supply the API credential, you pay the provider directly, and no AI markup goes through FeedSignal. This post explains exactly how FeedSignal stores and uses your LLM key, which providers work, and what happens when no key is configured.',
     date: '2026-10-10',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['BYOK', 'AI', 'Privacy', 'Self-Hosting', 'LLM'],
-    seoTitle: 'BYOK Explained: How Rereflect Uses Your LLM Keys | Rereflect',
+    seoTitle: 'BYOK Explained: How FeedSignal Uses Your LLM Keys | FeedSignal',
     seoDescription:
-      'Understand exactly how Rereflect\'s bring-your-own-key (BYOK) model works: key storage with AES encryption, which LLM providers are supported, per-request usage, and the no-key VADER fallback.',
+      'Understand exactly how FeedSignal\'s bring-your-own-key (BYOK) model works: key storage with AES encryption, which LLM providers are supported, per-request usage, and the no-key VADER fallback.',
     sections: [
       {
-        heading: 'What BYOK means in Rereflect',
+        heading: 'What BYOK means in FeedSignal',
         content: [
           'Many AI SaaS tools include a hosted AI backend as part of the subscription. You pay them; they call a model provider on your behalf, mark up the cost, and the bill is bundled into your seat price. There is nothing wrong with this model, but it means you do not choose the provider, you cannot audit what gets sent to the model, and you are paying a markup on compute that is hidden in the subscription price.',
-          'Rereflect does not work that way. There is no Rereflect AI backend. If you want LLM-powered analysis — sentiment with nuance, pain point extraction, feature request tagging, urgency reasoning — you configure a key from a provider you have signed up with directly. Rereflect calls that provider\'s API on your behalf using your credential. You pay the provider at their published rates. Rereflect adds no markup.',
-          'This is what BYOK means in practice: the model provider relationship is between you and them, not mediated or marked up by Rereflect.',
+          'FeedSignal does not work that way. There is no FeedSignal AI backend. If you want LLM-powered analysis — sentiment with nuance, pain point extraction, feature request tagging, urgency reasoning — you configure a key from a provider you have signed up with directly. FeedSignal calls that provider\'s API on your behalf using your credential. You pay the provider at their published rates. FeedSignal adds no markup.',
+          'This is what BYOK means in practice: the model provider relationship is between you and them, not mediated or marked up by FeedSignal.',
         ],
       },
       {
-        heading: 'How Rereflect stores your key',
+        heading: 'How FeedSignal stores your key',
         content: [
-          'When you enter an API key through the settings UI, Rereflect encrypts it before writing it to the database. The encryption uses AES-256-GCM with a key you supply through the LLM_ENCRYPTION_KEY environment variable when you start the stack. This is a 32-byte secret that lives on your infrastructure — Rereflect never sees it, because Rereflect never runs the stack for you.',
+          'When you enter an API key through the settings UI, FeedSignal encrypts it before writing it to the database. The encryption uses AES-256-GCM with a key you supply through the LLM_ENCRYPTION_KEY environment variable when you start the stack. This is a 32-byte secret that lives on your infrastructure — FeedSignal never sees it, because FeedSignal never runs the stack for you.',
           'At analysis time, the worker retrieves the encrypted key, decrypts it in memory using LLM_ENCRYPTION_KEY, and passes it in the Authorization header of the LLM API request. The decrypted key is never written to disk or logged. After the request completes, the in-memory credential is discarded.',
           'If someone extracts the database without also having LLM_ENCRYPTION_KEY, they get the ciphertext but not a usable key. Protecting LLM_ENCRYPTION_KEY is therefore important — treat it like a master secret, store it in a secrets manager if you have one, and rotate it if you believe it has been compromised.',
         ],
         listItems: [
           'Keys are encrypted with AES-256-GCM before database storage.',
-          'LLM_ENCRYPTION_KEY lives only on your infrastructure and is never sent to Rereflect.',
+          'LLM_ENCRYPTION_KEY lives only on your infrastructure and is never sent to FeedSignal.',
           'Decryption happens in memory, at request time, in the Celery worker.',
           'The decrypted key is not logged, not written to disk, and not held beyond the request lifecycle.',
         ],
@@ -251,7 +251,7 @@ export const batch4: BlogPost[] = [
       {
         heading: 'Which providers work',
         content: [
-          'Rereflect uses the OpenAI-compatible API format for all LLM calls. Any provider that exposes an OpenAI-compatible endpoint works — you configure a base URL and a model name alongside the key.',
+          'FeedSignal uses the OpenAI-compatible API format for all LLM calls. Any provider that exposes an OpenAI-compatible endpoint works — you configure a base URL and a model name alongside the key.',
           'Providers known to work include OpenAI (gpt-4o, gpt-4o-mini, o3-mini), Anthropic (via their OpenAI-compatible endpoint), Google Gemini (via the OpenAI-compatible shim), Groq, Together AI, and any local runtime that speaks the same API format: Ollama, llama.cpp server, LM Studio, vLLM.',
           'For local runtimes, the key field can be left blank or set to a placeholder string — local servers typically do not authenticate and will accept or ignore the Authorization header.',
         ],
@@ -271,15 +271,15 @@ export const batch4: BlogPost[] = [
       {
         heading: 'What each analysis call sends to the model',
         content: [
-          'Understanding what is in the LLM request helps you make an informed decision about which provider to use. When Rereflect analyzes a piece of feedback, it constructs a prompt that contains: the feedback text itself, the analysis task description (classify sentiment, extract pain points, etc.), and any custom category definitions you have configured.',
+          'Understanding what is in the LLM request helps you make an informed decision about which provider to use. When FeedSignal analyzes a piece of feedback, it constructs a prompt that contains: the feedback text itself, the analysis task description (classify sentiment, extract pain points, etc.), and any custom category definitions you have configured.',
           'The prompt does not include other customers\' feedback, account details beyond what you have added to the item, or internal system data. The scope is: this text, this task. You can inspect the exact prompt templates in the open-source codebase if you want to audit precisely what is sent.',
         ],
       },
       {
         heading: 'The no-key fallback',
         content: [
-          'If you do not configure any LLM key, Rereflect falls back to VADER for sentiment analysis. VADER runs entirely in-process, makes no network calls, and has no dependency on an external provider. You get sentiment scores on every piece of feedback from day one — the more advanced LLM steps are available when you add a key later.',
-          'This means you can evaluate Rereflect on your real data before committing to an LLM provider or signing up for any API account. Start with VADER, verify the ingestion pipeline works and the UI makes sense for your team, then add a key when you are ready for deeper analysis.',
+          'If you do not configure any LLM key, FeedSignal falls back to VADER for sentiment analysis. VADER runs entirely in-process, makes no network calls, and has no dependency on an external provider. You get sentiment scores on every piece of feedback from day one — the more advanced LLM steps are available when you add a key later.',
+          'This means you can evaluate FeedSignal on your real data before committing to an LLM provider or signing up for any API account. Start with VADER, verify the ingestion pipeline works and the UI makes sense for your team, then add a key when you are ready for deeper analysis.',
         ],
       },
     ],
@@ -292,11 +292,11 @@ export const batch4: BlogPost[] = [
     date: '2026-10-13',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Local LLM', 'Cost', 'Self-Hosting', 'AI', 'Performance'],
-    seoTitle: 'The Real Cost of Analyzing Feedback With a Local LLM | Rereflect',
+    seoTitle: 'The Real Cost of Analyzing Feedback With a Local LLM | FeedSignal',
     seoDescription:
-      'Local LLMs eliminate API bills but come with hardware and quality trade-offs. A practical breakdown of the cost structure for running feedback analysis with Rereflect and a local model.',
+      'Local LLMs eliminate API bills but come with hardware and quality trade-offs. A practical breakdown of the cost structure for running feedback analysis with FeedSignal and a local model.',
     sections: [
       {
         heading: 'What you stop paying for',
@@ -340,7 +340,7 @@ export const batch4: BlogPost[] = [
         heading: 'Latency: the hidden cost',
         content: [
           'Local models are often slower than hosted APIs, depending on your hardware. A frontier hosted API returns a response in one to three seconds for a typical feedback prompt. A local 7B model on a CPU might take ten to thirty seconds. A local 70B model on a good GPU might take three to eight seconds.',
-          'For Rereflect this is less critical than it would be for a real-time user-facing app — analysis runs in background Celery jobs, so a user uploading a CSV of feedback is not waiting for each item to process synchronously. The feedback is queued, processed, and the dashboard updates as results come in. Slower inference means the dashboard reflects results later, not that the user experiences a hang.',
+          'For FeedSignal this is less critical than it would be for a real-time user-facing app — analysis runs in background Celery jobs, so a user uploading a CSV of feedback is not waiting for each item to process synchronously. The feedback is queued, processed, and the dashboard updates as results come in. Slower inference means the dashboard reflects results later, not that the user experiences a hang.',
           'If you are processing very high volumes (tens of thousands of items) on a slow local model, the queue will take longer to drain. Right-size your model to your volume and hardware, or use the hosted API path for bursts.',
         ],
       },
@@ -362,9 +362,9 @@ export const batch4: BlogPost[] = [
     date: '2026-10-16',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Open Source', 'Self-Hosting', 'Product', 'Decision-Making'],
-    seoTitle: 'Open-Source vs. SaaS Feedback Tools: An Honest Comparison | Rereflect',
+    seoTitle: 'Open-Source vs. SaaS Feedback Tools: An Honest Comparison | FeedSignal',
     seoDescription:
       'A practical comparison of self-hosted open-source and managed SaaS feedback analysis tools — covering data control, cost, maintenance burden, and when each model makes sense.',
     sections: [
@@ -408,14 +408,14 @@ export const batch4: BlogPost[] = [
         content: [
           'Self-hosting becomes the correct choice when you have data residency requirements (GDPR, HIPAA, sector-specific), when your security team will not approve sending customer data to a third-party AI provider, when you need to audit the code that processes your customers\' feedback, or when the SaaS pricing structure does not work at your feedback volume.',
           'It is also worth considering when you want long-term stability without vendor risk. An open-source codebase cannot be sunset by a pricing decision. A copy of the code you run on your own infrastructure is not affected by an acquisition.',
-          'Rereflect is MIT-licensed, which means you can run it indefinitely, modify it to fit your needs, and are not dependent on a commercial entity to keep the lights on.',
+          'FeedSignal is MIT-licensed, which means you can run it indefinitely, modify it to fit your needs, and are not dependent on a commercial entity to keep the lights on.',
         ],
       },
       {
         heading: 'What open source does not fix',
         content: [
           'It is worth being clear about what self-hosting does not solve. It does not remove the operational burden — you are trading vendor management for infrastructure management, which is a different kind of work, not no work. It does not automatically give you better analysis quality — that depends on which LLM you configure, not on the software being open source.',
-          'And open source does not mean unsupported. Rereflect has a public GitHub repository, issue tracker, and community. But it does mean that if you need a feature, you file an issue or contribute it yourself rather than asking a customer success manager to escalate it.',
+          'And open source does not mean unsupported. FeedSignal has a public GitHub repository, issue tracker, and community. But it does mean that if you need a feature, you file an issue or contribute it yourself rather than asking a customer success manager to escalate it.',
           'Make the choice based on what your team is actually equipped to handle and what your real constraints are — not on a general preference for one model over the other.',
         ],
       },
@@ -425,22 +425,22 @@ export const batch4: BlogPost[] = [
     slug: 'gdpr-compliant-self-hosted-feedback',
     title: 'Running GDPR-Compliant Feedback Analysis With a Self-Hosted Tool',
     excerpt:
-      'GDPR imposes real obligations on how you process customer feedback: lawful basis, data minimisation, deletion rights, and cross-border transfer restrictions. Self-hosting Rereflect addresses the hardest of these by keeping data inside your own infrastructure.',
+      'GDPR imposes real obligations on how you process customer feedback: lawful basis, data minimisation, deletion rights, and cross-border transfer restrictions. Self-hosting FeedSignal addresses the hardest of these by keeping data inside your own infrastructure.',
     date: '2026-10-20',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['GDPR', 'Compliance', 'Privacy', 'Self-Hosting', 'Data Protection'],
-    seoTitle: 'Running GDPR-Compliant Feedback Analysis With a Self-Hosted Tool | Rereflect',
+    seoTitle: 'Running GDPR-Compliant Feedback Analysis With a Self-Hosted Tool | FeedSignal',
     seoDescription:
-      'How self-hosting Rereflect helps address GDPR requirements for customer feedback data: data residency, deletion rights, processing transparency, and avoiding third-party transfer issues.',
+      'How self-hosting FeedSignal helps address GDPR requirements for customer feedback data: data residency, deletion rights, processing transparency, and avoiding third-party transfer issues.',
     sections: [
       {
         heading: 'Why feedback data is in scope for GDPR',
         content: [
           'Feedback from your users almost certainly contains personal data under GDPR\'s definition. A support ticket that says "I am having trouble with my account" contains the submitter\'s identity by association even if you strip the email address, because it is linked to an account. Feedback that mentions a name, a specific transaction, or an identifiable situation is unambiguously personal data.',
           'This means you need a lawful basis for processing it, you need to be able to respond to deletion requests (the right to erasure), and you need to be able to explain to a user or supervisory authority what you are doing with their data and where it flows.',
-          'Note: this post describes how Rereflect\'s self-hosted architecture supports GDPR compliance; it is not legal advice. Your specific compliance requirements depend on your data, your users, and the advice of your legal counsel.',
+          'Note: this post describes how FeedSignal\'s self-hosted architecture supports GDPR compliance; it is not legal advice. Your specific compliance requirements depend on your data, your users, and the advice of your legal counsel.',
         ],
       },
       {
@@ -454,34 +454,34 @@ export const batch4: BlogPost[] = [
       {
         heading: 'Data residency: choosing your region',
         content: [
-          'When you self-host Rereflect, you choose where the PostgreSQL database runs. Run it in the EU and your feedback data never leaves EU infrastructure. This is a meaningful compliance posture that a SaaS tool with US-based infrastructure cannot match without explicit contractual and technical guarantees.',
+          'When you self-host FeedSignal, you choose where the PostgreSQL database runs. Run it in the EU and your feedback data never leaves EU infrastructure. This is a meaningful compliance posture that a SaaS tool with US-based infrastructure cannot match without explicit contractual and technical guarantees.',
           'Concretely: if you deploy the docker-compose stack on a server in Frankfurt, Amsterdam, or another EU data centre, and you do not configure an LLM key pointing at a non-EU provider, your feedback data stays in the EU throughout its lifecycle. With a local Ollama model alongside the stack, even the analysis calls are on the same host.',
-          'Document this in your Records of Processing Activities (ROPA): "Customer feedback is stored in a PostgreSQL database hosted in [region] and processed by Rereflect running on the same infrastructure." That is a clear, accurate, auditable statement.',
+          'Document this in your Records of Processing Activities (ROPA): "Customer feedback is stored in a PostgreSQL database hosted in [region] and processed by FeedSignal running on the same infrastructure." That is a clear, accurate, auditable statement.',
         ],
       },
       {
         heading: 'Handling deletion requests (the right to erasure)',
         content: [
           'GDPR Article 17 gives individuals the right to request deletion of their personal data. For feedback data this means you need to be able to find all feedback associated with a specific user and delete it when requested.',
-          'With a self-hosted Rereflect, the database is yours. You can write a direct SQL query, or use the admin interface, to find all feedback items linked to a user (by email, user ID, or account reference) and hard-delete them. The deletion takes effect immediately. There is no "submit a request and we will process it within 30 days" queue, because the data is in your own database.',
+          'With a self-hosted FeedSignal, the database is yours. You can write a direct SQL query, or use the admin interface, to find all feedback items linked to a user (by email, user ID, or account reference) and hard-delete them. The deletion takes effect immediately. There is no "submit a request and we will process it within 30 days" queue, because the data is in your own database.',
           'If you use an LLM provider for analysis, be aware that the provider\'s own data retention policy may mean they retain the text of the prompt for some period (check their terms). If this is a concern, use a local model or the VADER fallback, which sends nothing to any external service.',
         ],
         listItems: [
           'Feedback text and derived data (sentiment, categories) are stored in your PostgreSQL database.',
-          'Delete items directly via the Rereflect UI, the API, or SQL queries against your database.',
+          'Delete items directly via the FeedSignal UI, the API, or SQL queries against your database.',
           'Deletion is immediate — no vendor queue.',
           'If using a hosted LLM provider: check their data retention terms for prompts and completions.',
           'With a local model or VADER: no data leaves your infra, so no external retention concern.',
         ],
       },
       {
-        heading: 'Practical checklist for GDPR and self-hosted Rereflect',
+        heading: 'Practical checklist for GDPR and self-hosted FeedSignal',
         content: [
           'This is not an exhaustive compliance checklist — work with legal counsel for your specific situation. These are the self-hosting configuration choices that have the most direct bearing on GDPR considerations for feedback data.',
         ],
         listItems: [
           'Host PostgreSQL in an EU region if your users are in the EU.',
-          'Configure SELF_HOSTED=true to disable any calls to Rereflect cloud services.',
+          'Configure SELF_HOSTED=true to disable any calls to FeedSignal cloud services.',
           'Use a local LLM or VADER to eliminate feedback text flowing to a third-party AI provider.',
           'If using a hosted LLM, ensure you have a DPA with the provider that covers sub-processor use.',
           'Document data flows in your ROPA: where feedback is stored, how it is processed, how long it is retained.',
@@ -499,11 +499,11 @@ export const batch4: BlogPost[] = [
     date: '2026-10-24',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Local LLM', 'AI', 'Self-Hosting', 'Performance', 'Model Selection'],
-    seoTitle: 'Choosing a Local LLM for Feedback Analysis: A Practical Guide | Rereflect',
+    seoTitle: 'Choosing a Local LLM for Feedback Analysis: A Practical Guide | FeedSignal',
     seoDescription:
-      'How to evaluate and choose a local LLM for customer feedback analysis with Rereflect. Covers model families, hardware requirements, instruction-following quality, and practical starting points.',
+      'How to evaluate and choose a local LLM for customer feedback analysis with FeedSignal. Covers model families, hardware requirements, instruction-following quality, and practical starting points.',
     sections: [
       {
         heading: 'What the feedback analysis task actually requires from a model',
@@ -550,7 +550,7 @@ export const batch4: BlogPost[] = [
       {
         heading: 'Testing a model before committing',
         content: [
-          'Before switching Rereflect to a new local model for production, run a set of test feedback items through it and check the output quality. The key things to look for: does it produce valid JSON in the expected schema, does it correctly classify clear positive and negative feedback, does it handle ambiguous or sarcastic feedback reasonably, and does it stay within the category labels you have defined rather than inventing new ones.',
+          'Before switching FeedSignal to a new local model for production, run a set of test feedback items through it and check the output quality. The key things to look for: does it produce valid JSON in the expected schema, does it correctly classify clear positive and negative feedback, does it handle ambiguous or sarcastic feedback reasonably, and does it stay within the category labels you have defined rather than inventing new ones.',
           'A simple test set of twenty to forty feedback items — covering positive, negative, and ambiguous cases, and including any domain-specific language your users tend to use — gives you a useful baseline. Compare the local model\'s classifications against what you would expect, or against output from a hosted frontier model if you have one available.',
           'If a model fails consistently on structured output (producing free text instead of JSON, or inventing categories), try a different instruction-following variant or a different model family before concluding that local inference will not work for your use case.',
         ],
@@ -559,29 +559,29 @@ export const batch4: BlogPost[] = [
         heading: 'The VADER baseline and when it is enough',
         content: [
           'Before investing in local model infrastructure, consider whether the VADER fallback meets your needs. VADER gives you reliable sentiment scoring across large feedback volumes with zero hardware requirements. If your primary analytics use case is "what percentage of feedback this week was negative, and is that trending up or down," VADER answers that question well.',
-          'Local LLMs add value when you need the categorisation layer: which pain points are users hitting most, which features are most requested, which items are urgent churn risks. If you are not yet acting on that level of analysis, VADER is the faster and cheaper path to get started. You can switch Rereflect to a local model later with a single configuration change when you are ready for it.',
+          'Local LLMs add value when you need the categorisation layer: which pain points are users hitting most, which features are most requested, which items are urgent churn risks. If you are not yet acting on that level of analysis, VADER is the faster and cheaper path to get started. You can switch FeedSignal to a local model later with a single configuration change when you are ready for it.',
         ],
       },
     ],
   },
   {
     slug: 'backup-and-restore-self-hosted-rereflect',
-    title: 'Backup and Restore for a Self-Hosted Rereflect Deployment',
+    title: 'Backup and Restore for a Self-Hosted FeedSignal Deployment',
     excerpt:
-      'When you self-host, you own the backup responsibility. Rereflect\'s data lives in PostgreSQL — structured, straightforward to back up, and easy to restore. This guide covers what to back up, how often, and how to verify your backups actually work.',
+      'When you self-host, you own the backup responsibility. FeedSignal\'s data lives in PostgreSQL — structured, straightforward to back up, and easy to restore. This guide covers what to back up, how often, and how to verify your backups actually work.',
     date: '2026-10-28',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Self-Hosting', 'Backup', 'DevOps', 'PostgreSQL', 'Disaster Recovery'],
-    seoTitle: 'Backup and Restore for a Self-Hosted Rereflect Deployment | Rereflect',
+    seoTitle: 'Backup and Restore for a Self-Hosted FeedSignal Deployment | FeedSignal',
     seoDescription:
-      'A practical guide to backing up and restoring a self-hosted Rereflect instance. Covers PostgreSQL dumps, environment secrets, backup schedules, and restore verification.',
+      'A practical guide to backing up and restoring a self-hosted FeedSignal instance. Covers PostgreSQL dumps, environment secrets, backup schedules, and restore verification.',
     sections: [
       {
         heading: 'What needs to be backed up',
         content: [
-          'A Rereflect deployment has two categories of data that matter for recovery: the PostgreSQL database and the environment secrets.',
+          'A FeedSignal deployment has two categories of data that matter for recovery: the PostgreSQL database and the environment secrets.',
           'The database holds everything: organizations, users, feedback items, analysis results, categories, integrations, and settings. If you lose the database without a backup, that data is gone. The environment secrets — particularly SECRET_KEY and LLM_ENCRYPTION_KEY — are not stored in the database. If you lose LLM_ENCRYPTION_KEY, any LLM API keys stored in the database become unrecoverable (they are encrypted ciphertext without the key). If you lose SECRET_KEY, existing user sessions are invalidated but users can log in again.',
         ],
         listItems: [
@@ -594,8 +594,8 @@ export const batch4: BlogPost[] = [
       {
         heading: 'Backing up the PostgreSQL database',
         content: [
-          'The standard PostgreSQL backup tool is pg_dump. It produces a SQL dump file that can restore the database to the exact state at the time of the dump. For a Rereflect deployment using the bundled Docker database service, you run pg_dump inside the container.',
-          'A compressed dump of a Rereflect database with a few thousand feedback items is typically a small file — tens of megabytes at most. Store it somewhere other than the host running the database: an object storage bucket (S3, Backblaze B2, Cloudflare R2), a separate server, or wherever your existing backup infrastructure is.',
+          'The standard PostgreSQL backup tool is pg_dump. It produces a SQL dump file that can restore the database to the exact state at the time of the dump. For a FeedSignal deployment using the bundled Docker database service, you run pg_dump inside the container.',
+          'A compressed dump of a FeedSignal database with a few thousand feedback items is typically a small file — tens of megabytes at most. Store it somewhere other than the host running the database: an object storage bucket (S3, Backblaze B2, Cloudflare R2), a separate server, or wherever your existing backup infrastructure is.',
         ],
         listItems: [
           'docker exec rereflect-db pg_dump -U postgres rereflect | gzip > rereflect_$(date +%Y%m%d_%H%M%S).sql.gz',
@@ -623,11 +623,11 @@ export const batch4: BlogPost[] = [
       {
         heading: 'Restoring from a backup',
         content: [
-          'A backup you have never tested is an assumption, not a guarantee. The restore process for Rereflect is straightforward, but you should run through it at least once to verify it works before you need it in an emergency.',
-          'To restore: start with a fresh Rereflect stack (or stop the existing one), drop and recreate the database, then load the dump. With the bundled Docker database service, you connect to the container and run psql to execute the dump file.',
+          'A backup you have never tested is an assumption, not a guarantee. The restore process for FeedSignal is straightforward, but you should run through it at least once to verify it works before you need it in an emergency.',
+          'To restore: start with a fresh FeedSignal stack (or stop the existing one), drop and recreate the database, then load the dump. With the bundled Docker database service, you connect to the container and run psql to execute the dump file.',
         ],
         listItems: [
-          'Stop the Rereflect stack: docker compose down',
+          'Stop the FeedSignal stack: docker compose down',
           'Start only the database service: docker compose up -d db',
           'Drop and recreate the database: docker exec rereflect-db psql -U postgres -c "DROP DATABASE IF EXISTS rereflect; CREATE DATABASE rereflect;"',
           'Load the dump: gunzip -c rereflect_backup.sql.gz | docker exec -i rereflect-db psql -U postgres rereflect',

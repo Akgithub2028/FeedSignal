@@ -87,34 +87,8 @@ def dispatch_intercom_writeback(
     changed_pairs: List[Tuple[FeedbackItem, str]],
     resolution_note: Optional[str] = None,
 ) -> None:
-    """Enqueue the intercom_writeback task for changed Intercom-sourced
-    items that transitioned to ``resolved``.
-
-    Mirrors dispatch_status_webhooks: consumes the apply_status_change
-    return value, fire-and-forget. ``fb.workflow_status`` is the NEW
-    status because apply_status_change mutates the item before returning.
-    NEVER raises — get_celery_app is imported lazily so an ImportError
-    (worker-like context) is swallowed like any other enqueue failure.
-    """
-    try:
-        items = []
-        for fb, _old in changed_pairs:
-            if fb.source == "intercom" and fb.workflow_status == "resolved":
-                items.append({"id": fb.id, "resolution_note": resolution_note})
-        if not items:
-            return
-        from src.background.celery_client import get_celery_app
-
-        get_celery_app().send_task(
-            "src.tasks.intercom_writeback.push_resolved_writeback",
-            args=[organization_id, items],
-        )
-    except Exception as exc:
-        logger.warning(
-            "workflow_service: failed to enqueue intercom writeback for "
-            "org=%s items=%s: %s",
-            organization_id, [i["id"] for i in items], exc,
-        )
+    """Retired provider: retained compatibility hook performs no external work."""
+    return None
 
 
 def create_workflow_event(

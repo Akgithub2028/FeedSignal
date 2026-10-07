@@ -11,8 +11,8 @@ from typing import Dict, Any, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@rereflect.ca")
-FROM_NAME = os.getenv("FROM_NAME", "Rereflect")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "").strip()
+FROM_NAME = os.getenv("FROM_NAME", "FeedSignal")
 APP_URL = os.getenv("APP_URL", "http://localhost:3000")
 TEMPLATE_WEEKLY_DIGEST = os.getenv("RESEND_TEMPLATE_WEEKLY_DIGEST")
 
@@ -22,7 +22,7 @@ _template_cache: Dict[str, Tuple[str, str]] = {}
 
 
 def _is_email_enabled() -> bool:
-    return bool(RESEND_API_KEY)
+    return bool(RESEND_API_KEY and FROM_EMAIL)
 
 
 def _get_template(template_id: str) -> Optional[Tuple[str, str]]:

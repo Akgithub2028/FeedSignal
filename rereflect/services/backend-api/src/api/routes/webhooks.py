@@ -254,7 +254,7 @@ def _send_test_delivery(webhook: WebhookEndpoint, db: Session) -> dict:
         "data": {
             "feedback": {
                 "id": 0,
-                "text": "This is a test delivery from Rereflect.",
+                "text": "This is a test delivery from FeedSignal.",
                 "sentiment_label": "neutral",
                 "sentiment_score": 0.0,
                 "tags": [],

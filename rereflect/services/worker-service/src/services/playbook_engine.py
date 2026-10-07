@@ -20,7 +20,6 @@ from src.models import (
     ChurnPlaybookExecution,
     CustomerHealth,
 )
-from src.tasks.intercom_writeback import push_resolved_writeback
 
 logger = logging.getLogger(__name__)
 
@@ -330,14 +329,6 @@ def _handle_change_status(
 
     old_status = feedback.workflow_status
     feedback.workflow_status = new_status
-    if (
-        new_status == "resolved"
-        and old_status != new_status
-        and feedback.source == "intercom"
-    ):
-        push_resolved_writeback.delay(
-            org_id, [{"id": feedback.id, "resolution_note": None}],
-        )
     return {"ok": True, "result": {"old_status": old_status, "new_status": new_status}}
 
 
@@ -513,7 +504,7 @@ def _handle_send_email(
 
     org = db.query(Organization).filter_by(id=org_id).first()
     product_name = (
-        org.product_name_display if org and org.product_name_display else "Rereflect"
+        org.product_name_display if org and org.product_name_display else "FeedSignal"
     )
     customer_name = health.customer_name or customer_email.split("@")[0]
 

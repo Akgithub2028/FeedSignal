@@ -4,6 +4,7 @@ Supports Slack, Discord, Webhooks, and other integrations.
 """
 
 import logging
+import os
 import secrets
 import uuid
 from typing import List, Optional
@@ -184,10 +185,10 @@ def list_source_types():
             available=True,
         ),
         SourceTypeInfo(
-            type="intercom",
-            name="Intercom",
-            description="Analyze support conversations with AI",
-            requires_integration=True,
+            type="tawk",
+            name="tawk.to",
+            description="Import visitor chat transcripts and new support tickets",
+            requires_integration=False,
             available=True,
         ),
         SourceTypeInfo(
@@ -208,13 +209,6 @@ def list_source_types():
             type="jira",
             name="Jira",
             description="Create feedback from Jira issue comments",
-            requires_integration=False,
-            available=True,
-        ),
-        SourceTypeInfo(
-            type="zendesk",
-            name="Zendesk",
-            description="Turn support tickets into feedback with AI analysis",
             requires_integration=False,
             available=True,
         ),
@@ -305,7 +299,7 @@ def create_feedback_source(
     from src.config.plans import has_feature, get_plan_for_feature
 
     # Validate source type
-    valid_types = ["slack", "intercom", "webhook", "discord", "email", "linear", "jira", "zendesk", "asana"]
+    valid_types = ["slack", "webhook", "discord", "email", "linear", "jira", "asana"]
     if data.source_type not in valid_types:
         raise HTTPException(status_code=400, detail=f"Invalid source type. Must be one of: {valid_types}")
 
@@ -437,9 +431,11 @@ def create_feedback_source(
         provider_config["secret_token"] = webhook_secret
 
     if data.source_type == "email":
-        # Generate unique inbound address: feedback-{8char_hash}@rereflect.ca
+        inbound_domain = os.getenv("INBOUND_EMAIL_DOMAIN", "").strip().lower()
+        if not inbound_domain:
+            raise HTTPException(status_code=503, detail="Configure INBOUND_EMAIL_DOMAIN and receiving DNS before creating email sources")
         address_hash = uuid.uuid4().hex[:8]
-        provider_config["inbound_address"] = f"feedback-{address_hash}@rereflect.ca"
+        provider_config["inbound_address"] = f"feedback-{address_hash}@{inbound_domain}"
 
     # Create the source
     source = FeedbackSource(
@@ -531,6 +527,13 @@ def update_feedback_source(
 ):
     """Update a feedback source."""
     source = _get_source_or_404(db, source_id, current_org.id)
+    if source.source_type in ("salesforce", "intercom", "zendesk"):
+        raise HTTPException(410, "This provider has been retired; history is read-only.")
+    if source.source_type == "tawk" and (
+        data.provider_config is not None or data.auto_import is False
+        or data.triggers is not None or data.field_mapping is not None
+    ):
+        raise HTTPException(400, "Manage tawk.to property settings through its integration page.")
 
     if data.name is not None:
         source.name = data.name

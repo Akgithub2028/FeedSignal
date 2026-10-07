@@ -9,9 +9,9 @@ vi.mock('next/link', () => ({
 }));
 
 describe('Footer', () => {
-  it('renders Rereflect logo and OSS tagline', () => {
+  it('renders FeedSignal logo and OSS tagline', () => {
     render(<Footer />);
-    expect(screen.getByText('reflect')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /FeedSignal/i })).toHaveAttribute('href', '/');
     expect(
       screen.getByText(/Customer feedback, analyzed\. Open source, self-hosted, and yours\./),
     ).toBeInTheDocument();
@@ -28,8 +28,8 @@ describe('Footer', () => {
   it('renders Open source column with GitHub, Self-host guide, Privacy, Terms links', () => {
     render(<Footer />);
     expect(screen.getByRole('heading', { name: 'Open source' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'GitHub' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Self-host guide' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'GitHub' })).toHaveAttribute('href', 'https://github.com/Akgithub2028/FeedSignal');
+    expect(screen.getByRole('link', { name: 'Self-host guide' })).toHaveAttribute('href', 'https://github.com/Akgithub2028/FeedSignal/blob/main/rereflect/docs/SELF_HOSTING.md');
     expect(screen.getByRole('link', { name: 'Privacy' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Terms' })).toBeInTheDocument();
   });
@@ -41,14 +41,15 @@ describe('Footer', () => {
     expect(screen.queryByText(/get started/i)).not.toBeInTheDocument();
   });
 
-  it('renders Product Hunt badge', () => {
+  it('provides the owner contact without the upstream Product Hunt badge', () => {
     render(<Footer />);
-    expect(screen.getByAltText(/Product Hunt/i)).toBeInTheDocument();
+    expect(screen.queryByAltText(/Product Hunt/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Contact support' })).toHaveAttribute('href', 'mailto:aayaannkausar@gmail.com');
   });
 
-  it('shows 2026 Rereflect in copyright', () => {
+  it('shows FeedSignal in copyright', () => {
     render(<Footer />);
-    expect(screen.getByText(/2026 Rereflect/)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`${new Date().getFullYear()} FeedSignal`))).toBeInTheDocument();
   });
 
   it('shows MIT license text in footer bottom', () => {

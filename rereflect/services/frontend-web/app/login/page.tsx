@@ -14,34 +14,9 @@ import { Logo } from '@/components/Logo';
 import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 import { OidcSignInButton } from '@/components/OidcSignInButton';
 import { SamlSignInButton } from '@/components/SamlSignInButton';
-import { getSsoErrorMessage } from '@/lib/oidcErrors';
-import { getSamlErrorMessage, SAML_ERROR_CODES } from '@/lib/samlErrors';
+import { resolveSsoErrorMessage } from '@/lib/ssoErrorMessage';
 import { analytics } from '@/lib/analytics';
 import gsap from 'gsap';
-
-/**
- * Resolve a `?sso_error=<code>` query param to a friendly message, without a
- * protocol tag on the code itself. Deterministic, code-set based (no
- * magic-string compare against either map's generic-fallback text):
- *
- *   1. If `code` is one `getSamlErrorMessage` actually maps (SAML_ERROR_CODES
- *      — this covers both the SAML-only codes like `signature`/`assertion`
- *      and the codes SAML shares with OIDC but words differently, like
- *      `unverified`/`token`/`state`/`domain`/`config`/`disabled`), use the
- *      SAML wording.
- *   2. Otherwise fall back to the OIDC map (`getSsoErrorMessage`), which
- *      covers OIDC-only codes (e.g. `exchange`) and itself degrades to the
- *      generic "could not be completed" message for anything unknown.
- *
- * Exported for direct unit testing (see __tests__/page.test.tsx) independent
- * of rendering the whole page.
- */
-export function resolveSsoErrorMessage(code: string): string {
-  if (SAML_ERROR_CODES.has(code)) {
-    return getSamlErrorMessage(code);
-  }
-  return getSsoErrorMessage(code);
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -208,7 +183,7 @@ export default function LoginPage() {
               <Logo size="md" className="text-white [&_path]:fill-white" />
             </div>
             <span className="text-2xl font-bold text-white">
-              <span className="text-white/70">Re</span>reflect
+              <span className="text-white/70">Feed</span>Signal
             </span>
           </Link>
 
@@ -255,7 +230,7 @@ export default function LoginPage() {
           </div>
 
           <p className="brand-footer text-white/60 text-sm">
-            2025 Rereflect. All rights reserved.
+            2025 FeedSignal. All rights reserved.
           </p>
         </div>
       </div>
@@ -273,8 +248,8 @@ export default function LoginPage() {
               <Logo size="md" className="text-white [&_path]:fill-white" />
             </div>
             <span className="text-2xl font-bold">
-              <span className="text-muted-foreground">Re</span>
-              <span className="text-foreground">reflect</span>
+              <span className="text-muted-foreground">Feed</span>
+              <span className="text-foreground">Signal</span>
             </span>
           </div>
 

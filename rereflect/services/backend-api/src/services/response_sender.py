@@ -169,9 +169,11 @@ async def send_via_email(
 
     from_email = (
         org.support_email_display
-        or f"noreply@rereflect.ca"
+        or os.getenv("FROM_EMAIL", "").strip()
     )
-    product_name = org.product_name_display or "Rereflect"
+    if not from_email:
+        return {"success": False, "error": "FROM_EMAIL not configured"}
+    product_name = org.product_name_display or "FeedSignal"
     source_meta = feedback.source_metadata or {}
     original_subject = source_meta.get("subject")
     subject = f"Re: {original_subject}" if original_subject else f"Response from {product_name}"

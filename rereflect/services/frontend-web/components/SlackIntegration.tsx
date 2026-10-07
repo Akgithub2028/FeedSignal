@@ -263,7 +263,7 @@ export function SlackIntegration() {
               <DialogHeader>
                 <DialogTitle>Add Slack Webhook</DialogTitle>
                 <DialogDescription>
-                  Connect Rereflect to a Slack channel via Incoming Webhook.
+                  Connect FeedSignal to a Slack channel via Incoming Webhook.
                 </DialogDescription>
               </DialogHeader>
 

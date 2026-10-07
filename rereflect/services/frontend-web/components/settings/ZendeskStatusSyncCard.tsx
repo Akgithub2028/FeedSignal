@@ -23,7 +23,7 @@ interface ZendeskStatusSyncCardProps {
 // Control surface for inbound Zendesk status sync — a clone of
 // JiraStatusSyncCard (zendesk-status-sync/frontend), extended by the
 // mapping-editor aspect: a toggle, a read-only last-synced indicator, a
-// manual "Sync now" trigger, and a raw-status → Rereflect-status mapping
+// manual "Sync now" trigger, and a raw-status → FeedSignal-status mapping
 // editor. Distinct from the connection card's ingestion "Sync tickets"
 // button — this one reconciles workflow_status on already-linked feedback.
 export function ZendeskStatusSyncCard({ status, onStatusChange }: ZendeskStatusSyncCardProps) {
@@ -90,7 +90,7 @@ export function ZendeskStatusSyncCard({ status, onStatusChange }: ZendeskStatusS
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-semibold text-foreground">Sync ticket status back to Rereflect</p>
+            <p className="font-semibold text-foreground">Sync ticket status back to FeedSignal</p>
             <p className="text-sm text-muted-foreground">
               Automatically update feedback status when the linked Zendesk ticket&apos;s status changes.
             </p>
@@ -124,7 +124,7 @@ export function ZendeskStatusSyncCard({ status, onStatusChange }: ZendeskStatusS
             foreignKeys={ZENDESK_STATUS_MAPPING_KEYS}
             currentMapping={status.status_mapping}
             onSave={handleSaveMapping}
-            description="Zendesk ticket statuses map to Rereflect workflow statuses."
+            description="Zendesk ticket statuses map to FeedSignal workflow statuses."
           />
         </div>
       </CardContent>

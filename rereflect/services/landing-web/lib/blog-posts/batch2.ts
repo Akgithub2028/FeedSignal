@@ -9,9 +9,9 @@ export const batch2: BlogPost[] = [
     date: '2026-08-03',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Churn', 'Customer Retention', 'Feedback Analysis', 'Customer Success'],
-    seoTitle: 'Early Warning Signs of Customer Churn in SaaS | Rereflect',
+    seoTitle: 'Early Warning Signs of Customer Churn in SaaS | FeedSignal',
     seoDescription: 'Learn to identify early churn warning signs in customer feedback — sentiment shifts, pain point escalation, urgency spikes — before customers actually cancel.',
     sections: [
       {
@@ -52,9 +52,9 @@ export const batch2: BlogPost[] = [
       {
         heading: 'What a calibrated churn probability adds',
         content: [
-          'Rereflect surfaces a calibrated 30-day churn probability for each customer, built from a weighted combination of signals including sentiment trend, urgency rate, pain point recurrence, and other factors. It is worth being transparent about what this number is and is not.',
+          'FeedSignal surfaces a calibrated 30-day churn probability for each customer, built from a weighted combination of signals including sentiment trend, urgency rate, pain point recurrence, and other factors. It is worth being transparent about what this number is and is not.',
           'It is a heuristic informed by those signals, not a prediction model trained on your specific historical churn events (unless you have labeled those events and triggered a recalibration). Out of the box, it gives you a relative ranking of risk across your customer base — which accounts deserve attention first — rather than a precise forecast of who will leave.',
-          'Over time, as you label actual churn events in Rereflect and trigger recalibration, the probability becomes more grounded in your own retention patterns. The honest framing: treat it as a risk prioritization tool, not an oracle. It surfaces the accounts worth investigating, but the investigation is still yours to do.',
+          'Over time, as you label actual churn events in FeedSignal and trigger recalibration, the probability becomes more grounded in your own retention patterns. The honest framing: treat it as a risk prioritization tool, not an oracle. It surfaces the accounts worth investigating, but the investigation is still yours to do.',
         ],
       },
       {
@@ -81,9 +81,9 @@ export const batch2: BlogPost[] = [
     date: '2026-08-06',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Customer Health', 'Churn', 'SaaS Metrics', 'Customer Success'],
-    seoTitle: 'Customer Health Score Explained: Signals, Weights, and Trust | Rereflect',
+    seoTitle: 'Customer Health Score Explained: Signals, Weights, and Trust | FeedSignal',
     seoDescription: 'Understand how customer health scores work, what feedback signals drive them, how weights are configured, and where to trust (or not trust) the output in a real SaaS context.',
     sections: [
       {
@@ -97,7 +97,7 @@ export const batch2: BlogPost[] = [
       {
         heading: 'The signals that feed a feedback-driven health score',
         content: [
-          'Rereflect builds its customer health score primarily from signals extracted from feedback. This is a deliberate choice: feedback is one of the richest sources of leading indicators of churn, because customers often express dissatisfaction in words before they express it in behavior (like reduced logins or canceled subscriptions).',
+          'FeedSignal builds its customer health score primarily from signals extracted from feedback. This is a deliberate choice: feedback is one of the richest sources of leading indicators of churn, because customers often express dissatisfaction in words before they express it in behavior (like reduced logins or canceled subscriptions).',
           'The factors that contribute to the health score include sentiment trend, urgency rate, pain point frequency, and recency of engagement through feedback. Each factor is scored relative to the customer\'s own history as well as against the broader population, so a health score shift means something changed, not just that a particular customer tends to submit a lot of feedback.',
         ],
         listItems: [
@@ -105,22 +105,22 @@ export const batch2: BlogPost[] = [
           'Urgency rate — what fraction of their recent feedback has been flagged as urgent or churn-risk?',
           'Pain point recurrence — are the same categories of complaints appearing repeatedly, or is each piece of feedback about a different issue?',
           'Feedback recency — has the customer been engaging with feedback channels recently, or has there been a long silence (which can itself be a signal)?',
-          'Factor breakdown — Rereflect shows which factors are dragging the score down or lifting it up, so a health score is never just a black box.',
+          'Factor breakdown — FeedSignal shows which factors are dragging the score down or lifting it up, so a health score is never just a black box.',
         ],
       },
       {
         heading: 'How weights work — and why they are configurable',
         content: [
           'A health score is a weighted sum of its input signals. The weights determine which signals dominate and which contribute marginally. For some SaaS products, sentiment is the overwhelming predictor of churn — customers who start saying negative things leave quickly. For others, urgency rate matters more. For others still, pain point recurrence is the key variable.',
-          'Because retention dynamics differ, Rereflect makes the weights configurable per organization. If you know from experience that recurring pain points are a stronger churn signal in your product than overall sentiment, you can shift weight accordingly. This lets the health score model your business rather than a generic average of many businesses.',
+          'Because retention dynamics differ, FeedSignal makes the weights configurable per organization. If you know from experience that recurring pain points are a stronger churn signal in your product than overall sentiment, you can shift weight accordingly. This lets the health score model your business rather than a generic average of many businesses.',
           'The honest caveat: if you are configuring weights without grounding them in observed outcomes, you are making educated guesses. They may be good guesses, but they are guesses. The best weights come from looking at customers who actually churned and asking which signals were elevated in the weeks before they left.',
         ],
       },
       {
         heading: 'The churn probability and what it actually means',
         content: [
-          'Rereflect surfaces a calibrated 30-day churn probability alongside the health score. Calibrated means the model attempts to express genuine probability rather than a raw score — a 70% probability should mean that, historically, accounts in that situation left roughly 70% of the time.',
-          'Out of the box, calibration is based on heuristics rather than your own retention history. The probability is most usefully read as a relative risk ranking: accounts with 80% probability are more at risk than accounts with 40%, and that ordering should be acted on accordingly. As you label churn events in Rereflect over time and trigger recalibration, the probability becomes grounded in your actual data.',
+          'FeedSignal surfaces a calibrated 30-day churn probability alongside the health score. Calibrated means the model attempts to express genuine probability rather than a raw score — a 70% probability should mean that, historically, accounts in that situation left roughly 70% of the time.',
+          'Out of the box, calibration is based on heuristics rather than your own retention history. The probability is most usefully read as a relative risk ranking: accounts with 80% probability are more at risk than accounts with 40%, and that ordering should be acted on accordingly. As you label churn events in FeedSignal over time and trigger recalibration, the probability becomes grounded in your actual data.',
           'Treat the 30-day probability as a prioritization tool. It tells you where to look and what to investigate. It does not tell you what will happen with certainty, and no heuristic model can.',
         ],
       },
@@ -148,9 +148,9 @@ export const batch2: BlogPost[] = [
     date: '2026-08-09',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Churn', 'Customer Success', 'Playbooks', 'Retention'],
-    seoTitle: 'How to Build a Churn Prevention Playbook for SaaS | Rereflect',
+    seoTitle: 'How to Build a Churn Prevention Playbook for SaaS | FeedSignal',
     seoDescription: 'Build a repeatable churn prevention playbook: define triggers, write step-by-step actions, assign owners, and use feedback signals to qualify risk before escalating.',
     sections: [
       {
@@ -165,7 +165,7 @@ export const batch2: BlogPost[] = [
         heading: 'Start with trigger conditions',
         content: [
           'Every playbook starts with a trigger — the specific condition that activates it. A playbook with a vague trigger ("customer seems at risk") will never be used consistently. A playbook with a precise trigger ("customer health score drops below 40 and at least two urgency-flagged submissions in the past 14 days") is actionable.',
-          'Rereflect\'s health scores and churn probability give you quantifiable triggers. You can define a playbook that activates at specific health score thresholds, urgency rates, or sentiment trend breaks. The specificity matters because it removes ambiguity — the CSM does not have to judge whether a customer "seems" at risk; the trigger either fires or it does not.',
+          'FeedSignal\'s health scores and churn probability give you quantifiable triggers. You can define a playbook that activates at specific health score thresholds, urgency rates, or sentiment trend breaks. The specificity matters because it removes ambiguity — the CSM does not have to judge whether a customer "seems" at risk; the trigger either fires or it does not.',
         ],
         listItems: [
           'Health score threshold — activate when a customer\'s score drops below a defined level for the first time, or remains below it for a set number of consecutive days.',
@@ -193,7 +193,7 @@ export const batch2: BlogPost[] = [
         heading: 'Assign owners and track execution',
         content: [
           'A playbook without an owner is a document, not a process. Every step needs a named role responsible for executing it. In smaller teams that is usually the CSM; in larger teams it might involve a CSM for outreach, a product manager for root-cause escalation, and a support lead for resolution tracking.',
-          'Track playbook execution. If you have ten at-risk accounts activated a playbook and only five of them received the Day 1 outreach, you have an execution gap as much as a retention gap. Rereflect\'s playbook feature lets you record execution against each step so you can audit what was done — and correlate outcomes with execution completeness over time.',
+          'Track playbook execution. If you have ten at-risk accounts activated a playbook and only five of them received the Day 1 outreach, you have an execution gap as much as a retention gap. FeedSignal\'s playbook feature lets you record execution against each step so you can audit what was done — and correlate outcomes with execution completeness over time.',
         ],
       },
       {
@@ -213,9 +213,9 @@ export const batch2: BlogPost[] = [
     date: '2026-08-12',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Churn', 'Win-Back', 'Customer Retention', 'Feedback Analysis'],
-    seoTitle: 'Winning Back Churned Customers Using Feedback Signals | Rereflect',
+    seoTitle: 'Winning Back Churned Customers Using Feedback Signals | FeedSignal',
     seoDescription: 'Use pre-churn and exit feedback to understand why customers left, identify fixable reasons, and craft win-back outreach that addresses the real issues rather than offering a generic discount.',
     sections: [
       {
@@ -231,7 +231,7 @@ export const batch2: BlogPost[] = [
         content: [
           'The weeks before a customer churns almost always contain feedback that explains why. Sentiment was declining. A specific pain point kept reappearing. An urgency-flagged complaint went unresolved. By examining the feedback history of churned customers — looking at what they complained about, how often, and whether it was addressed — you can usually reconstruct the story of why they left.',
           'This is different from exit surveys, which capture only what customers choose to volunteer at the moment of cancellation. Pre-churn feedback often shows a fuller picture: the gradual erosion of confidence over multiple interactions, or the specific incident that pushed them from frustrated to done.',
-          'In Rereflect, you can review the full feedback timeline for any customer, including how their health score evolved and which factors were driving it down. That timeline is the foundation for an honest win-back conversation.',
+          'In FeedSignal, you can review the full feedback timeline for any customer, including how their health score evolved and which factors were driving it down. That timeline is the foundation for an honest win-back conversation.',
         ],
         listItems: [
           'Look for recurring pain point categories — did the same category appear multiple times without resolution?',
@@ -277,9 +277,9 @@ export const batch2: BlogPost[] = [
     date: '2026-08-15',
     status: 'scheduled',
     readTime: '8 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Churn', 'Customer Segmentation', 'Cohort Analysis', 'Customer Success'],
-    seoTitle: 'Segmenting At-Risk Customer Cohorts for Targeted Retention | Rereflect',
+    seoTitle: 'Segmenting At-Risk Customer Cohorts for Targeted Retention | FeedSignal',
     seoDescription: 'Learn how to segment at-risk customer cohorts by churn signal, customer tier, complaint type, and tenure to apply the right retention intervention for each group.',
     sections: [
       {
@@ -299,14 +299,14 @@ export const batch2: BlogPost[] = [
           'Churn signal type — segment by what is driving the risk: sentiment decline, urgency spikes, recurring pain points, or silence. Different signals suggest different root causes and different responses.',
           'Customer tenure — a new customer (first 90 days) who is at risk is likely failing during onboarding; a long-tenured customer who suddenly shows risk has usually encountered a specific trigger. These are structurally different problems.',
           'Revenue tier or account size — high-value accounts may warrant direct executive engagement; smaller accounts may be better served through automated or scaled responses.',
-          'Pain point category — if Rereflect surfaces that the recurring complaints for a group of at-risk customers all fall into the same category, that is a cohort defined by a shared product problem, and the intervention is partly about resolving that problem.',
+          'Pain point category — if FeedSignal surfaces that the recurring complaints for a group of at-risk customers all fall into the same category, that is a cohort defined by a shared product problem, and the intervention is partly about resolving that problem.',
           'Engagement pattern — customers who have been submitting feedback regularly and then went silent versus customers who have never engaged with feedback channels are different situations.',
         ],
       },
       {
-        heading: 'Building cohorts from Rereflect data',
+        heading: 'Building cohorts from FeedSignal data',
         content: [
-          'Rereflect\'s combination of per-customer health scores, factor breakdowns, churn probability, and pain-point categorization gives you the raw material for multi-dimensional cohort construction. The factor breakdown is particularly useful for segmentation: it tells you not just that a customer\'s health score is low, but which specific signals are driving it — and that determines which cohort they belong in.',
+          'FeedSignal\'s combination of per-customer health scores, factor breakdowns, churn probability, and pain-point categorization gives you the raw material for multi-dimensional cohort construction. The factor breakdown is particularly useful for segmentation: it tells you not just that a customer\'s health score is low, but which specific signals are driving it — and that determines which cohort they belong in.',
           'A practical approach is to run cohort analysis monthly. Look at all accounts with health scores below a threshold, then break them down by the primary factor dragging the score down. Accounts where sentiment is the primary driver form one cohort; accounts where urgency rate dominates form another; accounts where pain point recurrence is the lead factor form a third. Each of those gets a different playbook.',
         ],
       },
@@ -339,9 +339,9 @@ export const batch2: BlogPost[] = [
     date: '2026-08-18',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['SaaS', 'Churn', 'Feedback Analysis', 'Retention'],
-    seoTitle: 'How to Reduce SaaS Churn Using Customer Feedback | Rereflect',
+    seoTitle: 'How to Reduce SaaS Churn Using Customer Feedback | FeedSignal',
     seoDescription: 'A practical guide to using systematically collected and analyzed customer feedback to drive SaaS churn reduction — from signal detection to product fixes to CS interventions.',
     sections: [
       {
@@ -355,8 +355,8 @@ export const batch2: BlogPost[] = [
       {
         heading: 'The mechanics: from raw feedback to churn signal',
         content: [
-          'Systematic analysis starts with classification. When feedback arrives — whether from a support email, a CSV import, or a direct submission — Rereflect scores the sentiment, categorizes the pain point (if any), flags urgency, and adds the signal to the customer\'s history. No manual tagging required; the AI handles classification based on the taxonomy you define.',
-          'That classified history is what enables pattern detection. A single negative submission from a customer is not usually actionable. But when Rereflect shows you that a customer\'s sentiment trend is declining over six weeks, that the same pain point category has appeared four times, and that their health score has dropped from 78 to 31, the cumulative picture is very clear — and it arrived with enough time to act.',
+          'Systematic analysis starts with classification. When feedback arrives — whether from a support email, a CSV import, or a direct submission — FeedSignal scores the sentiment, categorizes the pain point (if any), flags urgency, and adds the signal to the customer\'s history. No manual tagging required; the AI handles classification based on the taxonomy you define.',
+          'That classified history is what enables pattern detection. A single negative submission from a customer is not usually actionable. But when FeedSignal shows you that a customer\'s sentiment trend is declining over six weeks, that the same pain point category has appeared four times, and that their health score has dropped from 78 to 31, the cumulative picture is very clear — and it arrived with enough time to act.',
         ],
         listItems: [
           'Sentiment scoring on every piece of feedback — not just sampled — gives you accurate per-customer trend data.',
@@ -401,9 +401,9 @@ export const batch2: BlogPost[] = [
     date: '2026-08-21',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Renewal', 'Churn', 'Customer Success', 'SaaS Metrics'],
-    seoTitle: 'Renewal Risk Signals in Customer Feedback — 90-Day Watch Guide | Rereflect',
+    seoTitle: 'Renewal Risk Signals in Customer Feedback — 90-Day Watch Guide | FeedSignal',
     seoDescription: 'Identify renewal risk signals in customer feedback during the 90-day pre-renewal window: sentiment drift, unresolved complaints, silence, and urgency patterns that predict non-renewal.',
     sections: [
       {
@@ -429,9 +429,9 @@ export const batch2: BlogPost[] = [
         ],
       },
       {
-        heading: 'The Rereflect renewal-risk workflow',
+        heading: 'The FeedSignal renewal-risk workflow',
         content: [
-          'Rereflect does not have a built-in "renewal date" field, but you can operationalize a renewal-risk workflow by combining what it does offer — health scores, churn probability, sentiment trends, and pain point history — with your own customer renewal schedule.',
+          'FeedSignal does not have a built-in "renewal date" field, but you can operationalize a renewal-risk workflow by combining what it does offer — health scores, churn probability, sentiment trends, and pain point history — with your own customer renewal schedule.',
           'A practical setup: 90 days before each renewal, pull the account\'s health score, factor breakdown, and recent feedback summary. If the health score is above a healthy threshold and there are no recurring unresolved pain points, the renewal is low-risk. If the score has declined significantly, urgency has been flagged, or the same complaint appears more than twice in the past quarter, activate a renewal-specific playbook.',
           'The playbook for a renewal-risk account differs from a standard churn-risk playbook in one key respect: it needs to address the renewal conversation explicitly. That means getting to a point — before the renewal date — where the customer has the information they need to feel confident renewing, and where any open issues have been acknowledged and given a timeline.',
         ],
@@ -466,9 +466,9 @@ export const batch2: BlogPost[] = [
     date: '2026-08-25',
     status: 'scheduled',
     readTime: '7 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Churn', 'Customer Engagement', 'Silent Churn', 'Customer Success'],
-    seoTitle: 'Detecting Silent Churn and Disengaged Customers Before They Leave | Rereflect',
+    seoTitle: 'Detecting Silent Churn and Disengaged Customers Before They Leave | FeedSignal',
     seoDescription: 'Learn to detect silent churn — customers who stop engaging before canceling — using feedback absence signals, sentiment history patterns, and disengagement indicators.',
     sections: [
       {
@@ -505,9 +505,9 @@ export const batch2: BlogPost[] = [
         ],
       },
       {
-        heading: 'What Rereflect can and cannot tell you about silent accounts',
+        heading: 'What FeedSignal can and cannot tell you about silent accounts',
         content: [
-          'Rereflect\'s health score and churn probability are built from feedback signals. When an account stops generating feedback, those signals thin out — the model has less to work with, and the health score may stabilize at a level that does not reflect the true risk.',
+          'FeedSignal\'s health score and churn probability are built from feedback signals. When an account stops generating feedback, those signals thin out — the model has less to work with, and the health score may stabilize at a level that does not reflect the true risk.',
           'This is a known limitation of feedback-only models, and it is worth being honest about. An account that goes silent is not necessarily healthy just because no negative signal is arriving. The absence of feedback means you have reduced visibility, not confirmed safety.',
           'The honest posture for silent accounts is to use the feedback history as a starting point — what did this customer say when they were still submitting? Was the last signal positive or negative? Is there a pattern of declining engagement before the silence? — and then treat the silence itself as a reason to reach out proactively rather than as a green light to leave the account alone.',
         ],
@@ -529,9 +529,9 @@ export const batch2: BlogPost[] = [
     date: '2026-08-29',
     status: 'scheduled',
     readTime: '9 min read',
-    author: 'Rereflect Team',
+    author: 'FeedSignal Team',
     tags: ['Customer Success', 'Retention', 'Feedback Analysis', 'SaaS'],
-    seoTitle: 'Feedback-Driven Customer Success Programs for SaaS Retention | Rereflect',
+    seoTitle: 'Feedback-Driven Customer Success Programs for SaaS Retention | FeedSignal',
     seoDescription: 'Build customer success programs that learn from feedback patterns — using health scores, factor breakdowns, cohort analysis, and playbook performance data to compound retention over time.',
     sections: [
       {
@@ -583,7 +583,7 @@ export const batch2: BlogPost[] = [
           'Test — make one change at a time where possible, so you can attribute outcome changes to specific adjustments rather than a bundle of simultaneous changes.',
         ],
         content2: [
-          'Rereflect\'s playbook feature records execution against each step, which gives you the raw material for the measurement and correlation stages. The refinement and testing stages require judgment and discipline — the data tells you where to look; the learning requires you to interpret and act.',
+          'FeedSignal\'s playbook feature records execution against each step, which gives you the raw material for the measurement and correlation stages. The refinement and testing stages require judgment and discipline — the data tells you where to look; the learning requires you to interpret and act.',
           'None of this is complicated in principle. The discipline is in doing it consistently, on a cadence, even in quarters where retention looks fine. The programs that plateau are the ones where the learning cycle only runs when retention is in crisis. The programs that compound are the ones that run it every quarter regardless.',
         ],
       },

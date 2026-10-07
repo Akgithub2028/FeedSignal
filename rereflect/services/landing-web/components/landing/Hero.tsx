@@ -5,12 +5,12 @@ import { ArrowRight, Github } from 'lucide-react';
 import { gsap, useGSAP } from '@/lib/landing/gsap';
 import { EASE, countUp } from '@/lib/landing/motion';
 
-const GITHUB_URL = 'https://github.com/haqaliz/rereflect';
-const SELFHOST_URL = 'https://github.com/haqaliz/rereflect#self-hosting';
+const GITHUB_URL = 'https://github.com/Akgithub2028/FeedSignal';
+const SELFHOST_URL = 'https://github.com/Akgithub2028/FeedSignal/blob/main/rereflect/docs/SELF_HOSTING.md';
 
 /** The specimen record shown in FIG. 01 — one feedback item, fully classified. */
 const RECORD = [
-  ['source', 'intercom', ''],
+  ['source', 'tawk', ''],
   ['customer', 'maya.chen@acme.io', ''],
   ['sentiment', 'negative · −0.82', 'is-red'],
   ['pain_point', 'billing · conf 0.94', 'is-amber'],
@@ -22,7 +22,7 @@ const RECORD = [
 const SPECS = [
   { label: 'License', value: 'MIT', note: 'Fork it, ship it, sell it.', count: null },
   { label: 'Feature gates', value: 0, note: 'No tiers, no seats, no SSO tax.', count: 0 },
-  { label: 'Integrations', value: 10, note: 'Slack, Intercom, Zendesk, Jira…', count: 10 },
+  { label: 'Integrations', value: 8, note: 'Slack, tawk.to, Jira…', count: 8 },
   { label: 'Data leaving your box', value: 'NONE', note: 'VADER runs fully offline.', count: null },
 ];
 
@@ -78,7 +78,7 @@ export default function Hero() {
           </h1>
 
           <p data-hero className="lp-lede mt-7">
-            Rereflect reads every review, ticket and chat you receive and returns structured
+            FeedSignal reads every review, ticket and chat you receive and returns structured
             signal: sentiment, pain points, ranked feature requests and churn risk. Self-hosted,
             MIT licensed, every feature unlocked.
           </p>
@@ -109,7 +109,7 @@ export default function Hero() {
           <div className="lp-panel">
             <div className="lp-panel-bar">
               <span className="lp-dot" />
-              <span className="lp-mono-10">analysis · 48,213</span>
+              <span className="lp-mono-10">example feedback · 48,213</span>
               <span className="lp-mono-10 ml-auto">0.4s</span>
             </div>
             <div className="lp-panel-body">

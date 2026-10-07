@@ -46,7 +46,7 @@ token were somehow guessed).
 
 No-overwrite invariant (sec review, CRITICAL fix): the handshake branch may
 ONLY persist a secret when `integration.webhook_secret is None`. An org
-that already completed its handshake rejects ANY further `X-Hook-Secret`
+that already completed its handshake rejects any different-secret `X-Hook-Secret`
 request with 401 and leaves the stored secret untouched — this is what
 actually prevents secret hijacking/overwrite, independent of URL
 unguessability (defense in depth). The only way to get a fresh handshake is
@@ -64,7 +64,7 @@ Flow:
      `integration.webhook_secret is None`, store it (Fernet-encrypted) and
      echo the identical plaintext value back via the response
      `X-Hook-Secret` header, 200, and return immediately (no reconcile, no
-     other I/O). If `integration.webhook_secret` is already set, 401
+     other I/O). An identical-secret retry returns 200 without writing. If the stored secret differs, 401
      ("Handshake rejected: webhook already configured.") — the secret is
      NOT touched. R6 fail-closed: if LLM_ENCRYPTION_KEY is unset, the
      secret cannot be safely persisted -- 401, and the header is NOT
@@ -92,6 +92,7 @@ import hmac
 import json
 import logging
 from typing import Optional
+from cryptography.fernet import InvalidToken
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
@@ -177,12 +178,19 @@ async def asana_webhook_inbound(
         # Handshake branch -- I/O-free: persist + echo, no reconcile, no
         # other work. SECURITY (sec review, CRITICAL): only ever allowed
         # when no secret is stored yet -- an org that already completed its
-        # handshake must reject any further attempt outright, otherwise an
+        # handshake must reject a different-secret attempt, otherwise an
         # attacker who reaches this URL (even the unguessable token) could
         # overwrite the secret and forge subsequent signed events. The only
         # legitimate way to get here again is POST /webhook/enable, which
         # explicitly resets webhook_secret to None first.
         if integration.webhook_secret is not None:
+            try:
+                same_secret = hmac.compare_digest(decrypt_api_key(integration.webhook_secret), hook_secret)
+            except (ValueError, TypeError, InvalidToken):
+                same_secret = False
+            if same_secret:
+                response.headers[HOOK_SECRET_HEADER] = hook_secret
+                return {"status": "handshake_ok"}
             logger.warning(
                 "asana_webhook: rejected re-handshake attempt for an "
                 "already-configured webhook (org=%s)",
@@ -206,8 +214,23 @@ async def asana_webhook_inbound(
                 detail="Cannot complete handshake: encryption is not configured.",
             )
 
-        integration.webhook_secret = encrypted_secret
+        captured = db.query(AsanaIntegration).filter(
+            AsanaIntegration.id == integration.id,
+            AsanaIntegration.webhook_url_token == token,
+            AsanaIntegration.is_active.is_(True),
+            AsanaIntegration.webhook_secret.is_(None),
+        ).update({AsanaIntegration.webhook_secret:encrypted_secret}, synchronize_session=False)
         db.commit()
+        if captured != 1:
+            db.refresh(integration)
+            try:
+                same_secret = (integration.is_active and integration.webhook_url_token == token
+                    and integration.webhook_secret is not None
+                    and hmac.compare_digest(decrypt_api_key(integration.webhook_secret), hook_secret))
+            except (ValueError, TypeError, InvalidToken):
+                same_secret = False
+            if not same_secret:
+                raise HTTPException(status_code=401, detail="Handshake configuration changed.")
 
         response.headers[HOOK_SECRET_HEADER] = hook_secret
         logger.info("asana_webhook: handshake completed for org=%s", integration.organization_id)

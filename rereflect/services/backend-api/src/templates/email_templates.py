@@ -1,13 +1,19 @@
 """
-Rereflect Email Templates - Sunset Horizon Design System
+FeedSignal Email Templates - Sunset Horizon Design System
 
-These templates use email-safe CSS with the Rereflect color palette:
+These templates use email-safe CSS with the FeedSignal color palette:
 - Primary gradient: #f97316 → #ea580c (coral/orange)
 - Background: #faf8f5 (warm cream)
 - Text: #3d2f2b (warm dark brown)
 - Muted: #78716c (warm gray)
 - Accent: #e5a366 (golden amber)
 """
+
+import os
+from html import escape
+
+MARKETING_URL = os.getenv("MARKETING_URL", "https://feed-signal-ochre.vercel.app").rstrip("/")
+APP_URL = os.getenv("APP_URL", "http://localhost:3000").rstrip("/")
 
 # Common color palette (email-safe hex values)
 COLORS = {
@@ -41,7 +47,7 @@ EMAIL_HEADER = """
                             </td>
                             <td>
                                 <span style="font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
-                                    <span style="opacity: 0.75;">Re</span>reflect
+                                    <span style="opacity: 0.75;">Feed</span>Signal
                                 </span>
                             </td>
                         </tr>
@@ -53,7 +59,7 @@ EMAIL_HEADER = """
 </tr>
 """
 
-EMAIL_FOOTER = """
+EMAIL_FOOTER = f"""
 <!-- Footer -->
 <tr>
     <td style="padding: 32px 40px; background-color: #faf8f5; border-top: 1px solid #ede8e3; border-radius: 0 0 16px 16px;">
@@ -61,25 +67,25 @@ EMAIL_FOOTER = """
             <tr>
                 <td style="text-align: center;">
                     <p style="margin: 0 0 16px 0; font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 13px; color: #78716c;">
-                        Made with care by the Rereflect team
+                        Made with care by the FeedSignal team
                     </p>
                     <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
                         <tr>
                             <td style="padding: 0 8px;">
-                                <a href="https://rereflect.ca" style="font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 12px; color: #f97316; text-decoration: none;">Website</a>
+                                <a href="{escape(MARKETING_URL, quote=True)}" style="font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 12px; color: #f97316; text-decoration: none;">Website</a>
                             </td>
                             <td style="color: #ede8e3;">|</td>
                             <td style="padding: 0 8px;">
-                                <a href="https://rereflect.ca/privacy" style="font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 12px; color: #f97316; text-decoration: none;">Privacy</a>
+                                <a href="{escape(MARKETING_URL, quote=True)}/privacy" style="font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 12px; color: #f97316; text-decoration: none;">Privacy</a>
                             </td>
                             <td style="color: #ede8e3;">|</td>
                             <td style="padding: 0 8px;">
-                                <a href="https://rereflect.ca/terms" style="font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 12px; color: #f97316; text-decoration: none;">Terms</a>
+                                <a href="{escape(MARKETING_URL, quote=True)}/terms" style="font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 12px; color: #f97316; text-decoration: none;">Terms</a>
                             </td>
                         </tr>
                     </table>
                     <p style="margin: 16px 0 0 0; font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 11px; color: #a39e99;">
-                        © 2025 Rereflect Inc. All rights reserved.
+                        FeedSignal · Customer feedback intelligence
                     </p>
                 </td>
             </tr>
@@ -94,14 +100,14 @@ EMAIL_FOOTER = """
 
 TEAM_INVITE_TEMPLATE = {
     "name": "team-invite",
-    "subject": "You've been invited to join {{{ORGANIZATION_NAME}}} on Rereflect",
+    "subject": "You've been invited to join {{{ORGANIZATION_NAME}}} on FeedSignal",
     "html": """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="x-apple-disable-message-reformatting" />
-    <title>You're Invited to Rereflect</title>
+    <title>You're Invited to FeedSignal</title>
     <!--[if mso]>
     <style type="text/css">
         table {border-collapse: collapse;}
@@ -137,7 +143,7 @@ TEAM_INVITE_TEMPLATE = {
                                                 </td>
                                                 <td style="vertical-align: middle;">
                                                     <span style="font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 26px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
-                                                        <span style="opacity: 0.75;">Re</span>reflect
+                                                        <span style="opacity: 0.75;">Feed</span>Signal
                                                     </span>
                                                 </td>
                                             </tr>
@@ -293,7 +299,7 @@ TEAM_INVITE_TEMPLATE = {
                                             Didn't expect this? You can safely ignore this email.
                                         </p>
                                         <p style="margin: 0; font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 11px; color: #c4c0bb;">
-                                            © 2025 Rereflect · Transform feedback into insights
+                                            © 2025 FeedSignal · Transform feedback into insights
                                         </p>
                                     </td>
                                 </tr>
@@ -311,7 +317,7 @@ TEAM_INVITE_TEMPLATE = {
         {"key": "ORGANIZATION_NAME", "type": "string", "fallback_value": "the team"},
         {"key": "INVITER_EMAIL", "type": "string", "fallback_value": "A team member"},
         {"key": "ROLE", "type": "string", "fallback_value": "member"},
-        {"key": "INVITE_URL", "type": "string", "fallback_value": "https://app.rereflect.ca"},
+        {"key": "INVITE_URL", "type": "string", "fallback_value": APP_URL},
     ]
 }
 
@@ -322,14 +328,14 @@ TEAM_INVITE_TEMPLATE = {
 
 WELCOME_TEMPLATE = {
     "name": "welcome",
-    "subject": "Welcome to Rereflect! Let's get started 🎉",
+    "subject": "Welcome to FeedSignal! Let's get started 🎉",
     "html": """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="x-apple-disable-message-reformatting" />
-    <title>Welcome to Rereflect</title>
+    <title>Welcome to FeedSignal</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #faf8f5; font-family: 'Montserrat', 'Segoe UI', Tahoma, sans-serif; -webkit-font-smoothing: antialiased;">
     <!-- Preview Text -->
@@ -354,7 +360,7 @@ WELCOME_TEMPLATE = {
                                             <span style="font-size: 36px;">🎉</span>
                                         </div>
                                         <h1 style="margin: 0; font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 32px; font-weight: 700; color: #ffffff;">
-                                            Welcome to Rereflect!
+                                            Welcome to FeedSignal!
                                         </h1>
                                         <p style="margin: 12px 0 0 0; font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 16px; color: rgba(255,255,255,0.85);">
                                             You're now part of <strong>{{{ORGANIZATION_NAME}}}</strong>
@@ -369,7 +375,7 @@ WELCOME_TEMPLATE = {
                     <tr>
                         <td style="padding: 48px 40px 40px 40px;">
                             <p style="margin: 0 0 32px 0; font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 16px; color: #78716c; line-height: 1.7;">
-                                We're thrilled to have you! Rereflect helps you transform raw customer feedback into actionable insights using AI-powered analysis.
+                                We're thrilled to have you! FeedSignal helps you transform raw customer feedback into actionable insights using AI-powered analysis.
                             </p>
 
                             <!-- Getting Started Steps -->
@@ -523,7 +529,7 @@ WELCOME_TEMPLATE = {
                                 <tr>
                                     <td style="text-align: center;">
                                         <p style="margin: 0; font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 11px; color: #c4c0bb;">
-                                            © 2025 Rereflect · Transform feedback into insights
+                                            © 2025 FeedSignal · Transform feedback into insights
                                         </p>
                                     </td>
                                 </tr>
@@ -539,7 +545,7 @@ WELCOME_TEMPLATE = {
 </html>""",
     "variables": [
         {"key": "ORGANIZATION_NAME", "type": "string", "fallback_value": "your organization"},
-        {"key": "DASHBOARD_URL", "type": "string", "fallback_value": "https://app.rereflect.ca/dashboard"},
+        {"key": "DASHBOARD_URL", "type": "string", "fallback_value": f"{APP_URL}/dashboard"},
     ]
 }
 
@@ -550,7 +556,7 @@ WELCOME_TEMPLATE = {
 
 PASSWORD_RESET_TEMPLATE = {
     "name": "password-reset",
-    "subject": "Reset your Rereflect password",
+    "subject": "Reset your FeedSignal password",
     "html": """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -562,7 +568,7 @@ PASSWORD_RESET_TEMPLATE = {
 <body style="margin: 0; padding: 0; background-color: #faf8f5; font-family: 'Montserrat', 'Segoe UI', Tahoma, sans-serif; -webkit-font-smoothing: antialiased;">
     <!-- Preview Text -->
     <div style="display: none; max-height: 0; overflow: hidden;">
-        Reset your password to regain access to your Rereflect account
+        Reset your password to regain access to your FeedSignal account
         &#847; &#847; &#847; &#847; &#847;
     </div>
 
@@ -653,7 +659,7 @@ PASSWORD_RESET_TEMPLATE = {
                                 <tr>
                                     <td style="text-align: center;">
                                         <p style="margin: 0; font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 11px; color: #c4c0bb;">
-                                            © 2025 Rereflect · Transform feedback into insights
+                                            © 2025 FeedSignal · Transform feedback into insights
                                         </p>
                                     </td>
                                 </tr>
@@ -668,7 +674,7 @@ PASSWORD_RESET_TEMPLATE = {
 </body>
 </html>""",
     "variables": [
-        {"key": "RESET_URL", "type": "string", "fallback_value": "https://app.rereflect.ca/reset-password"},
+        {"key": "RESET_URL", "type": "string", "fallback_value": f"{APP_URL}/reset-password"},
     ]
 }
 
@@ -718,7 +724,7 @@ WEEKLY_DIGEST_TEMPLATE = {
                                                             </td>
                                                             <td style="vertical-align: middle;">
                                                                 <span style="font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 22px; font-weight: 700; color: #ffffff;">
-                                                                    <span style="opacity: 0.75;">Re</span>reflect
+                                                                    <span style="opacity: 0.75;">Feed</span>Signal
                                                                 </span>
                                                             </td>
                                                         </tr>
@@ -896,7 +902,7 @@ WEEKLY_DIGEST_TEMPLATE = {
                                             You're receiving this because you're part of {{{ORGANIZATION_NAME}}}
                                         </p>
                                         <p style="margin: 0; font-family: 'Montserrat', 'Segoe UI', sans-serif; font-size: 11px; color: #c4c0bb;">
-                                            © 2025 Rereflect · <a href="{{{UNSUBSCRIBE_URL}}}" style="color: #c4c0bb;">Unsubscribe from digests</a>
+                                            © 2025 FeedSignal · <a href="{{{UNSUBSCRIBE_URL}}}" style="color: #c4c0bb;">Unsubscribe from digests</a>
                                         </p>
                                     </td>
                                 </tr>
@@ -920,8 +926,8 @@ WEEKLY_DIGEST_TEMPLATE = {
         {"key": "NEUTRAL_PERCENT", "type": "number", "fallback_value": 34},
         {"key": "NEGATIVE_PERCENT", "type": "number", "fallback_value": 33},
         {"key": "URGENT_COUNT", "type": "number", "fallback_value": 0},
-        {"key": "DASHBOARD_URL", "type": "string", "fallback_value": "https://app.rereflect.ca/dashboard"},
-        {"key": "UNSUBSCRIBE_URL", "type": "string", "fallback_value": "https://app.rereflect.ca/settings/notifications"},
+        {"key": "DASHBOARD_URL", "type": "string", "fallback_value": f"{APP_URL}/dashboard"},
+        {"key": "UNSUBSCRIBE_URL", "type": "string", "fallback_value": f"{APP_URL}/settings/notifications"},
     ]
 }
 

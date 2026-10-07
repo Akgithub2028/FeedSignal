@@ -29,7 +29,6 @@ import {
   Users,
 } from 'lucide-react';
 import { SlackIcon } from '@/components/icons/SlackIcon';
-import { IntercomIcon } from '@/components/icons/IntercomIcon';
 import { DiscordIcon } from '@/components/icons/DiscordIcon';
 
 const ALERT_TYPE_CONFIG: Record<string, { label: string; description: string; hasThreshold: boolean; thresholdLabel?: string; thresholdUnit?: string; hasDualThreshold?: boolean; planGate?: string[] }> = {
@@ -123,7 +122,6 @@ const CHANNEL_CONFIG = [
   { key: 'channel_slack' as const, label: 'Slack', icon: null, customIcon: 'slack' },
   { key: 'channel_discord' as const, label: 'Discord', icon: null, customIcon: 'discord' },
   { key: 'channel_teams' as const, label: 'Teams', icon: Users },
-  { key: 'channel_intercom' as const, label: 'Intercom', icon: null, customIcon: 'intercom' },
   { key: 'channel_email' as const, label: 'Email', icon: Mail },
 ];
 
@@ -271,7 +269,6 @@ export default function NotificationsSettingsPage() {
     if (pref.channel_slack) channels.push('Slack');
     if (pref.channel_discord) channels.push('Discord');
     if (pref.channel_teams) channels.push('Teams');
-    if (pref.channel_intercom) channels.push('Intercom');
     if (pref.channel_email) channels.push('Email');
     return channels;
   };
@@ -284,8 +281,6 @@ export default function NotificationsSettingsPage() {
         return <DiscordIcon className={size} />;
       case 'channel_teams':
         return <Users className={size} />;
-      case 'channel_intercom':
-        return <IntercomIcon className={size} />;
       default:
         return null;
     }
@@ -414,11 +409,7 @@ export default function NotificationsSettingsPage() {
                               <Users className="w-3.5 h-3.5" />
                             </div>
                           )}
-                          {pref.channel_intercom && (
-                            <div className="p-1 rounded bg-secondary" title="Intercom">
-                              <IntercomIcon className="w-3.5 h-3.5" />
-                            </div>
-                          )}
+
                           {pref.channel_email && (
                             <div className="p-1 rounded bg-secondary" title="Email">
                               <Mail className="w-3.5 h-3.5 text-muted-foreground" />
@@ -466,8 +457,6 @@ export default function NotificationsSettingsPage() {
                           <SlackIcon className="w-5 h-5" />
                         ) : channel.customIcon === 'discord' ? (
                           <DiscordIcon className="w-5 h-5" />
-                        ) : channel.customIcon === 'intercom' ? (
-                          <IntercomIcon className="w-5 h-5" />
                         ) : channel.icon ? (
                           <channel.icon className="w-5 h-5 text-muted-foreground" />
                         ) : null}

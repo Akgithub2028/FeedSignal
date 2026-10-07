@@ -44,7 +44,6 @@ def another_crm_active(db: Session, org_id: int, exclude_provider: str) -> Optio
     case where two providers ended up active for the same org.
     """
     from src.models.hubspot_integration import HubSpotIntegration
-    from src.models.salesforce_integration import SalesforceIntegration
 
     if exclude_provider != "hubspot":
         hs = (
@@ -58,17 +57,6 @@ def another_crm_active(db: Session, org_id: int, exclude_provider: str) -> Optio
         if hs:
             return "hubspot"
 
-    if exclude_provider != "salesforce":
-        sf = (
-            db.query(SalesforceIntegration)
-            .filter(
-                SalesforceIntegration.organization_id == org_id,
-                SalesforceIntegration.is_active.is_(True),
-            )
-            .first()
-        )
-        if sf:
-            return "salesforce"
 
     return None
 

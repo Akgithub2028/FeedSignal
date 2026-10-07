@@ -11,8 +11,7 @@ vi.mock('next/link', () => ({
 describe('Nav', () => {
   it('renders brand logo and text', () => {
     render(<Nav />);
-    expect(screen.getByText('reflect')).toBeInTheDocument();
-    expect(screen.getByText('Re')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /FeedSignal/i })).toHaveAttribute('href', '/');
   });
 
   it('renders nav links: Features, Integrations, Blog', () => {
@@ -24,7 +23,7 @@ describe('Nav', () => {
 
   it('renders a GitHub CTA', () => {
     render(<Nav />);
-    expect(screen.getByRole('link', { name: /GitHub/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /GitHub/i })).toHaveAttribute('href', 'https://github.com/Akgithub2028/FeedSignal');
   });
 
   it('does not render any sign-in, sign-up, or get-started links', () => {

@@ -171,6 +171,8 @@ class LinearClient:
         }
         if team_id:
             webhook_input["teamId"] = team_id
+        else:
+            webhook_input["allPublicTeams"] = True
 
         result = await self._post(mutation, variables={"input": webhook_input})
         payload = result["data"]["webhookCreate"]

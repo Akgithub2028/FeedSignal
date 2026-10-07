@@ -3,7 +3,7 @@
 Audit date: 2026-10-05. Local checkout inspected: `93359c4a2bf20310f98e42d570de50a1586812d8`.
 Original repository: [haqaliz/rereflect](https://github.com/haqaliz/rereflect).
 
-Status: source and local configuration audit completed. Owner decisions now recorded in [OWNER_CONFIG.md](../OWNER_CONFIG.md): FeedSignal, `feedsignal`, `aayaannkausar@gmail.com`, GitHub Akgithub2028; retain all integration implementations. M0 preparation documentation and example environment settings have been updated. No product feature code, real credentials, Git remotes, cloud settings, or database records have been changed. Missing settings and credential destinations are tracked in [UNANSWERED_SECRETS.md](../UNANSWERED_SECRETS.md). This document contains no secret values.
+**Historical source audit.** The observations below describe the 5 October checkout, before owner setup. They are not the current deployment state. Read [ownership/deployment status](OWNERSHIP_DEPLOYMENT_STATUS.md), [owner configuration](../OWNER_CONFIG.md) and [UNANSWERED_SECRETS.md](../UNANSWERED_SECRETS.md) for current evidence. Owner infrastructure now exists; local branding/security changes are underway. The former keep-all connector policy was superseded by requested Salesforce removal and Intercom/Zendesk replacement, still pending. No secrets are recorded here.
 
 ## 1. What is actually connected?
 

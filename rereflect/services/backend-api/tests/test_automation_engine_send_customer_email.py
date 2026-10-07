@@ -430,11 +430,11 @@ def test_send_customer_email_render_falls_back_to_rereflect(
     _fire(AutomationEngine(db), test_organization.id, _context())
 
     row = db.query(AutomationEmailDelivery).one()
-    assert "Rereflect" in row.body
+    assert "FeedSignal" in row.body
     # weekly_digest_entry's subject carries {{PRODUCT_NAME}} — it must be
     # substituted too (render_outreach_template only renders the body).
     assert "{{PRODUCT_NAME}}" not in row.subject
-    assert "Rereflect" in row.subject
+    assert "FeedSignal" in row.subject
 
 
 # ---------------------------------------------------------------------------

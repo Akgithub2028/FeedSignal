@@ -5,8 +5,8 @@ import { Github, ArrowRight } from 'lucide-react';
 import { useGSAP } from '@/lib/landing/gsap';
 import { revealOnScroll } from '@/lib/landing/motion';
 
-const GITHUB_URL = 'https://github.com/haqaliz/rereflect';
-const SELFHOST_URL = 'https://github.com/haqaliz/rereflect#self-hosting';
+const GITHUB_URL = 'https://github.com/Akgithub2028/FeedSignal';
+const SELFHOST_URL = 'https://github.com/Akgithub2028/FeedSignal/blob/main/rereflect/docs/SELF_HOSTING.md';
 
 export default function SubpageCTA() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -25,7 +25,7 @@ export default function SubpageCTA() {
           Self-host it and connect your tools.
         </h2>
         <p data-reveal className="lp-lede mt-5">
-          Deploy Rereflect on your own infrastructure and wire up every feedback channel you
+          Deploy FeedSignal on your own infrastructure and wire up every feedback channel you
           already use. MIT licensed, every feature unlocked.
         </p>
         <div data-reveal className="mt-9 flex flex-wrap items-center gap-3">

@@ -13,7 +13,7 @@ Updated: 2026-10-07. This is a **public checklist**, not a secrets vault. Never 
 | Administrative email | `aayaannkausar@gmail.com` |
 | GitHub identity / only current social profile | [Akgithub2028](https://github.com/Akgithub2028) |
 | Current integration scope | Remove Salesforce and replace Intercom/Zendesk with free support ingestion. tawk.to signed ingestion deployed and owner-configured; retired-provider removal implemented, tested and deployed as `7b41bb7`. Other connectors retained. |
-| Hosting | Existing Vercel feed-signal landing and created feedsignal dashboard; Render owner API/PostgreSQL/Redis provisioned, no worker. Railway/Compose remain inherited fallback recipes. Full local startup withdrawn. Budget $0; continuous-worker/durable-database topology unresolved. |
+| Hosting | Existing Vercel feed-signal landing and created feedsignal dashboard; Render owner API/PostgreSQL/Redis provisioned; sleeping free worker/Beat deployed. Railway/Compose remain inherited fallback recipes. Full local startup withdrawn. Budget $0; sleeping worker usable for development; continuous scheduler/durable storage deferred. |
 | Database engine | Retain PostgreSQL; production Compose specifies `postgres:16-alpine`. Redis is the job broker/cache, not the customer-feedback database. |
 
 The working name is selected for this repository. Domain, trademark, and account-name availability are not established. Owned repository is [Akgithub2028/FeedSignal](https://github.com/Akgithub2028/FeedSignal); no owned domain is claimed.
@@ -48,7 +48,7 @@ Every missing item has the exact marker `UNANSWERED_<ID>`. Find references with 
 | `UNANSWERED_DATABASE_REUSE_AUTHORIZATION` | Original database reuse | CLOSED / NOT REQUIRED: fresh owner-controlled PostgreSQL; no original database access requested. |
 | `UNANSWERED_DATABASE_RETENTION_CHOICE` | Data retention | RESOLVED: fresh PostgreSQL; no original users/tokens imported, no original database deleted. |
 | `UNANSWERED_DATABASE_HOST` | Fresh PostgreSQL hosting | PROVISIONED: Render PostgreSQL16 dpg-db20qap7lnhs73d6ki20-a, available; expires 2026-11-04 20:48:43 UTC. Durable production choice remains OPEN. |
-| `UNANSWERED_DATABASE_URL` | Backend/worker DATABASE_URL | INSTALLED IN API SETTINGS: private owner connection details in ignored secrets/render-postgres-private.json and render-api.env. Worker installation pending. |
+| `UNANSWERED_DATABASE_URL` | Backend/worker DATABASE_URL | INSTALLED IN API SETTINGS: private owner connection details in ignored secrets/render-postgres-private.json and render-api.env. Shared worker settings installed privately. |
 | `UNANSWERED_DOCKER_ACCESS` | Local Docker access | DEFERRED / NOT REQUIRED for selected cloud operation. Agent Docker socket access denied; no full local startup requested. |
 | `UNANSWERED_EXISTING_CONNECTION_INVENTORY` | Owner hosting environment inventory | VERIFIED: API/fresh PostgreSQL/Redis now exist; dashboard project/config exists. API owner values installed; no original account data imported. Full connected-workspace DB inventory/end-to-end checks remain pending. |
 | `UNANSWERED_LOGO_ASSETS` | Whether to replace inherited logo/images/screenshots | Existing assets remain upstream artifacts; text identity is recorded separately. |
@@ -60,13 +60,13 @@ See [current ownership/deployment status](docs/OWNERSHIP_DEPLOYMENT_STATUS.md), 
 
 | Marker | Missing answer / evidence | State |
 |---|---|---|
-| `UNANSWERED_CLOUD_TOPOLOGY` | Continuous worker and durable database within $0 cloud constraint | OPEN: no free Render worker; Vercel functions cannot run the existing continuous Celery process. |
+| `UNANSWERED_CLOUD_TOPOLOGY` | Continuous worker and durable database within $0 cloud constraint | DEVELOPMENT PREVIEW DEPLOYED: sleeping free Render web service runs Celery/Beat; approved wake-on-dispatch. Continuous scheduling/durable hosting remain deferred. |
 | `UNANSWERED_VERCEL_PLAN_ELIGIBILITY` | Actual commercial-use-eligible Vercel plan | VERIFIED HOBBY; commercial eligibility remains OPEN. Hobby is personal/non-commercial only; no upgrade authorized. |
 | `UNANSWERED_TAWK_ACCOUNT` | Owner account/property authorization | RESOLVED: activated owner account; authenticated dashboard and FeedSignal property verified. |
 | `UNANSWERED_TAWK_PROPERTY_ID` | Per-organization registered property ID | RESOLVED: `6ac54b01cc4acf34c881125c`, exclusively registered to owner organization 1, source 2. |
 | `UNANSWERED_TAWK_WIDGET_ID` | Optional website widget ID | RESOLVED: active widget `1k49aq1cq`. Website installation is optional and not performed; public chat currently blank/HTTP 403 from this environment. |
 | `UNANSWERED_TAWK_WEBHOOK_SECRET` | Encrypted per-source signing secret | RESOLVED: provider-generated secret saved privately and encrypted in production DB; never returned by configuration APIs. |
-| `UNANSWERED_TAWK_WEBHOOK_SETUP` | Transcript/ticket-create subscriptions | CONFIGURED: `/api/v1/webhooks/tawk/events`, `chat:transcript_created` and `ticket:create`. Signed controlled fixture persisted once; actual provider-originated delivery remains unverified because public chat is blocked. |
+| `UNANSWERED_TAWK_WEBHOOK_SETUP` | Transcript/ticket-create subscriptions | CONFIGURED: `/api/v1/webhooks/tawk/events`, `chat:transcript_created` and `ticket:create`. Signed controlled fixture persisted once; actual provider ticket delivery verified as feedback 7; Inbox transcript correlated with 6. Visitor widget still blocked. |
 
 ## Core deployment credentials
 
@@ -75,8 +75,8 @@ See [current ownership/deployment status](docs/OWNERSHIP_DEPLOYMENT_STATUS.md), 
 | `UNANSWERED_POSTGRES_PASSWORD` | Managed PostgreSQL credential | RESOLVED privately from owner Render database; ignored secrets/render-postgres-private.json. No password belongs in this file. |
 | `UNANSWERED_JWT_SECRET` | Backend JWT_SECRET | GENERATED AND INSTALLED: ignored secrets/core.env (0600) and owner API cloud setting. Do not regenerate casually; session invalidation must be coordinated. |
 | `UNANSWERED_ADMIN_PASSWORD` | Backend ADMIN_PASSWORD | GENERATED AND INSTALLED: ignored secrets/core.env (0600) and API settings; live owner login/system-admin role verified. |
-| `UNANSWERED_LLM_ENCRYPTION_KEY` | Backend/worker LLM_ENCRYPTION_KEY | GENERATED AND INSTALLED IN API: ignored secrets/core.env (0600). Same key must be installed in the future worker; never rotate without encrypted-record migration. |
-| `UNANSWERED_REDIS_HOST` | Backend/worker REDIS_HOST | PROVISIONED / API CONFIGURED: owner Key Value red-db20qb6i0phs73cs1s4g; endpoint private in ignored files/cloud settings. Worker not deployed. |
+| `UNANSWERED_LLM_ENCRYPTION_KEY` | Backend/worker LLM_ENCRYPTION_KEY | GENERATED AND INSTALLED IN API: ignored secrets/core.env (0600). Same established key installed in the worker; never rotate without encrypted-record migration. |
+| `UNANSWERED_REDIS_HOST` | Backend/worker REDIS_HOST | PROVISIONED / API CONFIGURED: owner Key Value red-db20qb6i0phs73cs1s4g; endpoint private in ignored files/cloud settings. Sleeping free worker deployed. |
 | `UNANSWERED_REDIS_PASSWORD` | Backend/worker REDIS_PASSWORD | OWNER CONNECTION INFO STORED PRIVATELY: API uses the provider internal connection settings. Authentication/durability for the final worker must be verified; do not expose the queue publicly. |
 | `UNANSWERED_DEPLOYMENT_ACCESS` | Local provider CLI/browser authorization | RESOLVED: live Vercel, GitHub and Render identities verified on 2026-10-06. Earlier DNS issue resolved. Render token generated/saved; no repeated device authorization needed. Secrets stay in provider CLI credential storage. |
 | `UNANSWERED_BACKUP_AND_RESTORE` | Backup retention and restore drill record | Decide before production cutover. |
@@ -103,7 +103,7 @@ See [current ownership/deployment status](docs/OWNERSHIP_DEPLOYMENT_STATUS.md), 
 | `UNANSWERED_LINEAR_WORKSPACE_TEAM` | Authorized integration/team settings | RESOLVED: owner EU workspace https://linear.app/feedsignal, FEE; General team mapping, five status mappings, one dynamic webhook. Controlled FEE-5 creation and signed Done→feedback1 resolved PASS. |
 | `UNANSWERED_GOOGLE_CLIENT_ID` | Frontend `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, backend `GOOGLE_CLIENT_ID` | RESOLVED: owner approved My Project 41450 / generated-wharf-500012-q3, matching Vercel/Render IDs. Actual dashboard popup owner login PASS. |
 | `UNANSWERED_GOOGLE_CONSENT_SETUP` | Google Cloud account / app registration | PUBLIC AUDIENCE CONFIGURED: In production; owner login PASS; owner homepage/privacy/terms saved. Search Console homepage ownership verified; OAuth branding recheck pending after the stated 24-hour window (2026-10-07 19:15 UTC); old unused secret disabled. |
-| `UNANSWERED_RESEND_API_KEY` | Backend/worker RESEND_API_KEY | OWNER FULL-ACCESS KEY INSTALLED: supplied send-only key could not read templates; replacement named FeedSignal templates and transactional email stored privately and in Render. Owner welcome delivered. Worker not installed; never paste values here. |
+| `UNANSWERED_RESEND_API_KEY` | Backend/worker RESEND_API_KEY | OWNER FULL-ACCESS KEY INSTALLED: supplied send-only key could not read templates; replacement named FeedSignal templates and transactional email stored privately and in Render. Owner welcome delivered. Worker settings installed privately; never paste values here. |
 | `UNANSWERED_RESEND_FROM_EMAIL` | Backend/worker FROM_EMAIL | TEST SENDER CONFIGURED: onboarding@resend.dev in API; owner-recipient-only. General customer sender/domain verification still OPEN. |
 | `UNANSWERED_RESEND_INBOUND_WEBHOOK_SECRET` | Backend `RESEND_INBOUND_WEBHOOK_SECRET` | Resend receiving webhook configuration. |
 | `UNANSWERED_RESEND_TEMPLATE_IDS` | Owner `RESEND_TEMPLATE_*` settings | INSTALLED: eight owner templates created/published, IDs in ignored providers.env and Render. Welcome baseline function delivery PASS. No missing-template fallback in transactional paths; remaining live triggers/worker digests unverified. |
@@ -125,7 +125,7 @@ See [current ownership/deployment status](docs/OWNERSHIP_DEPLOYMENT_STATUS.md), 
 | `UNANSWERED_ASANA_ACCESS_TOKEN` | RESOLVED PRIVATELY: owner FeedSignal API connection PAT saved in ignored providers.env and encrypted DB; live connect/test PASS. |
 | `UNANSWERED_ASANA_WORKSPACE_PROJECT` | RESOLVED: owner workspace/project mappings; reviewed webhook fix deployed, 56 focused checks passed. Real handshake and controlled task completion -> feedback3 resolved PASS. |
 | `UNANSWERED_HUBSPOT_ACCESS_TOKEN` | RESOLVED PRIVATELY: portal247619521, service key FeedSignal API connection /56032402; five required scopes. Encrypted DB connection and live test PASS. |
-| `UNANSWERED_HUBSPOT_PORTAL_PROPERTIES` | PARTIAL: free owner HubSpot portal247619521 created; product FeedSignal, software industry, owner confirmed6–10people. ARR mapping annualrevenue configured; account/contact/company/deal/property/pipeline reads PASS. Worker sync and enrichment pending; writeback off. |
+| `UNANSWERED_HUBSPOT_PORTAL_PROPERTIES` | PARTIAL: free owner HubSpot portal247619521 created; product FeedSignal, software industry, owner confirmed6–10people. ARR mapping annualrevenue configured; account/contact/company/deal/property/pipeline reads PASS. Worker sync succeeded with 221 contacts; customer-health recompute issue #3 pending; writeback off. |
 | `UNANSWERED_SALESFORCE_CLIENT_ID` | RETIRED REQUIREMENT: do not request credentials. Runtime removal/replacement is pending, not completed by this ledger. |
 | `UNANSWERED_SALESFORCE_CLIENT_SECRET` | RETIRED REQUIREMENT: do not request credentials. Runtime removal/replacement is pending, not completed by this ledger. |
 | `UNANSWERED_SALESFORCE_REDIRECT_URI` | RETIRED REQUIREMENT: do not request credentials. Runtime removal/replacement is pending, not completed by this ledger. |
@@ -136,7 +136,7 @@ See [current ownership/deployment status](docs/OWNERSHIP_DEPLOYMENT_STATUS.md), 
 | `UNANSWERED_OIDC_CONFIGURATION` | Optional IdP issuer/client/secret/allowed domains, encrypted app settings. |
 | `UNANSWERED_SAML_CONFIGURATION` | Optional IdP metadata/signing certificate/allowed domains, app settings. |
 | `UNANSWERED_SENTRY_CONFIGURATION` | Optional owner org/project/DSNs/source-map upload credential; leave telemetry disabled until chosen. |
-| `UNANSWERED_AI_PROVIDER_CONFIGURATION` | Optional local endpoint or BYOK provider/model/key; keyless local analysis remains available. |
+| `UNANSWERED_AI_PROVIDER_CONFIGURATION` | RESOLVED for owner development: Gemini-only bound key privately saved and encrypted in owner org; model gemini-3.5-flash-lite verified through API and real worker categorization; no paid billing enabled. |
 
 ## Research completion and future customer evidence
 
@@ -154,3 +154,5 @@ M0 public research is COMPLETE under the owner's revised scope; [status](docs/m0
 | `UNANSWERED_EXTERNAL_TEST_AUTHORIZATION` | RESOLVED for controlled owner-workspace setup messages/issues and owner-recipient-only email under explicit user authorization; no customer-workspace tests authorized. |
 
 M0 completion denotes research and preparation, not demonstrated demand, active connections, paid subscriptions or deployable credentials. Never populate this ledger with invented commitments or actual secret values.
+
+Current missing functionality and external decisions are maintained in [PENDING_LAUNCH.md](docs/PENDING_LAUNCH.md). No actual keys belong in this file. API optional `WORKER_PREVIEW_HEALTH_URL` contains the owner preview HTTPS /health URL, not a secret.

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from src.background import worker_preview  # noqa: F401 — register Celery dispatch wake hook
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware

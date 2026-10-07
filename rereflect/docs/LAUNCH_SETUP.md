@@ -59,16 +59,16 @@ The chosen $0 budget does not cover this complete Render topology: background wo
 
 ## Exact provider setup and remaining verification
 
-Owner setup is installed for Google, Slack, Linear, Jira, Asana and HubSpot. Background synchronization requires the missing worker; account registration alone is not ingestion evidence.
+Owner setup is installed for Google, Slack, Linear, Jira, Asana and HubSpot. A sleeping free worker is now deployed; account registration alone is not ingestion evidence. Actual Slack/tawk analysis, Gemini categorization and HubSpot sync passed.
 
 | Provider | Verified owner setup | Callback / remaining work |
 |---|---|---|
-| Slack | Active FeedSignal app A0C6U45DBEZ; team T0C7136FUE8; keys installed; integration1; bot in #feedsignal-test; posting PASS | `/api/v1/integrations/slack/oauth/callback`; signed `/api/v1/webhooks/slack/events`; ingestion/analysis/reply unverified |
+| Slack | Active FeedSignal app A0C6U45DBEZ; team T0C7136FUE8; keys installed; integration1; bot in #feedsignal-test; posting PASS | `/api/v1/integrations/slack/oauth/callback`; signed `/api/v1/webhooks/slack/events`; worker ingestion/analysis feedback 8/9 verified; reply round trip pending |
 | Linear | Owner app510e90b8-0763-477d-a359-6b80f1b9f2d0; encrypted renewable token; FEE mappings; real FEE-5 status roundtrip PASS | `/api/v1/integrations/linear/callback`; exactly1dynamic `/api/v1/webhooks/linear/inbound`; live24hrenewal still to observe |
 | Google | Matching owner client IDs; popup login PASS; In production; homepage/privacy/terms saved | Origin https://feedsignal-xi.vercel.app; Search Console ownership verified; OAuth branding recheck pending after 2026-10-07 19:15 UTC |
 | Jira | Owner site aayaannkausar.atlassian.net, FeedSignal API connection token, feedsignal/SCRUM; status roundtrip PASS | `/api/v1/webhooks/jira/inbound`, signed issue_updated, project=SCRUM |
 | Asana | Owner PAT/workspace/project; real handshake and controlled task completion synchronization PASS | Signed callback uses private secret-bearing URL; never publish it |
-| HubSpot | Portal247619521, service key56032402; encrypted connection/test and required reads PASS; annualrevenue mapping | contacts.read/write, companies.read, deals.read, schemas.contacts.read; writeback off; worker sync unverified |
+| HubSpot | Portal247619521, service key56032402; encrypted connection/test and required reads PASS; annualrevenue mapping | contacts.read/write, companies.read, deals.read, schemas.contacts.read; writeback off; actual worker sync 221 contacts; health recompute issue #3 pending |
 | Resend | Full-access owner key and8published templates installed; owner welcome delivered | onboarding@resend.dev owner-only; customer sending/receiving needs owned domain/DNS |
 | Discord / Teams | Optional; owner confirmed neither destination exists | Deferred/unconfigured |
 
@@ -89,3 +89,7 @@ The tawk.to adapter is deployed at `/api/v1/webhooks/tawk/events`. Its owner pro
 Follow [baseline launch plan](BASELINE_LAUNCH_PLAN.md), publish reviewed source, deploy both frontends/API, finish worker/provider setup and verify owner-only login, tenant isolation, persisted ingestion, analysis completion, tracker round trip, signed webhooks, owner email delivery and restart/retry behavior. Use [UNANSWERED_SECRETS.md](../UNANSWERED_SECRETS.md) for public status markers; secrets stay in ignored files/provider settings.
 
 Current checks and their limits are recorded in [ownership/deployment status](OWNERSHIP_DEPLOYMENT_STATUS.md). Controlled Slack posting, Linear/Jira/Asana tracker round trips and owner welcome delivery have been verified. No fully processed live AI feedback or worker CRM sync has been verified. Complete deployment remains open.
+
+## Free development worker now deployed
+
+Owner confirmed current topology and $0 are retained for development. `render.worker-preview.yaml` runs one supervised Celery worker and Beat as a sleeping free web service, resource `srv-db37cjqjnfac738urbbg`, HTTPS https://feedsignal-worker-preview.onrender.com. Shared database/Redis/encryption/email configuration installed privately. `/health` reports child-process liveness only. Actual tawk/Slack analysis, Gemini `gemini-3.5-flash-lite`, HubSpot 221-contact sync and scheduled report owner delivery passed. The approved API `WORKER_PREVIEW_HEALTH_URL` wakes it after actual job dispatch; no periodic uptime pings. Sleep still pauses Beat and does not provide continuous scheduling. Current remaining checks supersede earlier setup descriptions: [PENDING_LAUNCH.md](PENDING_LAUNCH.md).

@@ -34,7 +34,7 @@ Files: `OWNER_CONFIG.md`, `UNANSWERED_SECRETS.md`, `services/*-web/vercel.json`,
 - [x] Complete CLI authorization and verify identity/workspace without printing tokens (Vercel, Render and GitHub verified 2026-10-06).
 - [x] Inspect existing `feed-signal` deployment, root and environment **names**; link the existing landing folder. Production domain `feed-signal-ochre.vercel.app`; no production variables. Owner API/PostgreSQL/Redis are now provisioned; full topology remains partial.
 - [ ] Resolve the absence of a continuous worker and durable database within the owner's budget. Do not claim this is solved by the prepared API-only preview.
-- [x] Register assigned app/API origins and owner free setup resources in the ledger; database expiry and missing worker remain explicit. These preview resources do not complete the topology.
+- [x] Register assigned app/API origins and owner free setup resources in the ledger; database expiry and sleeping-worker limits remain explicit. These preview resources do not complete the topology.
 
 Deliverable: authenticated owner access and a topology capable of all required background jobs, not merely a frontend URL. Validate manifests with the installed provider CLI before applying.
 
@@ -47,7 +47,7 @@ Files: backend `src/seed.py`, `src/api/routes/team.py`, email services/templates
 - [x] Remove embedded password and original privileged-email defaults locally; require explicit bootstrap credentials and persisted system-admin authorization. Verify the published revision separately.
 - [x] Rebrand active product text and make legal/marketing/app origins explicit. Remove upstream website destinations from active signup, redirect and email flows; preserve attribution separately.
 - [x] Make Sentry source-map organization/project operator-supplied locally and disable unconfigured upload/runtime telemetry; focused source tests passed.
-- [ ] Configure backend/worker shared encryption key and all public URLs; rebuild frontend after public-variable changes.
+- [x] API and worker share owner encryption key/database/Redis; public origins configured and frontend rebuilt.
 
 Verification: focused bootstrap/authorization tests; missing/incorrect origin tests; production frontend/landing builds; authenticated fresh-install smoke check. Historical docs and internal identifiers are not blind-renamed.
 
@@ -76,10 +76,10 @@ Files to create: backend `src/api/routes/tawk_integration.py`, `src/api/routes/t
 
 **Ingestion implementation and controlled test complete (7 October):** code `9a76919` deployed on Render/Vercel; owner property/webhook registered. A labeled signed fixture persisted visitor feedback **4** in owner organization **1**, source **2**, exactly once. Bad signature 401; valid 200; replay duplicate; live UI shows one import. PostgreSQL concurrency and tenant/signature/error tests pass.
 
-- [ ] Observe an actual provider-originated completed chat/ticket delivery. Public chat is blank/HTTP 403 here; embed connection resets. The controlled fixture does not prove tawk.to can reach the callback.
-- [ ] Run analysis/recovery with a deployed worker and Beat. No worker exists; analysis completion and recovery under broker failure are not claimed live.
+- [x] Observe actual provider delivery: controlled ticket created feedback 7; Inbox transcript correlated with feedback 6. Public visitor chat accessibility remains blocked separately.
+- [x] Run actual processing with free sleeping worker/Beat: Slack/tawk analyzed, owner Gemini categorization verified, HubSpot synced 221 contacts; persisted after redeploy. Broker outage recovery and continuous scheduling remain separate unchecked requirements.
 
-Original full deliverable remains gated on the two checks above. Durable ingestion commits normalized feedback and its receipt atomically before enqueue; existing periodic unanalyzed-feedback processing provides recovery once worker/Beat run.
+Provider delivery and worker analysis checks above now pass; full development checklist remains in PENDING_LAUNCH.md. Durable ingestion commits normalized feedback and its receipt atomically before enqueue; existing periodic unanalyzed-feedback processing provides recovery once worker/Beat run.
 
 ## Task 5: Remaining connectors and complete launch
 
@@ -90,4 +90,4 @@ Original full deliverable remains gated on the two checks above. Durable ingesti
 - [ ] Run tenant-isolation tests, migration upgrade, backup/restore, worker/Beat and end-to-end analysis checks; restart services and verify persisted data/retry recovery.
 - [ ] Capture observed deployment URLs and results in the ledger. Deploy reviewed artifacts only after a viable budget/topology and authenticated access exist.
 
-**Status (7 October 2026):** both owner Vercel frontends READY. Owner API runtime/security/email revision `9a76919` LIVE with reviewed OAuth/Asana fixes. Google public audience published (homepage ownership verified; branding recheck awaits 24-hour propagation); Slack posting and Linear/Jira/Asana signed tracker round trips PASS. HubSpot connection and required reads PASS. Eight owner Resend templates published/settings installed; isolated baseline welcome function delivered to owner. tawk.to signed ingestion/configuration and controlled fixture pass; actual provider delivery, retired-provider removal deployed/verified as `7b41bb7`; worker/AI and durable hosting remain OPEN. See [current evidence](OWNERSHIP_DEPLOYMENT_STATUS.md).
+**Current scope/status (7 October 2026):** owner keeps $0 and current Vercel/Render topology for complete development, not shipping. Worker preview (`f19806b`) and Jira fix (`a88ad40`) deployed; real tawk ticket, Slack ingestion, Gemini worker categorization, HubSpot 221-contact sync and scheduled owner report delivery verified. Wake-on-dispatch approved; health recompute, full email triggers, live isolation/retry and Google branding remain pending. Database expiry/durability, domain and always-on scheduling stay deferred real-shipping requirements. See [current pending evidence](PENDING_LAUNCH.md).

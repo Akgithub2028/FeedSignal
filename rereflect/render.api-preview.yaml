@@ -27,6 +27,9 @@ services:
         value: aayaannkausar@gmail.com
       - key: ADMIN_PASSWORD
         sync: false
+      # Optional sleeping Render worker; wake only after real task dispatch.
+      - key: WORKER_PREVIEW_HEALTH_URL
+        sync: false
       - key: REDIS_HOST
         sync: false
       - key: REDIS_PORT

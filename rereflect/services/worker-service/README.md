@@ -462,3 +462,5 @@ VADER/default lightweight analysis on the 512 MB instance; transformer/local
 LLM models require measured memory headroom. Beat's local schedule file is
 ephemeral, and free Redis can lose queued tasks on restart. This mode is for
 development, not continuous production processing.
+
+For the sleeping Render preview, configure `WORKER_PREVIEW_HEALTH_URL` on the API as the preview HTTPS `/health` URL. The API wakes it asynchronously after publishing a job, at most once per 30 seconds per API process. This is advisory and does not keep it awake while idle; Beat cannot guarantee overnight schedules on free hosting.

@@ -80,9 +80,9 @@ Gmail is a support contact, not a sender domain the owner can authenticate with 
 
 ## Retired providers and replacement
 
-Salesforce removal and Intercom/Zendesk replacement are authorized but not implemented. Do not request their credentials. Remove active routes, UI choices, schedules and writeback while retaining migration history/provenance. Their code/UI remains visible until that task is complete.
+Salesforce/Intercom/Zendesk retirement is authorized but not implemented; tawk.to replacement ingestion is deployed. Do not request their credentials. Remove active routes, UI choices, schedules and writeback while retaining migration history/provenance. Their code/UI remains visible until that task is complete.
 
-Selected free support replacement is tawk.to. The adapter is not implemented or registered. Build signed raw-body HMAC-SHA1 verification with `X-Tawk-Signature`, per-property tenant routing, durable event receipts and deduplication of `X-Hook-Event-Id`. Normalize finished transcripts/new tickets; do not advertise historical backfill, ticket-update sync or reply writeback without implementation. [tawk.to webhooks](https://developer.tawk.to/webhooks/).
+The tawk.to adapter is deployed at `/api/v1/webhooks/tawk/events`. Its owner property and encrypted signing secret are registered; the provider subscribes to `chat:transcript_created` and `ticket:create`. Raw-body HMAC-SHA1 (`X-Tawk-Signature`), tenant routing, durable atomic receipts and `X-Hook-Event-Id` deduplication are implemented. A labeled signed live fixture produced feedback 4 exactly once; unsigned delivery was rejected and replay deduplicated. This was not a provider-originated delivery: its public chat returns 403/blank and the embed connection resets. Actual provider delivery and worker analysis remain unverified. No historical backfill, ticket-update sync or reply writeback is provided. [Configuration steps](SELF_HOSTING.md#connecting-tawkto). [tawk.to webhooks](https://developer.tawk.to/webhooks/).
 
 ## Release gate
 

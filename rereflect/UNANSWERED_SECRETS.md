@@ -12,7 +12,7 @@ Updated: 2026-10-07. This is a **public checklist**, not a secrets vault. Never 
 | Support contact | `aayaannkausar@gmail.com` |
 | Administrative email | `aayaannkausar@gmail.com` |
 | GitHub identity / only current social profile | [Akgithub2028](https://github.com/Akgithub2028) |
-| Current integration scope | Remove Salesforce and replace Intercom/Zendesk with free support ingestion. tawk.to selected; adapter/removal pending. Other connectors retained. |
+| Current integration scope | Remove Salesforce and replace Intercom/Zendesk with free support ingestion. tawk.to signed ingestion deployed and owner-configured; retired-provider removal remains pending. Other connectors retained. |
 | Hosting | Existing Vercel feed-signal landing and created feedsignal dashboard; Render owner API/PostgreSQL/Redis provisioned, no worker. Railway/Compose remain inherited fallback recipes. Full local startup withdrawn. Budget $0; continuous-worker/durable-database topology unresolved. |
 | Database engine | Retain PostgreSQL; production Compose specifies `postgres:16-alpine`. Redis is the job broker/cache, not the customer-feedback database. |
 
@@ -62,11 +62,11 @@ See [current ownership/deployment status](docs/OWNERSHIP_DEPLOYMENT_STATUS.md), 
 |---|---|---|
 | `UNANSWERED_CLOUD_TOPOLOGY` | Continuous worker and durable database within $0 cloud constraint | OPEN: no free Render worker; Vercel functions cannot run the existing continuous Celery process. |
 | `UNANSWERED_VERCEL_PLAN_ELIGIBILITY` | Actual commercial-use-eligible Vercel plan | VERIFIED HOBBY; commercial eligibility remains OPEN. Hobby is personal/non-commercial only; no upgrade authorized. |
-| `UNANSWERED_TAWK_ACCOUNT` | Owner account/property authorization | OPEN: signup filled in Firefox; human verification failed again after a refreshed retry; owner must complete signup in a supported normal browser. Account creation not confirmed. |
-| `UNANSWERED_TAWK_PROPERTY_ID` | Per-organization registered property ID | OPEN; do not guess/share across tenants. |
-| `UNANSWERED_TAWK_WIDGET_ID` | Optional website widget ID | OPEN; only needed when installing chat. |
-| `UNANSWERED_TAWK_WEBHOOK_SECRET` | Encrypted per-source signing secret | OPEN; obtain/register after adapter implementation. |
-| `UNANSWERED_TAWK_WEBHOOK_SETUP` | Transcript/ticket-create subscriptions | OPEN; proposed /api/v1/webhooks/tawk/events is not implemented. |
+| `UNANSWERED_TAWK_ACCOUNT` | Owner account/property authorization | RESOLVED: activated owner account; authenticated dashboard and FeedSignal property verified. |
+| `UNANSWERED_TAWK_PROPERTY_ID` | Per-organization registered property ID | RESOLVED: `6ac54b01cc4acf34c881125c`, exclusively registered to owner organization 1, source 2. |
+| `UNANSWERED_TAWK_WIDGET_ID` | Optional website widget ID | RESOLVED: active widget `1k49aq1cq`. Website installation is optional and not performed; public chat currently blank/HTTP 403 from this environment. |
+| `UNANSWERED_TAWK_WEBHOOK_SECRET` | Encrypted per-source signing secret | RESOLVED: provider-generated secret saved privately and encrypted in production DB; never returned by configuration APIs. |
+| `UNANSWERED_TAWK_WEBHOOK_SETUP` | Transcript/ticket-create subscriptions | CONFIGURED: `/api/v1/webhooks/tawk/events`, `chat:transcript_created` and `ticket:create`. Signed controlled fixture persisted once; actual provider-originated delivery remains unverified because public chat is blocked. |
 
 ## Core deployment credentials
 

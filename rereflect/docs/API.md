@@ -4,6 +4,21 @@ Rereflect exposes a REST API under `/api/v1`. When the backend is running, the f
 interactive OpenAPI/Swagger docs are at **http://localhost:8000/docs** — this page is a
 quick map of the most common endpoints.
 
+## tawk.to support ingestion
+
+| Endpoint | Authentication | Behavior |
+|---|---|---|
+| `GET /api/v1/integrations/tawk/status` | Owner/admin JWT | Connection, property/source IDs, callback URL, last signed delivery and imported count; never returns the secret. |
+| `POST /api/v1/integrations/tawk/connect` | Owner/admin JWT | Body: `property_id` (24 lowercase hex), `webhook_secret` (16–512 characters), optional `name` (max 255). Creates/reuses a dedicated source and stores the secret encrypted. HTTP 201; another tenant's property returns 409; missing encryption configuration returns 503. |
+| `DELETE /api/v1/integrations/tawk/disconnect` | Owner/admin JWT | Stops ingestion, preserves source/history/feedback. Remove the provider webhook separately. |
+| `POST /api/v1/webhooks/tawk/events` | Provider signature | Raw JSON body, `X-Tawk-Signature` = hex HMAC-SHA1 using the property's secret, `X-Hook-Event-Id` required (max 255). No bearer token. |
+
+Supported events: `chat:transcript_created` and `ticket:create`. Only visitor text messages enter completed-chat feedback; agent/system messages and attachments are excluded. Agent/system-created tickets are ignored. Ticket HTML is converted to text. Anonymous contacts retain a null email. Property lookup determines the tenant, never a request-supplied organization ID.
+
+Delivery returns HTTP 200 with `status` **accepted**, **duplicate**, or **ignored** after database commit. Wrong/missing signatures, unknown properties and disconnected sources return 401; malformed event content/missing event ID returns 400; body over 1 MiB returns 413. Normalized text is limited to 100,000 characters. Receipt IDs deduplicate provider retries; provider chat/ticket IDs prevent a second feedback item under a different event ID. Generic source updates cannot change the signed connector's capture rules or secret.
+
+Feedback and receipt persist atomically before a bounded analysis enqueue attempt. A broker outage preserves feedback for existing periodic unanalyzed-feedback recovery; running worker **and Beat** are needed for that recovery. HTTP acceptance does not establish completed AI analysis. No historical backfill, replies or ticket-update synchronization is provided. See [property setup](SELF_HOSTING.md#connecting-tawkto).
+
 ## Authentication
 
 All protected endpoints require a JWT bearer token:

@@ -67,14 +67,19 @@ Deliverable: no active retired-provider authorization, polling or writeback path
 
 Files to create: backend `src/api/routes/tawk_integration.py`, `src/api/routes/tawk_webhook.py`, ingestion service and focused tests; frontend settings page/API client; database event-receipt migration if existing receipts cannot provide required uniqueness.
 
-- [ ] Test raw-body signature verification: absent/wrong signature rejects; valid request succeeds; no cross-property tenant routing.
-- [ ] Implement per-organization property registration and encrypted secret storage. Expose callback `/api/v1/webhooks/tawk/events` only after the implementation exists; do not point a provider at an invented working endpoint.
-- [ ] Normalize `chat:transcript_created` and `ticket:create`, retaining provider IDs/source evidence. Distinguish visitor from agent/system content and preserve anonymous contacts.
-- [ ] Commit a durable receipt before Celery dispatch; deduplicate provider retries with a database uniqueness constraint on source/event ID and recover undispatched receipts.
-- [ ] Test duplicate/reordered events, unknown properties, malformed/large payloads and unavailable broker. Acknowledge only after durable acceptance; retry delivery safely.
-- [ ] Register the owner property, webhook secret/events and optional widget after authenticated dashboard access. Do not advertise writeback or ticket updates.
+- [x] Test raw-body signature verification: absent/wrong signature rejects; valid request succeeds; no cross-property tenant routing.
+- [x] Implement per-organization property registration and encrypted secret storage. Expose callback `/api/v1/webhooks/tawk/events` only after the implementation exists; do not point a provider at an invented working endpoint.
+- [x] Normalize `chat:transcript_created` and `ticket:create`, retaining provider IDs/source evidence. Distinguish visitor from agent/system content and preserve anonymous contacts.
+- [x] Commit a durable receipt before Celery dispatch; deduplicate provider retries with a database uniqueness constraint on source/event ID and recover undispatched receipts.
+- [x] Test duplicate/reordered events, unknown properties, malformed/large payloads and unavailable broker. Acknowledge only after durable acceptance; retry delivery safely.
+- [x] Register the owner property, webhook secret/events and optional widget after authenticated dashboard access. Do not advertise writeback or ticket updates.
 
-Deliverable: one controlled owner test transcript/ticket is persisted once, processed once and visible in the correct workspace. Finish this adapter before calling the replacement integrated.
+**Ingestion implementation and controlled test complete (7 October):** code `9a76919` deployed on Render/Vercel; owner property/webhook registered. A labeled signed fixture persisted visitor feedback **4** in owner organization **1**, source **2**, exactly once. Bad signature 401; valid 200; replay duplicate; live UI shows one import. PostgreSQL concurrency and tenant/signature/error tests pass.
+
+- [ ] Observe an actual provider-originated completed chat/ticket delivery. Public chat is blank/HTTP 403 here; embed connection resets. The controlled fixture does not prove tawk.to can reach the callback.
+- [ ] Run analysis/recovery with a deployed worker and Beat. No worker exists; analysis completion and recovery under broker failure are not claimed live.
+
+Original full deliverable remains gated on the two checks above. Durable ingestion commits normalized feedback and its receipt atomically before enqueue; existing periodic unanalyzed-feedback processing provides recovery once worker/Beat run.
 
 ## Task 5: Remaining connectors and complete launch
 
@@ -85,4 +90,4 @@ Deliverable: one controlled owner test transcript/ticket is persisted once, proc
 - [ ] Run tenant-isolation tests, migration upgrade, backup/restore, worker/Beat and end-to-end analysis checks; restart services and verify persisted data/retry recovery.
 - [ ] Capture observed deployment URLs and results in the ledger. Deploy reviewed artifacts only after a viable budget/topology and authenticated access exist.
 
-**Status (7 October 2026):** both owner Vercel frontends READY. Owner API runtime/security/email revision `5ad1548` LIVE with reviewed OAuth/Asana fixes. Google public audience published (homepage ownership verified; branding recheck awaits 24-hour propagation); Slack posting and Linear/Jira/Asana signed tracker round trips PASS. HubSpot connection and required reads PASS. Eight owner Resend templates published/settings installed; isolated baseline welcome function delivered to owner. tawk.to human verification, retired-provider removal/replacement, worker/AI and durable hosting remain OPEN. See [current evidence](OWNERSHIP_DEPLOYMENT_STATUS.md).
+**Status (7 October 2026):** both owner Vercel frontends READY. Owner API runtime/security/email revision `9a76919` LIVE with reviewed OAuth/Asana fixes. Google public audience published (homepage ownership verified; branding recheck awaits 24-hour propagation); Slack posting and Linear/Jira/Asana signed tracker round trips PASS. HubSpot connection and required reads PASS. Eight owner Resend templates published/settings installed; isolated baseline welcome function delivered to owner. tawk.to signed ingestion/configuration and controlled fixture pass; actual provider delivery, retired-provider removal, worker/AI and durable hosting remain OPEN. See [current evidence](OWNERSHIP_DEPLOYMENT_STATUS.md).

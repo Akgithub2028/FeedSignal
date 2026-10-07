@@ -57,7 +57,7 @@ import { getOauthErrorMessage } from '@/lib/oauthErrors';
 
 // Docs entry point for the env vars that enable inbound webhook signature
 // verification (SLACK_SIGNING_SECRET, INTERCOM_CLIENT_SECRET).
-const SELF_HOSTING_DOCS_URL = 'https://github.com/haqaliz/rereflect/blob/master/docs/SELF_HOSTING.md';
+const SELF_HOSTING_DOCS_URL = 'https://github.com/Akgithub2028/FeedSignal/blob/master/docs/SELF_HOSTING.md';
 
 // The env var a self-hoster needs to set for each integration type that can
 // receive inbound signed webhooks. Only consulted when the backend reports
@@ -1156,6 +1156,10 @@ function IntegrationsContent() {
           </CardHeader>
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Link href="/settings/integrations/tawk" className="p-4 border border-border rounded-xl hover:border-primary/50 hover:bg-secondary/30 transition-all">
+                <span className="font-semibold">tawk.to</span>
+                <p className="text-sm text-muted-foreground">Import visitor chat transcripts and support tickets</p>
+              </Link>
               {/* Slack - Available */}
               <Link href="/settings/integrations/new">
                 <div className="p-4 border border-border rounded-xl hover:border-primary/50 hover:bg-secondary/30 transition-all cursor-pointer group">

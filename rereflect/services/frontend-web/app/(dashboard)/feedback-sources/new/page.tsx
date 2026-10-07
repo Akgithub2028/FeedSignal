@@ -167,6 +167,10 @@ function NewSourceContent() {
   );
 
   const handleTypeSelect = (type: string) => {
+    if (type === 'tawk') {
+      router.push('/settings/integrations/tawk');
+      return;
+    }
     setSelectedType(type);
     const typeInfo = sourceTypes.find(t => t.type === type);
     if (type === 'linear') {
@@ -953,7 +957,7 @@ function NewSourceContent() {
                             <div className="mt-2 space-y-2">
                               <div className="flex gap-2">
                                 <Input
-                                  placeholder="e.g., @rereflect, @productteam"
+                                  placeholder="e.g., @feedsignal, @productteam"
                                   value={mentionUserInput}
                                   onChange={e => setMentionUserInput(e.target.value)}
                                   onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addMentionUser())}

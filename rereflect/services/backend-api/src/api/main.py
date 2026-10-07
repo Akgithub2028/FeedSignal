@@ -12,6 +12,7 @@ from src.api.routes import conversation_folders, conversations, copilot_ws, copi
 from src.api.routes import copilot_actions  # noqa: E402 — copilot-suggested-actions: action-registry
 from src.api.routes import events_ws
 from src.api.routes import linear_integration, linear_webhook
+from src.api.routes import tawk_integration, tawk_webhook
 from src.api.routes import hubspot_integration as hubspot_integration_router
 from src.api.routes import salesforce_integration as salesforce_integration_router
 from src.api.routes import jira_integration as jira_integration_router
@@ -403,6 +404,8 @@ app.include_router(jira_integration_router.router)
 app.include_router(jira_webhook_router.router)
 # Asana integration (asana-integration backend-connection aspect)
 app.include_router(asana_integration_router.router)
+app.include_router(tawk_integration.router)
+app.include_router(tawk_webhook.router)
 app.include_router(asana_webhook_router.router)
 # Intercom token-paste connection (intercom-selfhost-ingestion token-paste-connect)
 app.include_router(intercom_integration_router.router)

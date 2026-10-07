@@ -540,6 +540,14 @@ requests.post(
         )}
 
         {/* Settings */}
+        {source.source_type === 'tawk' && <Card>
+          <CardHeader><CardTitle>tawk.to capture settings</CardTitle></CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">Completed visitor chats and new customer tickets are imported automatically. Agent and system messages are excluded.</p>
+            <Link href="/settings/integrations/tawk" className="underline">Manage property connection</Link>
+          </CardContent>
+        </Card>}
+        {source.source_type !== 'tawk' && <>
         <Card className="animate-slide-up">
           <CardHeader>
             <CardTitle>Settings</CardTitle>
@@ -759,6 +767,7 @@ requests.post(
         </Card>
 
         {/* Recent Events */}
+        </>}
         <Card className="animate-slide-up">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -832,7 +841,7 @@ requests.post(
         </Dialog>
 
         {/* Save Button */}
-        {isAdminOrOwner && (
+        {isAdminOrOwner && source.source_type !== 'tawk' && (
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={saving}>
               {saving ? (

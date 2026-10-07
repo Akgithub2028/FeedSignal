@@ -5,6 +5,7 @@ from .feedback import FeedbackItem
 from .integration import Integration, SlackAlertLog
 from .feedback_source import FeedbackSource
 from .feedback_source_event import FeedbackSourceEvent
+from .tawk_integration import TawkIntegration
 from .pending_feedback import PendingFeedback
 from .subscription import Subscription
 from .usage import UsageRecord
@@ -78,6 +79,7 @@ __all__ = [
     "SlackAlertLog",
     "FeedbackSource",
     "FeedbackSourceEvent",
+    "TawkIntegration",
     "PendingFeedback",
     "Subscription",
     "UsageRecord",

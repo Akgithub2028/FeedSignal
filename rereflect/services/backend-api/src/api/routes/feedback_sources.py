@@ -185,6 +185,13 @@ def list_source_types():
             available=True,
         ),
         SourceTypeInfo(
+            type="tawk",
+            name="tawk.to",
+            description="Import visitor chat transcripts and new support tickets",
+            requires_integration=False,
+            available=True,
+        ),
+        SourceTypeInfo(
             type="intercom",
             name="Intercom",
             description="Analyze support conversations with AI",
@@ -534,6 +541,11 @@ def update_feedback_source(
 ):
     """Update a feedback source."""
     source = _get_source_or_404(db, source_id, current_org.id)
+    if source.source_type == "tawk" and (
+        data.provider_config is not None or data.auto_import is False
+        or data.triggers is not None or data.field_mapping is not None
+    ):
+        raise HTTPException(400, "Manage tawk.to property settings through its integration page.")
 
     if data.name is not None:
         source.name = data.name

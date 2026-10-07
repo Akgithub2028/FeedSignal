@@ -4,7 +4,7 @@
 
 Maintained by [Akgithub2028](https://github.com/Akgithub2028). Support and administrator contact: [aayaannkausar@gmail.com](mailto:aayaannkausar@gmail.com).
 
-Repository: **[Akgithub2028/FeedSignal](https://github.com/Akgithub2028/FeedSignal)**. FeedSignal is an independent fork of [Rereflect](https://github.com/haqaliz/rereflect), distributed under the retained [MIT License](LICENSE) and [NOTICE](NOTICE).
+Repository: **[Akgithub2028/FeedSignal](https://github.com/Akgithub2028/FeedSignal)**. 
 
 ## Current status
 
